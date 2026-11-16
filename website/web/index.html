@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0b1420">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="药时">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <link rel="icon" type="image/png" href="/icon-192.png">
+  <meta name="description" content="药物服用时间轴与群体药代模型演示。记录剂量，探索估算血药浓度曲线。">
+  <title>药时 · 记录与模型时间轴</title>
+  <link rel="stylesheet" href="./styles.css?v=offline-20261116a">
+  <script defer src="/api-client.js?v=autosync-20261115"></script>
+  <script defer src="./app.js?v=offline-20261116a"></script>
+  <script defer src="./push.js?v=11"></script>
+</head>
+<body class="stage-loading">
+  <a class="skip-link" href="#mainContent">跳到主要内容</a>
+  <header class="topbar">
+    <a class="brand" href="/"><span class="brand-icon" aria-hidden="true">✳</span><span>药时 <small>PK ATLAS</small></span></a>
+    <a class="shortcut-install" href="/install.html" aria-label="安装原生快捷指令（药时）">安装原生快捷指令 <span aria-hidden="true">↓</span></a>
+    <span class="top-note"><i class="live-dot" aria-hidden="true"></i> 自动保存 · 云端核对</span>
+    <button id="appHeaderSync" class="app-header-sync" type="button" aria-label="打开同步与账户设置">
+      <span class="app-sync-dot" aria-hidden="true"></span><span id="appHeaderSyncText">检查同步状态</span>
+    </button>
+  </header>
+  <div id="offlineAppBanner" class="offline-app-banner" role="status" hidden>离线模式 · 本机草稿尚未同步</div>
+  <main id="mainContent" class="layout" tabindex="-1">
+    <section id="bootScreen" class="boot-screen" role="status" aria-live="polite" aria-atomic="true">
+      <div class="boot-brand-mark" aria-hidden="true">✳</div>
+      <div class="boot-spinner" aria-hidden="true"></div>
+      <div class="boot-headline">药时正在准备就绪</div>
+      <p id="bootStatus">正在安全恢复登录与云端记录…</p>
+      <div class="boot-track" aria-hidden="true"><div class="boot-track-glow"></div></div>
+      <small>已保存的服药记录不会因页面加载而改变</small>
+    </section>
+    <section class="intro">
+      <div class="eyebrow">PHARMACOKINETIC JOURNAL <span>探索版</span></div>
+      <h1>记录每一次服用，<em>看见时间变化。</em></h1>
+      <p>服药记录、浓度曲线与模型探索，集中在一个清晰的时间轴。</p>
+    </section>
+    <div class="notice notice-compact" role="note"><span class="notice-symbol" aria-hidden="true">i</span><strong>群体估算模型 · 非血药实测</strong><details class="mini-disclosure" data-pref="introDisclaimer"><summary>重要使用说明</summary><p>服用剂量用 mg 或 g 输入，模型估算浓度使用 mg/L，二者不能直接互换。曲线不等于药效，也不能用于自行调整给药方案。</p></details></div>
+    <section class="panel account-panel" aria-label="账号同步">
+      <div class="account-copy"><strong id="accountName">药时账号</strong><span id="syncStatus" role="status" aria-live="polite" data-sync="pending">正在恢复登录…</span><small id="syncLastSaved" aria-live="off">正在核对云端状态</small></div>
+      <form id="authForm" class="auth-form" method="post">
+        <label class="auth-field" for="accountUser">用户名
+          <input id="accountUser" name="accountUser" type="text" autocomplete="username" minlength="3" maxlength="32" placeholder="字母、数字、下划线" required>
+        </label>
+        <label class="auth-field" for="accountPassword">密码
+          <input id="accountPassword" name="accountPassword" type="password" autocomplete="current-password" minlength="12" placeholder="密码至少 12 位" required>
+        </label>
+        <label class="session-remember" for="sessionRemember"><input id="sessionRemember" name="remember" type="checkbox" checked><span>在此个人设备保持登录<small>最多 90 天，连续 30 天未使用自动退出。不勾选时关闭浏览器即结束会话（恢复窗口可能保留），服务器闲置 24 小时或最长 7 天失效。</small></span></label>
+        <button class="secondary" type="submit" data-action="login">登录</button>
+        <button class="ghost" type="submit" data-action="register">注册</button>
+      </form><button id="authRetry" class="ghost" type="button" hidden>重试恢复登录</button>
+      <button id="transferLocal" class="secondary" type="button" hidden>将本机数据转到正式网站</button>
+      <details id="accountTools" class="account-tools" hidden><summary><span>账号操作</span><small>同步 · 备份 · 设置</small></summary><div id="accountActions" class="account-actions" hidden><button id="syncNow" class="secondary" type="button">立即同步</button><button id="syncExport" class="ghost" type="button">导出本机草稿</button><button id="saveLocalCloud" class="secondary" type="button">保存本地数据至云端</button><button id="importLocal" class="ghost" type="button" hidden>导入本机旧记录</button><button id="syncRetry" class="ghost" type="button" hidden>重试同步</button><details id="deviceSessionGuide" class="device-session-guide"><summary>管理已登录设备</summary><p class="hint">每次登录生成一份独立会话；设备名称仅供识别，不用它或 IP 地址作为登录凭证。</p><button id="deviceSessionsRefresh" class="ghost" type="button">刷新设备列表</button><button id="deviceSessionsRevokeOthers" class="record-danger" type="button" hidden>退出其他所有设备</button><p id="deviceSessionResult" class="hint" role="status" aria-live="polite" hidden></p><div id="deviceSessionsList" aria-live="polite"></div></details><a href="/data-center.html" class="ghost account-link">同步中心 · 数据导入与导出</a><a href="/notifications.html" class="ghost account-link">通知设置与诊断中心</a><a href="/quick.html" class="ghost account-link">快捷面板与 API 密钥</a><button id="logout" class="ghost" type="button">退出登录</button></div></details>
+    </section>
+    <nav class="entry-links" aria-label="手机快捷入口">
+      <a class="entry-link entry-link-primary" href="/install.html"><span>⌁</span><span><strong>安装药时原生快捷指令</strong><small>在快捷指令中输入参数，由网站 API 计算并返回结果</small></span><span aria-hidden="true">›</span></a>
+      <a class="entry-link" href="/quick.html"><span>↗</span><span><strong>打开快捷面板</strong><small>快速记录、查看曲线和反算</small></span><span aria-hidden="true">›</span></a>
+    </nav>
+    <section id="chooser" class="panel chooser" aria-label="选择服用日期">
+      <div class="eyebrow muted">JOURNAL / 历史与今天</div>
+      <h2>选择服用日期</h2>
+      <details class="mini-disclosure journal-help" data-pref="journalHelp"><summary>如何查看和记录日期</summary><p>选择已有日期查看当天记录与模型；也可以先选日期，再新增实际服用。</p></details>
+      <div class="chooser-date"><label for="chooseDate">查看日期<input id="chooseDate" type="date" name="chooseDate"></label><button id="chooseDateOpen" class="primary" type="button">进入所选日期</button></div>
+      <div class="chooser-section-head"><strong>已有服用日期</strong><span>选择后进入记录与计算</span></div>
+      <div id="chooserDates" class="chooser-grid"></div>
+      <section id="adoptedPlans" class="chooser-adopted" hidden><div class="chooser-section-head"><strong>已采用的模型</strong><span>登录后从账号同步；点击继续查看</span></div><div id="adoptedPlanList" class="chooser-grid"></div></section>
+      <button id="chooserAdd" class="secondary chooser-add" type="button">＋ 新增所选日期的服用</button>
+    </section>
+    <div id="calculationView">
+      <section id="appHome" class="app-screen app-home" aria-labelledby="appHomeTitle">
+        <div class="app-view-heading">
+          <div><p class="app-eyebrow">TODAY · 今日</p><h1 id="appHomeTitle">今天</h1><p id="appHomeDate" class="app-muted">正在读取日期</p></div>
+          <button id="homeNewDose" class="app-circle-add" type="button" aria-label="记录一次服用">＋</button>
+        </div>
+        <section class="app-hero app-card" aria-labelledby="appTrendTitle">
+          <div class="app-hero-heading">
+            <div><p class="app-eyebrow">MODEL TREND</p><h2 id="appTrendTitle">药物时间轨迹</h2></div>
+            <button id="homeOpenChart" class="app-subtle-button" type="button">完整曲线 <span aria-hidden="true">›</span></button>
+          </div>
+          <label class="app-drug-chooser" for="appHomeDrug">查看药物
+            <select id="appHomeDrug" name="appHomeDrug" aria-label="首页查看的药物"></select>
+          </label>
+          <div class="app-home-concentration">
+            <span>当前群体模型估算</span><strong id="appHomeConcentration">暂无记录</strong>
+          </div>
+          <div class="app-mini-chart" id="appMiniChartBox">
+            <svg id="appMiniChart" viewBox="0 0 320 114" preserveAspectRatio="none" role="img" aria-label="当前药物前后十二小时模型浓度变化简图"></svg>
+            <div class="app-mini-axis"><span>过去 12 小时</span><span>现在</span><span>未来 12 小时</span></div>
+          </div>
+          <p class="app-hero-disclaimer">群体参考模型 · 非个人实测血药浓度 · 不代表药效或用药建议</p>
+        </section>
+        <div id="appHomeWarning" class="app-home-warning" role="alert" hidden></div>
+        <section class="app-today-stats" aria-label="当天记录摘要">
+          <div class="app-stat"><span>今天已确认服用</span><strong id="appTodayCount">0 次</strong></div>
+          <div class="app-stat"><span>最近一次记录</span><strong id="appLastDose">暂无</strong><small id="appLastDoseTime">添加记录后显示</small></div>
+        </section>
+        <div class="app-section-heading"><h2>今天的记录</h2><button id="homeSeeHistory" type="button">查看全部 <span aria-hidden="true">›</span></button></div>
+        <div id="appHomeRecords" class="app-home-records" aria-live="polite"></div>
+        <div class="app-quick-actions"><button id="homeNewIntake" type="button">＋ 饮食 / 饮料</button><button id="homeNewDoseSecondary" type="button">＋ 服用记录</button></div>
+      </section>
+      <div id="appHistoryHeading" class="app-screen-heading"><p class="app-eyebrow">JOURNAL</p><h1>历史记录</h1><p>按日期查看、修改与核对已有记录</p><div id="appHistoryRecords" class="app-history-quicklist"></div></div>
+      <section id="appMy" class="app-screen app-my" aria-labelledby="appMyTitle">
+        <div class="app-view-heading"><div><p class="app-eyebrow">ACCOUNT & SETTINGS</p><h1 id="appMyTitle">我的</h1><p>同步、备份、设置与模型说明</p></div></div>
+        <div id="appMyContent"></div>
+      </section>
+      <nav class="view-quicknav" aria-label="工作区快速导航">
+        <a href="#recordSection" data-view-pane="records">记录</a>
+        <a href="#chartTitle" data-view-pane="results">时间轴</a>
+        <button id="openAdvanced" type="button" data-view-pane="results">参考线与反算</button>
+        <button id="openHistory" type="button">查看历史</button>
+      </nav>
+      <div class="calc-nav"><button id="backToChooser" class="ghost" type="button">‹ 返回日期</button><div><strong id="calcContext">计算与记录</strong><span>群体药代模型 · 非用药建议</span></div><label class="calc-drug-label" for="calcDrug">选择药物<select id="calcDrug" name="calcDrug"></select></label></div>
+    <section class="panel day-panel" aria-label="按日期查看所有药物">
+      <div class="day-head"><div><div class="eyebrow muted">DAILY OVERVIEW</div><h2>当天记录总览</h2></div><label for="viewDate">选择日期<input id="viewDate" type="date" name="viewDate"></label></div>
+      <div id="daySummary" class="day-summary" aria-live="polite"></div>
+      <div id="dayCourseList" class="day-course-list"></div>
+      <details class="overview-disclosure" id="dailyChartsGuide" data-pref="dailyChartsGuide"><summary>查看当天的多药浓度概览</summary><div id="dayCharts" class="day-charts"></div></details>
+    </section>
+    <div id="mobilePanels" class="mobile-panels" role="group" aria-label="手机端查看区域"><button id="mobileRecords" type="button" aria-pressed="true">记录与饮食</button><button id="mobileResults" type="button" aria-pressed="false">曲线与反算</button></div>
+    <div class="workspace">
+      <aside class="panel controls" id="recordSection">
+        <div class="section-head"><span>01</span><h2>选择药物</h2></div>
+        <label class="field-label" for="drug">当前观察</label><select id="drug" name="drug"></select>
+        <details class="evidence-disclosure drug-detail-disclosure" id="drugDetailGuide" data-pref="drugDetailGuide"><summary>查看药物参数、风险及说明书</summary><div id="drugInfo" class="drug-info"></div></details><div id="drugSafetyAlert" class="drug-alert" role="alert" hidden></div>
+        <div class="section-head spaced"><span>02</span><h2>新增当天服用</h2></div>
+        <form id="doseForm" method="post" autocomplete="off">
+          <div class="field-label"><label for="doseTime">服用日期与时间</label><button class="text-button" id="nowButton" type="button">现在</button></div>
+          <input id="doseTime" type="datetime-local" required name="doseTime">
+          <p class="hint">输入自动保存草稿；点击保存才会记为实际服用。</p>
+          <label class="field-label" for="doseAmount">单次服用剂量 <span>选择输入单位</span></label>
+          <div class="dose-input-row"><input id="doseAmount" type="number" min="0.1" step="any" required name="doseAmount"><select id="doseUnit" aria-label="剂量单位" name="doseUnit"><option value="mg">mg</option><option value="g">g</option></select></div>
+          <p id="doseLimit" class="hint"></p><p id="dosePillHint" class="hint"></p>
+          <button class="primary" id="doseSubmit" type="submit"><span>＋</span> 保存这次服用</button>
+          <div class="dose-edit-actions">
+            <button class="ghost cancel-edit" id="doseCancel" type="button" hidden>取消修改</button>
+            <button class="record-danger" id="doseDelete" type="button" hidden>删除此条服用记录</button>
+          </div>
+        </form>
+        <div class="list-head"><span>所选日期的已记录剂量</span><small>所有药物</small></div>
+        <div id="dayRecordSummary" class="day-record-summary" aria-live="polite"></div>
+        <div id="recordList" class="record-list"></div>
+        <div class="section-head spaced intake-heading"><span>03</span><h2>饮食与饮料记录</h2></div>
+        <p class="hint">自动记录时间。餐型可能影响部分药物的吸收估计；饮料不直接改写浓度。</p>
+        <form id="intakeForm" class="intake-form" method="post" autocomplete="off">
+          <label for="intakeKind">记录类型<select id="intakeKind" name="intakeKind"><option value="meal">用餐</option><option value="drink">仅饮料</option></select></label>
+          <div class="field-label"><label for="intakeTime">发生时间</label><button class="text-button" id="intakeNow" type="button">现在</button></div>
+          <input id="intakeTime" type="datetime-local" required name="intakeTime">
+          <label id="mealTypeWrap" for="mealType">餐型<select id="mealType" name="mealType"><option value="regular">普通用餐</option><option value="highFat">高脂或丰盛餐</option></select></label>
+          <label for="intakeDrink">饮料<select id="intakeDrink" name="intakeDrink"><option value="none">未记录</option><option value="water">水</option><option value="coffee">咖啡</option><option value="tea">茶</option><option value="milk">牛奶</option><option value="juice">果汁</option><option value="alcohol">酒精饮料</option><option value="other">其他饮料</option></select></label>
+          <label for="intakeNote">备注（可选）<input id="intakeNote" type="text" maxlength="100" placeholder="例如午餐、饮料名称" name="intakeNote"></label>
+          <button class="secondary" id="intakeSubmit" type="submit">＋ 保存饮食记录</button><button class="ghost cancel-edit" id="intakeCancel" type="button" hidden>取消修改</button><button class="record-danger" id="intakeDelete" type="button" hidden>删除此条饮食记录</button>
+        </form>
+        <div class="list-head"><span>所选日期的饮食记录</span><small>跨设备同步</small></div>
+        <div id="intakeList" class="record-list"></div>
+        <details class="evidence-disclosure meal-impact-disclosure" id="mealImpactGuide" data-pref="mealImpactGuide"><summary>查看饮食对本次模型的影响</summary><div id="mealImpact" class="meal-impact" aria-live="polite"></div></details>
+        <details class="food-evidence"><summary>查看已收录药物的饮食与饮料依据</summary><div id="foodEvidence"></div></details>
+        <details class="evidence-disclosure" data-pref="mealTiming"><summary>了解餐后匹配窗口与限制</summary><p class="hint">普瑞巴林速释胶囊：模型将服药前 4 小时至服药后 15 分钟内的最近一次用餐视为餐后情景；人体研究涵盖普通餐后 30 分钟和 4 小时给药；将 4 小时窗口用于高脂餐属于模型外推，且没有测得个人消化完成时间，也不证明第 4 小时后影响突然消失。其他药物仍用服药前 90 分钟至服药后 15 分钟的模拟窗口。已吸收的剂量不会因后来吃饭而重新吸收；用餐记录不改变消除半衰期。</p></details>
+        <details class="panel plan-panel disclosure-section" id="planPanel" data-pref="planPanel"><summary class="disclosure-head"><span class="disclosure-title">处方与药盒核对</span><span class="disclosure-hint">点击展开</span></summary><div class="disclosure-body">
+          <p>按账号保存每种药物持有的多种规格。模型只按已保存规格的完整单位组合剂量；这里不会判断包装真伪、剂型是否适合混用或是否应拆分。</p>
+          <label class="field-label" for="planDrug">管理哪种药物的规格</label><select id="planDrug" name="planDrug"></select>
+          <div class="spec-entry"><label for="planStrength">每单位含量（mg）<input id="planStrength" type="number" min="0.001" step="any" inputmode="decimal" placeholder="例如 75" name="planStrength"></label><label for="planUnit">包装单位<select id="planUnit" name="planUnit"><option value="粒">粒</option><option value="片">片</option><option value="袋">袋</option></select></label><label for="planStrengthLabel">包装备注（可选）<input id="planStrengthLabel" type="text" maxlength="40" placeholder="例如家中现有药盒" name="planStrengthLabel"></label><button id="planAddStrength" class="secondary" type="button">＋ 添加规格并保存</button></div>
+          <div id="planStrengthList" class="spec-list" aria-live="polite"></div>
+          <div class="plan-grid"><label>处方每次剂量<input id="planDose" type="number" min="0.001" step="any" inputmode="decimal" placeholder="按处方填写" name="planDose"><small>mg / 次，若保存则作为反算单次上限</small></label><label>处方指定间隔<input id="planInterval" type="number" min="0.1" max="168" step="any" inputmode="decimal" placeholder="按处方填写" name="planInterval"><small>小时，若保存则作为反算最短间隔</small></label><label>上次计划时间<input id="planLastTime" type="datetime-local" name="planLastTime"><small>仅用于处方时间核对，不当作实际服用</small></label></div>
+          <div id="planResult" class="plan-result" aria-live="polite">添加规格后显示整单位组成核对。</div><p class="hint">输入时会自动同步编辑草稿；点击“保存该药处方信息”才将其作为已确认处方数据用于核对。</p><div class="plan-save-row"><button id="planSave" type="button" class="secondary">保存该药处方信息</button><span id="planStored">尚未保存规格</span></div>
+          <p class="hint">胶囊、片剂或缓释剂型不能默认拆分；不同制剂的真实吸收可能不同。若规格不能组成处方剂量，请向药师核对。</p></div></details>
+      </aside>
+      <section class="results">
+        <div class="panel chart-panel">
+          <div class="chart-head"><div><div class="eyebrow muted">MODEL TIMELINE <span>当前药物</span></div><h2 id="chartTitle">估算血药浓度</h2></div><span class="chart-unit">mg/L + mg（等效）</span></div>
+          <div class="chart-tools"><label for="chartScale">时间轴精度 <select id="chartScale" name="chartScale"><option value="55" selected>标准</option><option value="90">精细</option><option value="140">超精细</option></select></label><span>拖动时间轴，查看各时刻</span><button id="jumpNow" class="ghost" type="button">定位现在</button><button id="quickReference" class="ghost" type="button" popovertarget="referenceGlance" aria-controls="referenceGlance">快速查看</button><button id="chartAddDose" class="ghost" type="button">＋ 记录</button></div>
+          <div id="chartWrap" class="chart-wrap" tabindex="0" aria-label="可横向滚动的当前药物浓度时间轴" aria-describedby="chartCaption"><svg id="chart" role="img" aria-label="当前药物血药浓度随时间变化曲线"></svg></div>
+          <div class="probe"><div class="probe-copy"><span>拖动查看时间点</span><strong id="probeReadout">添加记录后拖动查看</strong></div><div id="probeValues" class="probe-values" aria-live="polite"></div><input id="timeScrubber" type="range" min="0" max="360" value="0" aria-label="时间轴游标" disabled name="timeScrubber"></div>
+          <div class="legend" aria-label="曲线与参考线图例"><span><i></i> <span id="recordedLegend">已记血药浓度 · 左轴 mg/L</span></span><span><i class="equivalent"></i> 剂量等效量 · 右轴 mg</span><span id="unfedLegend" hidden><i class="unfed"></i> 未计饮食参考</span><span id="referenceLegend"><i id="referenceLegendLine" class="dashed"></i> 血药参考线 · 左轴 mg/L</span><span id="previewBloodLegend" hidden><i class="preview"></i> 蓝色虚线＝假设后的血药浓度 · 左轴</span><span id="previewUnfedLegend" hidden><i class="preview-unfed"></i> 浅灰点线＝假设节点不计饮食 · 左轴</span><span id="previewEquivalentLegend" hidden><i class="equivalent-preview"></i> 紫色虚线＝假设后的剂量等效量 · 右轴</span><span id="targetMarkerLegend" hidden><i class="target-marker"></i> 虚线竖标＝目标时刻</span></div>
+          <div id="referenceGlance" class="reference-glance" popover="auto" aria-label="当前读数与参考线速览">
+            <div class="reference-glance-title"><strong>当前读数 · 快速查看</strong><button type="button" class="ghost" popovertarget="referenceGlance" popovertargetaction="hide" aria-label="关闭快速查看">关闭</button></div>
+            <p id="referenceGlanceTime">选择时间点后显示模型读数</p>
+            <div id="referenceGlanceValues" class="reference-glance-values"></div>
+            <button id="referenceGlanceEdit" class="secondary" type="button">查看与调整参考线</button>
+          </div>
+          <details class="evidence-disclosure" id="chartCaptionGuide" data-pref="chartCaptionGuide"><summary>图示口径、时间窗口和计算说明</summary><div id="chartCaption" class="chart-caption"></div></details><details class="evidence-disclosure" id="chartMealGuide" data-pref="chartMealGuide"><summary>用餐对当前曲线的影响</summary><div id="chartMealStatus" class="chart-meal-status" hidden></div></details><details class="evidence-disclosure" data-pref="equivalentGuide"><summary>剂量等效量与浓度有什么不同？</summary><p class="equivalent-explain">剂量等效量：每次服用在其模型达峰时归一化为本次输入剂量，随后按该药模型半衰期递减；多次记录逐次相加。例：单次 600 mg 的峰值为 600 mg（等效），峰后一个模型半衰期为 300 mg（等效）。这是便于观察的换算刻度，<strong>不是体内实际药量或血液中的毫克数</strong>；吸收率与组织分布不能仅凭服用剂量推出。个人肌酐清除率目前只会调整普瑞巴林模型，其他药物沿用各自标准半衰期。</p></details>
+        </div>
+        <div class="metrics"><div class="metric"><span>单次达峰</span><strong id="peakTime">—</strong><small>参考或个人模型</small></div><div class="metric"><span>消除半衰期</span><strong id="halfLife">—</strong><small>参考或个人模型</small></div><div class="metric"><span>模型峰值</span><strong id="peakConc">—</strong><small>当前记录叠加</small></div><div class="metric"><span>剂量等效峰值</span><strong id="peakEquivalent">—</strong><small>所示时间窗 · 非实存量</small></div></div>
+        <details class="panel threshold-panel disclosure-section" id="advancedTools" data-pref="advancedTools"><summary class="disclosure-head"><span class="disclosure-title">参考线、假设与反算</span><span class="disclosure-hint">点击展开</span></summary><div class="disclosure-body"><p>血药浓度与剂量等效量二选一填写；输入其中一项会清空另一项；点击“确定并计算”后才应用。参考线由你设定，不代表有效治疗浓度或体内实存药量。</p><div id="referenceDrugHint" class="reference-drug-hint">当前药物</div><div class="reference-options"><div class="threshold-row"><label for="threshold">血药浓度参考值</label><div><input id="threshold" type="number" min="0.001" step="0.001" inputmode="decimal" placeholder="例如 2" name="threshold"><span>mg/L</span></div></div><div class="threshold-row"><label for="thresholdEquivalent">剂量等效参考值</label><div><input id="thresholdEquivalent" type="number" min="0.001" step="0.001" inputmode="decimal" placeholder="例如 300" name="thresholdEquivalent"><span>mg（等效）</span></div></div></div><div class="reference-actions"><button id="referenceConfirm" class="secondary" type="button">确定并计算</button><span id="referenceStatus" role="status">输入完成后点击确定</span></div><p class="hint">参考值按当前药物保存到账号；明天再次打开仍会沿用上次确认的浓度或剂量等效值；未确认的输入不会改变曲线或反算。</p><div id="crossingResult" class="crossing-result" aria-live="polite">输入一种参考值后显示对应曲线的下降交点。</div><div class="inverse-tabs" role="tablist" aria-label="反算方式"><button id="inverseTabPoint" type="button" role="tab" aria-selected="true" aria-controls="pointInversePage">按目标时刻自动反算</button><button id="inverseTabDuration" type="button" role="tab" aria-selected="false" aria-controls="durationInversePage">按持续时长反算</button></div><div id="pointInversePage" class="inverse-block" role="tabpanel" aria-labelledby="inverseTabPoint"><div class="inverse-title">按目标时刻自动反算</div><p class="hint">默认实时计算。填写目标时刻和参考值并保存药盒规格后，可分别采用方案 A 或 B，并同步到账号。已采用方案单独显示，实时候选继续按当前记录重新计算；采用的方案自动显示在曲线中，也可预览实时方案。新增模拟服用记录时自动匹配，也可在原节点上手动调整匹配记录；系统按实际时间和剂量生成后续调整意见，点击“采用调整意见”后才更新已采用的预计节点。实际记录不会被改写。单次上限留空表示不设上限；指定次数为原方案的总节点数。</p><div class="scenario-fields"><label for="pointTarget">希望在哪个时间达到参考值<input id="pointTarget" type="datetime-local" name="pointTarget"></label><label for="pointMaxDose">假设单次剂量上限（mg，留空不设上限）<input id="pointMaxDose" type="number" min="0.001" step="any" inputmode="decimal" placeholder="例如 200" name="pointMaxDose"></label><label for="pointCount">假设服用次数（留空由模型选择）<input id="pointCount" type="number" min="1" max="8" step="1" inputmode="numeric" placeholder="留空自动；或输入 1、2…8" name="pointCount"></label><label for="pointPeakMin">覆盖段峰值最低值（剂量等效 mg，留空不限制）<input id="pointPeakMin" type="number" min="0.001" step="any" inputmode="decimal" placeholder="例如 800 mg（等效）" name="pointPeakMin"></label></div><p class="hint">峰值最低值要求方案在首次持续达到参考线至目标时刻的区间内，剂量等效量的最高点达到此数值；适用于全部药物，不是单次剂量或真实体内药量。</p><section id="adoptedPointPanel" class="adopted-point-panel" hidden><div class="adopted-point-head"><strong>已采用方案 · 账号同步</strong><span>原方案与当前记录匹配结果</span></div><div id="adoptedPointResult" class="crossing-result scenario-results" aria-live="polite"></div><div class="point-plan-actions"><button id="adoptedPreview" class="ghost" type="button">在曲线中查看已采用方案</button><button id="pointLive" class="ghost" type="button">取消已采用方案</button></div></section><div class="live-point-head"><strong>实时反算候选</strong><span>根据当前服用与饮食记录计算；采用 A 或 B 会替换上方已采用方案</span></div><div id="pointResult" class="crossing-result" aria-live="polite">保存当前药物规格，再填写一种参考值和目标时刻后查看模型情景。</div><button id="pointPreview" class="ghost point-preview" type="button" hidden>在曲线中查看方案 A</button><button id="pointMinimumPreview" class="ghost point-preview" type="button" hidden>在曲线中查看方案 B</button><p class="hint">每 5 分钟验证浓度；指定 2 次时按 5 分钟步长搜索第二个节点，其他次数仍比较有限候选时间。无解仅代表当前搜索范围、规格和约束下无解。口服吸收有延迟，当前若已低于目标，无法立刻变为达标。补充节点不等于临床给药方案，不能据此安排服药。</p></div><div id="durationInversePage" class="inverse-block" role="tabpanel" aria-labelledby="inverseTabDuration" hidden><div class="inverse-title">按持续时长反算模型情景</div>
+          <p class="hint">先为当前药物保存实际持有的规格。模型仅搜索整粒／整片／整袋可组成的剂量，并计入已记录的同药残留；处方每次剂量和指定间隔若已保存，也会作为搜索约束。此处输入按账号及药物记忆；已过期的开始时间下次打开时恢复为未来默认时间。</p>
+          <div class="scenario-fields"><label for="targetStart">希望维持开始于<input id="targetStart" type="datetime-local" name="targetStart"></label><label for="holdHours">连续维持时长<input id="holdHours" type="number" min="0.25" max="24" step="0.25" inputmode="decimal" value="3" placeholder="例如 3 小时" name="holdHours"></label><label for="inverseCount">假设服用次数（留空由模型选择）<input id="inverseCount" type="number" min="1" max="8" step="1" inputmode="numeric" placeholder="留空自动；或输入 1、2…8" name="inverseCount"></label></div>
+          <div id="inverseResult" class="crossing-result" aria-live="polite">保存当前药物的规格并填写参考浓度后，查看整单位模型情景。</div>
+          <div class="inverse-actions"><button id="inverseManageStrengths" class="ghost" type="button">管理当前药物规格</button><button id="inversePreview" class="ghost" type="button" hidden>在曲线中查看情景</button></div>
+          <p class="hint">系统最多比较 8 次、每节点最多 8—20 个完整单位的有界候选；自动模式按总剂量最少、同剂量下模型峰值较低排序。未找到候选只表示此搜索范围无解。结果不是处方，也不能保证真实血药浓度。</p></div><div class="scenario-fields"><label>手动假设下次服用时间<input id="scenarioTime" type="datetime-local" name="scenarioTime"></label><label>手动假设单次剂量<div class="dose-input-row"><input id="scenarioDose" type="number" min="0.001" step="any" inputmode="decimal" placeholder="自行输入" name="scenarioDose"><select id="scenarioUnit" aria-label="假设剂量单位" name="scenarioUnit"><option value="mg">mg</option><option value="g">g</option></select></div></label></div><div id="scenarioResult" class="crossing-result" aria-live="polite">输入假设时间与剂量后，显示模型达峰、达到参考线与维持时间。</div><p class="hint">手动情景只计算当前药物、当前记录与这一条假设剂量。吸收需要时间，不能保证全程高于参考线；实际用药应依据处方和医师／药师指导。</p></div></details>
+        <details class="panel reading disclosure-section" id="readingGuide" data-pref="readingGuide"><summary class="disclosure-head"><span class="disclosure-title">如何理解模型结果</span><span class="disclosure-hint">点击展开</span></summary><div class="disclosure-body"><div id="insight"></div><div class="reading-grid"><div><b>浓度 ≠ 药效</b><p>达峰时间指血液中测得的浓度峰值，不等于起效时间或治疗目标。</p></div><div><b>个体差异</b><p>剂型、食物、肝肾功能、相互作用等都可能改变真实曲线。</p></div></div></div></details>
+      </section>
+    </div>
+    <details class="panel history-panel disclosure-section" id="historyGuide" data-pref="historyGuide"><summary class="disclosure-head"><span class="disclosure-title">历史记录与跨日残留</span><span class="disclosure-hint">点击展开</span></summary><div class="disclosure-body"><p>不同药物分别显示各自的估算浓度，不把它们相加；此处不判断药物相互作用，也不把“低于显示精度”当作完全排出。历史服用的原始时间和剂量不会因模型更新而改动，历史曲线按当前参数重新计算；普瑞巴林参数于 2026-10-26 更新。</p><div id="historyList" class="history-list"></div></div></details>
+    <details class="panel sources disclosure-section" id="sourcesGuide" data-pref="sourcesGuide"><summary class="disclosure-head"><span class="disclosure-title">模型参数、来源与局限</span><span class="disclosure-hint">点击展开</span></summary><div class="disclosure-body"><p>参数取自公开说明书或研究中的特定剂型、剂量和人群。曲线采用简化口服吸收／消除模型并按文献峰值校准，跨剂量推算与多次记录叠加均是假设。</p><div id="sourceList"></div><p class="footnote">仅供学习与记录，不用于诊断、调整抗生素疗程或自行决定给药。需要个体化治疗时，请依据处方和医师／药师指导；必要时以实际检验为准。未登录时记录保存在当前浏览器；登录后记录同步到该账号。</p></div></details>
+    <details class="panel renal-panel renal-bottom disclosure-section" id="renalGuide" data-pref="renalGuide"><summary class="disclosure-head"><span class="disclosure-title">个人肌酐清除率（高级）</span><span class="disclosure-hint">点击展开</span></summary><div class="disclosure-body">
+
+          <p>可填写已有的 CrCl（mL/min），保存后仅用于普瑞巴林模型。留空或恢复标准时沿用说明书的正常肾功能参数。化验单上的 eGFR（mL/min/1.73 m²）不能直接填在这里。</p>
+          <label for="renalCrCl">肌酐清除率（mL/min）<input id="renalCrCl" type="number" min="15" max="150" step="any" inputmode="decimal" placeholder="例如 70" name="renalCrCl"></label>
+          <div class="renal-actions"><button id="renalSave" class="secondary" type="button">保存个人值并重算</button><button id="renalReset" class="ghost" type="button">恢复标准模型</button></div>
+          <details><summary>没有 CrCl？用成人 Cockcroft–Gault 公式估算</summary>
+            <div class="renal-fields"><label for="renalAge">年龄（岁）<input id="renalAge" type="number" min="18" max="120" step="1" inputmode="numeric" name="renalAge"></label><label for="renalWeight">体重（kg）<input id="renalWeight" type="number" min="20" max="300" step="any" inputmode="decimal" name="renalWeight"></label><label for="renalSex">公式系数<select id="renalSex" name="renalSex"><option value="1">男性 1.0</option><option value="0.85">女性 0.85</option></select></label><label for="renalCreatinine">血清肌酐<input id="renalCreatinine" type="number" min="0.01" step="any" inputmode="decimal" name="renalCreatinine"></label><label for="renalCreatinineUnit">单位<select id="renalCreatinineUnit" name="renalCreatinineUnit"><option value="umol">µmol/L</option><option value="mgdl">mg/dL</option></select></label></div>
+            <button id="renalCalculate" class="ghost" type="button">计算并填入上方</button>
+            <p>CrCl = (140 − 年龄) × 体重 kg ÷ (72 × 血清肌酐 mg/dL) × 公式系数；1 mg/dL ≈ 88.4 µmol/L。仅适用于肾功能稳定的成人估算；体型极端、妊娠、急性肾损伤或透析等情况不宜直接套用。</p>
+            <a href="https://www.kidney.org/sites/default/files/2024-08/ckd_evaluation_classification_stratification.pdf" target="_blank" rel="noopener noreferrer">查看 National Kidney Foundation 公式依据 ↗</a>
+          </details>
+          <div id="renalStatus" role="status">尚未设置个人 CrCl，使用标准模型。</div>
+          <p class="renal-caution">本站以 100 mL/min 作为正常参考锚点，假设分布容积不变、普瑞巴林清除速度与 CrCl 成比例；这是教学模型外推，不是个人实测药代参数。仅支持 15–150 mL/min，透析不适用。所存值会统一重算历史曲线，不能证明过去的肾功能也相同。不能据此调整用药剂量或间隔。<a href="https://pubmed.ncbi.nlm.nih.gov/12638396/" target="_blank" rel="noopener noreferrer">普瑞巴林肾功能药代研究 ↗</a></p>
+        </div></details>
+    </div>
+  </main>
+  <!-- Standalone PWA's four stable destinations; keeps data views separate
+       without copying the medication forms or scientific model. -->
+  <nav id="appTabBar" class="app-tabbar" aria-label="应用导航">
+    <button class="app-tab" type="button" data-app-tab="today" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10 12 3l9 7v10h-7v-7h-4v7H3z"/></svg><span>今天</span></button>
+    <button class="app-tab" type="button" data-app-tab="chart"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 19V5m0 14h18M6 15l5-6 4 3 5-8"/></svg><span>曲线</span></button>
+    <button class="app-tab" type="button" data-app-tab="history"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18M7 14h3"/></svg><span>历史</span></button>
+    <button class="app-tab" type="button" data-app-tab="my"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-5 3-8 8-8s8 3 8 8"/></svg><span>我的</span></button>
+  </nav>
+  <!-- The original dose/intake form nodes are moved into this native dialog
+       while editing; moving, rather than cloning, preserves autosave state. -->
+  <dialog id="deleteDoseDialog" class="delete-dose-dialog" aria-labelledby="deleteDoseTitle" aria-describedby="deleteDoseDescription">
+    <div class="delete-dose-content">
+      <div class="delete-dose-mark" aria-hidden="true">!</div>
+      <h2 id="deleteDoseTitle">删除这条服用记录？</h2>
+      <p id="deleteDoseDescription">删除后，本机与云端记录及相关模型曲线将重新计算。此操作不可撤销。</p>
+      <p class="delete-dose-caution">删除后将自动同步云端；已有系统通知可能无法撤回。</p>
+      <div class="delete-dose-buttons">
+        <button id="deleteDoseCancel" class="ghost" type="button" autofocus>保留记录</button>
+        <button id="deleteDoseConfirm" class="record-danger solid" type="button">确认删除</button>
+      </div>
+    </div>
+  </dialog>
+  <dialog id="appRecordSheet" class="app-record-sheet" aria-labelledby="appSheetTitle">
+    <div class="app-sheet">
+      <div class="app-sheet-grabber" aria-hidden="true"></div>
+      <div class="app-sheet-heading"><div><p class="app-eyebrow">JOURNAL</p><h2 id="appSheetTitle">记录一次服用</h2></div><button id="appSheetClose" type="button" class="app-sheet-close" aria-label="关闭录入面板">✕</button></div>
+      <p id="appSheetDisclaimer" class="app-sheet-hint">输入会暂存为草稿，确认保存后才成为实际记录。</p>
+      <div id="appSheetBody" class="app-sheet-body"></div>
+    </div>
+  </dialog>
+  <dialog id="wheelDialog" class="wheel-dialog" aria-label="滚动选择日期时间">
+    <div class="wheel-sheet"><div class="wheel-head"><button id="wheelCancel" type="button">取消</button><strong id="wheelTitle">选择日期时间</strong><button id="wheelDone" type="button">完成</button></div><div id="wheelColumns" class="wheel-columns"></div><div class="wheel-actions"><button id="wheelNow" class="ghost" type="button">使用当前时间</button><span>上下滑动数字选择</span></div></div>
+  </dialog>
+  <!-- iPhone Duo Safari keeps its right OS control rail outside the web
+       viewport; this dock stays within the page safe area, not in that rail. -->
+  <nav id="edgeDock" class="edge-dock" aria-label="页面右缘快捷导航">
+    <button id="edgeDockBack" class="edge-dock-back" type="button"
+      aria-label="返回日期列表" title="返回日期列表">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
+        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="m15 18-6-6 6-6"/>
+      </svg>
+    </button>
+    <button id="edgeDockMore" type="button" popovertarget="edgeDockMenu"
+      aria-label="打开快捷导航" aria-controls="edgeDockMenu" title="快捷导航">
+      <svg viewBox="0 0 24 24" width="21" height="21" fill="currentColor"
+        aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+    </button>
+  </nav>
+  <nav id="edgeDockMenu" class="edge-dock-menu" popover="auto" aria-label="快捷导航">
+    <button type="button" data-edge-action="dates">返回日期</button>
+    <button type="button" data-edge-action="records">服用记录</button>
+    <button type="button" data-edge-action="timeline">查看时间轴</button>
+    <button type="button" data-edge-action="history">查看历史</button>
+    <button type="button" data-edge-action="top">回到顶部</button>
+  </nav>
+  <button id="quickAdd" class="quick-add" type="button" aria-label="跳转到添加服用记录">＋</button>
+  <footer>药时 / PK ATLAS <span>群体模型 · 账号可同步 · 非医疗建议</span></footer>
+</body>
+</html>

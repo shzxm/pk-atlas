@@ -1,0 +1,34 @@
+.data-center-layout{max-width:960px;margin:0 auto;padding-bottom:calc(30px + env(safe-area-inset-bottom))}
+.data-center-heading{padding:14px 0 18px}
+.data-center-heading h1{font-size:clamp(24px,5vw,33px);margin:.5rem 0}
+.data-center-heading p{color:#b6cbd9;line-height:1.65}
+.data-center-panel{margin:0 0 22px;padding:clamp(18px,4vw,28px)}
+.data-center-panel h2{font-size:clamp(19px,4vw,24px);margin:0 0 14px}
+.data-center-panel h3{font-size:17px;margin:16px 0 10px}
+.data-center-panel p{line-height:1.7}
+.data-center-panel .data-muted{font-size:13px;color:#b2c7d8}
+.data-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px;margin:18px 0}
+.data-stats>div{border:1px solid #446179;border-radius:14px;padding:14px;background:#14283a}
+.data-stats small{display:block;color:#aac2d1;margin-bottom:6px;font-size:12px}
+.data-stats strong{display:block;color:#e9f5ff;font-size:clamp(19px,4.7vw,26px);overflow-wrap:anywhere}
+.data-actions{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}
+.data-actions>*{min-height:46px;flex:1 1 195px;justify-content:center;text-align:center}
+.data-import{margin-top:18px;padding-top:15px;border-top:1px solid #4a6777}
+.data-import label{display:block;margin-bottom:9px}
+.data-import input[type=file]{display:block;max-width:100%;margin-bottom:12px}
+.data-center-panel details{margin-top:15px;border:1px solid #36556b;border-radius:12px;padding:12px}
+.data-center-panel details summary{cursor:pointer;color:#9ad9df;font-weight:720}
+.data-center-panel details p{font-size:13px;color:#aec7d6}
+#dataCenterStatus{min-height:25px;color:#acd0e9}
+#dataCenterStatus[data-kind=error],#dataImportPreview[data-kind=error],#syncCenterDetail[data-kind=error]{color:#ffb9bc}
+#dataImportCommit:disabled{opacity:.55;cursor:not-allowed}
+@media(max-width:420px){.data-center-layout{padding-inline:12px}.data-actions>*{flex-basis:100%}}
+
+
+.push-diagnostics{margin-top:18px;border:1px solid #456277;border-radius:13px;padding:15px}
+.push-diagnostics summary{color:#9bdfdf;cursor:pointer;font-weight:750}
+.push-diag-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:16px 0}
+.push-diag-grid div{background:#14283a;border:1px solid #426079;border-radius:12px;padding:12px}
+.push-diag-grid dt{font-size:12px;color:#b5cedb;margin-bottom:6px}
+.push-diag-grid dd{font-size:15px;font-weight:690;margin:0;color:#e9faff;overflow-wrap:anywhere}
+@media(max-width:380px){.push-diag-grid{grid-template-columns:1fr}}

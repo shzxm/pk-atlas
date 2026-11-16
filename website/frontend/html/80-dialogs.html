@@ -1,0 +1,60 @@
+  <!-- Standalone PWA's four stable destinations; keeps data views separate
+       without copying the medication forms or scientific model. -->
+  <nav id="appTabBar" class="app-tabbar" aria-label="应用导航">
+    <button class="app-tab" type="button" data-app-tab="today" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10 12 3l9 7v10h-7v-7h-4v7H3z"/></svg><span>今天</span></button>
+    <button class="app-tab" type="button" data-app-tab="chart"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 19V5m0 14h18M6 15l5-6 4 3 5-8"/></svg><span>曲线</span></button>
+    <button class="app-tab" type="button" data-app-tab="history"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18M7 14h3"/></svg><span>历史</span></button>
+    <button class="app-tab" type="button" data-app-tab="my"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-5 3-8 8-8s8 3 8 8"/></svg><span>我的</span></button>
+  </nav>
+  <!-- The original dose/intake form nodes are moved into this native dialog
+       while editing; moving, rather than cloning, preserves autosave state. -->
+  <dialog id="deleteDoseDialog" class="delete-dose-dialog" aria-labelledby="deleteDoseTitle" aria-describedby="deleteDoseDescription">
+    <div class="delete-dose-content">
+      <div class="delete-dose-mark" aria-hidden="true">!</div>
+      <h2 id="deleteDoseTitle">删除这条服用记录？</h2>
+      <p id="deleteDoseDescription">删除后，本机与云端记录及相关模型曲线将重新计算。此操作不可撤销。</p>
+      <p class="delete-dose-caution">删除后将自动同步云端；已有系统通知可能无法撤回。</p>
+      <div class="delete-dose-buttons">
+        <button id="deleteDoseCancel" class="ghost" type="button" autofocus>保留记录</button>
+        <button id="deleteDoseConfirm" class="record-danger solid" type="button">确认删除</button>
+      </div>
+    </div>
+  </dialog>
+  <dialog id="appRecordSheet" class="app-record-sheet" aria-labelledby="appSheetTitle">
+    <div class="app-sheet">
+      <div class="app-sheet-grabber" aria-hidden="true"></div>
+      <div class="app-sheet-heading"><div><p class="app-eyebrow">JOURNAL</p><h2 id="appSheetTitle">记录一次服用</h2></div><button id="appSheetClose" type="button" class="app-sheet-close" aria-label="关闭录入面板">✕</button></div>
+      <p id="appSheetDisclaimer" class="app-sheet-hint">输入会暂存为草稿，确认保存后才成为实际记录。</p>
+      <div id="appSheetBody" class="app-sheet-body"></div>
+    </div>
+  </dialog>
+  <dialog id="wheelDialog" class="wheel-dialog" aria-label="滚动选择日期时间">
+    <div class="wheel-sheet"><div class="wheel-head"><button id="wheelCancel" type="button">取消</button><strong id="wheelTitle">选择日期时间</strong><button id="wheelDone" type="button">完成</button></div><div id="wheelColumns" class="wheel-columns"></div><div class="wheel-actions"><button id="wheelNow" class="ghost" type="button">使用当前时间</button><span>上下滑动数字选择</span></div></div>
+  </dialog>
+  <!-- iPhone Duo Safari keeps its right OS control rail outside the web
+       viewport; this dock stays within the page safe area, not in that rail. -->
+  <nav id="edgeDock" class="edge-dock" aria-label="页面右缘快捷导航">
+    <button id="edgeDockBack" class="edge-dock-back" type="button"
+      aria-label="返回日期列表" title="返回日期列表">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
+        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="m15 18-6-6 6-6"/>
+      </svg>
+    </button>
+    <button id="edgeDockMore" type="button" popovertarget="edgeDockMenu"
+      aria-label="打开快捷导航" aria-controls="edgeDockMenu" title="快捷导航">
+      <svg viewBox="0 0 24 24" width="21" height="21" fill="currentColor"
+        aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+    </button>
+  </nav>
+  <nav id="edgeDockMenu" class="edge-dock-menu" popover="auto" aria-label="快捷导航">
+    <button type="button" data-edge-action="dates">返回日期</button>
+    <button type="button" data-edge-action="records">服用记录</button>
+    <button type="button" data-edge-action="timeline">查看时间轴</button>
+    <button type="button" data-edge-action="history">查看历史</button>
+    <button type="button" data-edge-action="top">回到顶部</button>
+  </nav>
+  <button id="quickAdd" class="quick-add" type="button" aria-label="跳转到添加服用记录">＋</button>
+  <footer>药时 / PK ATLAS <span>群体模型 · 账号可同步 · 非医疗建议</span></footer>
+</body>
+</html>

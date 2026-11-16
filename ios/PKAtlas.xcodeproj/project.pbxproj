@@ -1,0 +1,475 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		2A29E654A4D94DECB9878485 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 4AA69CB2114A697A33FB645C /* PrivacyInfo.xcprivacy */; };
+		45B5FD18C624AFBA8A735522 /* AtlasWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E200EEA0291DAD41040B5C55 /* AtlasWebView.swift */; };
+		4D3271299216A5F42776762C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FBB3248955CB897C64803ABB /* Assets.xcassets */; };
+		720CC26F0544B60203B81086 /* GlassRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3CBAD660D2C2F0404D3CC2B /* GlassRootView.swift */; };
+		851BE04FE7E7C94E7D7A9E93 /* AtlasWebSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0849B5E640756E1309E6123A /* AtlasWebSession.swift */; };
+		A7BEAF23845390DBFB8EDD86 /* ReminderCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C88780DFF9110BD82FB3C77 /* ReminderCoordinator.swift */; };
+		C6667A0C17A66890116B018D /* PKAtlasUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96831268A8395190A69953EB /* PKAtlasUITests.swift */; };
+		FE4C17E0E39909F7884AC177 /* PKAtlasApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 151007A1E19238688FC21F21 /* PKAtlasApp.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		9895FEFB64F04E3B235EF02B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9602F973ACA35948EBAD26B2 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 96EF81808438BA55369C7092;
+			remoteInfo = PKAtlas;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		0849B5E640756E1309E6123A /* AtlasWebSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AtlasWebSession.swift; sourceTree = "<group>"; };
+		151007A1E19238688FC21F21 /* PKAtlasApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PKAtlasApp.swift; sourceTree = "<group>"; };
+		4AA69CB2114A697A33FB645C /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		7C88780DFF9110BD82FB3C77 /* ReminderCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderCoordinator.swift; sourceTree = "<group>"; };
+		96831268A8395190A69953EB /* PKAtlasUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PKAtlasUITests.swift; sourceTree = "<group>"; };
+		AF1DBD8CAC13457FC8EF06F7 /* PKAtlasUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PKAtlasUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B0745742C8ADD0E0356C37CF /* PKAtlas.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = PKAtlas.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C3CBAD660D2C2F0404D3CC2B /* GlassRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassRootView.swift; sourceTree = "<group>"; };
+		E200EEA0291DAD41040B5C55 /* AtlasWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AtlasWebView.swift; sourceTree = "<group>"; };
+		FBB3248955CB897C64803ABB /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		39F84F55810E4E8596293D75 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				B0745742C8ADD0E0356C37CF /* PKAtlas.app */,
+				AF1DBD8CAC13457FC8EF06F7 /* PKAtlasUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		5924A0FB41511A8032468ED9 /* UITests */ = {
+			isa = PBXGroup;
+			children = (
+				96831268A8395190A69953EB /* PKAtlasUITests.swift */,
+			);
+			path = UITests;
+			sourceTree = "<group>";
+		};
+		63BACCBF59E10277730283C0 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				FBB3248955CB897C64803ABB /* Assets.xcassets */,
+				4AA69CB2114A697A33FB645C /* PrivacyInfo.xcprivacy */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		A8500DC348E3E68340706AA8 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				0849B5E640756E1309E6123A /* AtlasWebSession.swift */,
+				E200EEA0291DAD41040B5C55 /* AtlasWebView.swift */,
+				C3CBAD660D2C2F0404D3CC2B /* GlassRootView.swift */,
+				151007A1E19238688FC21F21 /* PKAtlasApp.swift */,
+				7C88780DFF9110BD82FB3C77 /* ReminderCoordinator.swift */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		B4D24043884FBD1135806D75 = {
+			isa = PBXGroup;
+			children = (
+				63BACCBF59E10277730283C0 /* Resources */,
+				A8500DC348E3E68340706AA8 /* Sources */,
+				5924A0FB41511A8032468ED9 /* UITests */,
+				39F84F55810E4E8596293D75 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		96EF81808438BA55369C7092 /* PKAtlas */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A7C606D770CBF55D18BFBB39 /* Build configuration list for PBXNativeTarget "PKAtlas" */;
+			buildPhases = (
+				8EF8A92AE3323C7353DE8F39 /* Sources */,
+				9B171BA65D1B38260045230D /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PKAtlas;
+			packageProductDependencies = (
+			);
+			productName = PKAtlas;
+			productReference = B0745742C8ADD0E0356C37CF /* PKAtlas.app */;
+			productType = "com.apple.product-type.application";
+		};
+		BDC8327AF224117657283A82 /* PKAtlasUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C3F1851E7964A205F4329B72 /* Build configuration list for PBXNativeTarget "PKAtlasUITests" */;
+			buildPhases = (
+				D07809D07F6888A14F4294ED /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				49D68183FE6F0661884283ED /* PBXTargetDependency */,
+			);
+			name = PKAtlasUITests;
+			packageProductDependencies = (
+			);
+			productName = PKAtlasUITests;
+			productReference = AF1DBD8CAC13457FC8EF06F7 /* PKAtlasUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		9602F973ACA35948EBAD26B2 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					96EF81808438BA55369C7092 = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+					};
+					BDC8327AF224117657283A82 = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+						TestTargetID = 96EF81808438BA55369C7092;
+					};
+				};
+			};
+			buildConfigurationList = 722C68992524BE540394D690 /* Build configuration list for PBXProject "PKAtlas" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = B4D24043884FBD1135806D75;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 39F84F55810E4E8596293D75 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				96EF81808438BA55369C7092 /* PKAtlas */,
+				BDC8327AF224117657283A82 /* PKAtlasUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		9B171BA65D1B38260045230D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4D3271299216A5F42776762C /* Assets.xcassets in Resources */,
+				2A29E654A4D94DECB9878485 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		8EF8A92AE3323C7353DE8F39 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				851BE04FE7E7C94E7D7A9E93 /* AtlasWebSession.swift in Sources */,
+				45B5FD18C624AFBA8A735522 /* AtlasWebView.swift in Sources */,
+				720CC26F0544B60203B81086 /* GlassRootView.swift in Sources */,
+				FE4C17E0E39909F7884AC177 /* PKAtlasApp.swift in Sources */,
+				A7BEAF23845390DBFB8EDD86 /* ReminderCoordinator.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D07809D07F6888A14F4294ED /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C6667A0C17A66890116B018D /* PKAtlasUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		49D68183FE6F0661884283ED /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 96EF81808438BA55369C7092 /* PKAtlas */;
+			targetProxy = 9895FEFB64F04E3B235EF02B /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		030CF5BE60CA83684C4AC2EC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = targeted;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		1729239DCD97201ECE11A0DC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGNING_ALLOWED = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.shzxm.PKAtlasUITests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = PKAtlas;
+			};
+			name = Debug;
+		};
+		79054CF70F2EA3D66D74F584 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGNING_ALLOWED = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.shzxm.PKAtlasUITests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = PKAtlas;
+			};
+			name = Release;
+		};
+		895B77FBCCE6D6880C2BD258 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGNING_ALLOWED = YES;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_APP_SANDBOX = YES;
+				INFOPLIST_FILE = Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.shzxm.PKAtlas;
+				PRODUCT_NAME = PKAtlas;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		B437FA609E51535840125116 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGNING_ALLOWED = YES;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_APP_SANDBOX = YES;
+				INFOPLIST_FILE = Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.shzxm.PKAtlas;
+				PRODUCT_NAME = PKAtlas;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		F437E7CEEE45014F6BD79FEF /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = targeted;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		722C68992524BE540394D690 /* Build configuration list for PBXProject "PKAtlas" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F437E7CEEE45014F6BD79FEF /* Debug */,
+				030CF5BE60CA83684C4AC2EC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		A7C606D770CBF55D18BFBB39 /* Build configuration list for PBXNativeTarget "PKAtlas" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B437FA609E51535840125116 /* Debug */,
+				895B77FBCCE6D6880C2BD258 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		C3F1851E7964A205F4329B72 /* Build configuration list for PBXNativeTarget "PKAtlasUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1729239DCD97201ECE11A0DC /* Debug */,
+				79054CF70F2EA3D66D74F584 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 9602F973ACA35948EBAD26B2 /* Project object */;
+}

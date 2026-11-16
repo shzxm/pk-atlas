@@ -1,0 +1,10 @@
+    <section id="chooser" class="panel chooser" aria-label="选择服用日期">
+      <div class="eyebrow muted">JOURNAL / 历史与今天</div>
+      <h2>选择服用日期</h2>
+      <details class="mini-disclosure journal-help" data-pref="journalHelp"><summary>如何查看和记录日期</summary><p>选择已有日期查看当天记录与模型；也可以先选日期，再新增实际服用。</p></details>
+      <div class="chooser-date"><label for="chooseDate">查看日期<input id="chooseDate" type="date" name="chooseDate"></label><button id="chooseDateOpen" class="primary" type="button">进入所选日期</button></div>
+      <div class="chooser-section-head"><strong>已有服用日期</strong><span>选择后进入记录与计算</span></div>
+      <div id="chooserDates" class="chooser-grid"></div>
+      <section id="adoptedPlans" class="chooser-adopted" hidden><div class="chooser-section-head"><strong>已采用的模型</strong><span>登录后从账号同步；点击继续查看</span></div><div id="adoptedPlanList" class="chooser-grid"></div></section>
+      <button id="chooserAdd" class="secondary chooser-add" type="button">＋ 新增所选日期的服用</button>
+    </section>

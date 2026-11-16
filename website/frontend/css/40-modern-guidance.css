@@ -1,0 +1,76 @@
+/* Modern Web Guidance: semantic form navigation, sizing and responsive controls. */
+:root{--focus-outline:#8ccaff;--minimum-touch:48px}
+body{min-height:100dvh}
+html{scroll-padding-top:4.5rem}
+.skip-link{position:fixed;z-index:1000;inset-block-start:0.75rem;inset-inline-start:0.75rem;padding:.75rem 1rem;border-radius:10px;background:#e8f4ff;color:#0b2338;font-size:1rem;font-weight:750;text-decoration:none;transform:translateY(-160%);box-shadow:0 6px 18px #0007}
+.skip-link:focus-visible{transform:none;outline:3px solid var(--focus-outline);outline-offset:3px}
+.auth-form .auth-field{display:grid;grid-column:1/-1;gap:6px;min-width:0;color:#c7d4e0;font-size:.875rem;font-weight:700}
+.auth-form .auth-field>input{display:block;grid-column:auto;min-width:0;width:100%;min-height:48px;font-size:1rem}
+.stage-auth .account-panel{container-type:inline-size}
+:is(button,input,select,a,summary):focus-visible{outline:2px solid var(--focus-outline);outline-offset:3px}
+@container (max-width:21rem){.stage-auth .auth-form button{grid-column:1/-1}}
+@media (pointer:coarse){
+  input:not([type=range]):not([type=checkbox]),select{min-height:48px;font-size:1rem}
+  .auth-form button,.entry-link,.mobile-panels button,.chooser-date .primary,#doseSubmit,#intakeSubmit{min-height:var(--minimum-touch)}
+}
+@media (max-width:700px){
+  .auth-form .auth-field{font-size:.875rem}
+  .stage-auth .layout{min-height:calc(100dvh - 106px)}
+}
+
+
+/* Keep the anonymous sign-in layout stable while /api/me restores session.
+   Visibility hides inert controls from assistive tech, but retains their boxes. */
+.stage-loading .layout {
+  max-width: 680px;
+  padding-top: clamp(35px, 8vh, 90px);
+  min-height: calc(100dvh - 110px);
+}
+.stage-loading .intro h1 { font-size: clamp(34px, 5vw, 48px); }
+.stage-loading .account-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+  padding: 24px;
+  container-type: inline-size;
+}
+.stage-loading .account-copy strong { font-size: 19px; }
+.stage-loading .auth-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+  visibility: hidden;
+  pointer-events: none;
+}
+.stage-loading .auth-form input { height: 50px; }
+.stage-loading .auth-form button { min-height: 47px; font-size: 14px; }
+.stage-loading .entry-links {
+  display: grid;
+  visibility: hidden;
+  pointer-events: none;
+}
+@container (max-width: 21rem) {
+  .stage-loading .auth-form button { grid-column: 1 / -1; }
+}
+@media (max-width: 700px) {
+  .stage-loading .layout { padding-top: 20px; min-height: calc(100dvh - 106px); }
+  .stage-loading .account-panel { padding: 20px; margin-bottom: 13px; }
+  .stage-loading .notice, .stage-loading .intro .eyebrow { display: none; }
+  .stage-loading .intro h1 { font-size: 27px; line-height: 1.28; margin: 0 0 7px; }
+  .stage-loading .intro p { font-size: 12px; line-height: 1.5; margin: 0 0 18px; }
+}
+
+
+/* Autosave status has explicit semantics: local draft vs verified cloud. */
+.account-copy #syncStatus{font-size:.82rem;line-height:1.45;overflow-wrap:anywhere}
+.account-copy #syncLastSaved{font-size:.72rem;color:#b8c7d6}
+#syncStatus[data-sync="pending"],#syncStatus[data-sync="saving"]{color:#a5d6ff}
+#syncStatus[data-sync="synced"]{color:#b5e6c1}
+#syncStatus[data-sync="offline"]{color:#ffd89e}
+#syncStatus[data-sync="conflict"],#syncStatus[data-sync="error"]{color:#ffd0bd}
+#syncNow,#syncExport{min-height:44px}
+@media(max-width:700px){
+  .account-copy #syncStatus{font-size:.78rem}
+  .stage-calc .account-actions #syncNow,.stage-choose .account-actions #syncNow{border-color:#3995d3}
+}

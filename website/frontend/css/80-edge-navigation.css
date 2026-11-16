@@ -1,0 +1,95 @@
+/*
+ * A compact in-viewport alternative to the Safari system side rail.
+ * The OS-reserved column on iPhone Duo is not part of the web viewport.
+ */
+.edge-dock,
+.edge-dock-menu { display: none; }
+@media (max-width:700px) and (pointer:coarse) {
+  .stage-calc .edge-dock {
+    position: fixed;
+    z-index: 25;
+    top: clamp(190px, 37dvh, 370px);
+    right: max(4px, env(safe-area-inset-right, 0px));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 3px;
+    background: #122d3ddc;
+    border: 1px solid #4d7991b3;
+    border-right: none;
+    border-radius: 15px 0 0 15px;
+    box-shadow: -5px 8px 25px #0007;
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    max-height: calc(100dvh - 130px);
+  }
+  .edge-dock > button {
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    border: 1px solid #456d85;
+    border-radius: 11px;
+    color: #dff5ff;
+    background: #23445b;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .edge-dock > .edge-dock-back { background: #2e6f94; }
+  .edge-dock > button:active { background: #438bae; }
+  .edge-dock > button:focus-visible { outline: 2px solid #b6e9ff; outline-offset: 2px; }
+  .edge-dock svg { display: block; }
+  .edge-dock-menu:popover-open {
+    display: grid;
+    position: fixed;
+    top: clamp(190px, 37dvh, 370px);
+    right: max(62px, calc(env(safe-area-inset-right, 0px) + 60px));
+    left: auto;
+    bottom: auto;
+    margin: 0;
+    width: min(180px, calc(100dvw - 84px));
+    padding: 8px;
+    gap: 5px;
+    max-height: min(60dvh, 390px);
+    overflow-y: auto;
+    background: #112d40;
+    color: #e3f3fc;
+    border: 1px solid #5689a3;
+    border-radius: 15px;
+    box-shadow: 0 15px 36px #000b;
+  }
+  .edge-dock-menu:popover-open > button {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    padding: 9px 13px;
+    text-align: left;
+    font-size: 13px;
+    color: #e8f4fe;
+    background: #1c3d53;
+    border: 1px solid #325c77;
+    border-radius: 10px;
+    cursor: pointer;
+  }
+  .edge-dock-menu:popover-open > button:focus-visible {
+    outline: 2px solid #b2e5ff;
+    outline-offset: 2px;
+  }
+  .edge-dock-menu:popover-open > button:active { background: #2e6888; }
+}
+@media (max-width:350px) and (pointer:coarse) {
+  .stage-calc .edge-dock { right: max(0px, env(safe-area-inset-right, 0px)); padding: 3px 1px; }
+}
+@media (max-height:450px) and (pointer:coarse) {
+  .stage-calc .edge-dock { top: max(75px, env(safe-area-inset-top, 0px)); }
+  .edge-dock-menu:popover-open { top: max(75px, env(safe-area-inset-top, 0px)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .edge-dock, .edge-dock-menu { scroll-behavior:auto; }
+}

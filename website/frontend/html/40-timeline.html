@@ -1,0 +1,52 @@
+    <div id="calculationView">
+      <section id="appHome" class="app-screen app-home" aria-labelledby="appHomeTitle">
+        <div class="app-view-heading">
+          <div><p class="app-eyebrow">TODAY · 今日</p><h1 id="appHomeTitle">今天</h1><p id="appHomeDate" class="app-muted">正在读取日期</p></div>
+          <button id="homeNewDose" class="app-circle-add" type="button" aria-label="记录一次服用">＋</button>
+        </div>
+        <section class="app-hero app-card" aria-labelledby="appTrendTitle">
+          <div class="app-hero-heading">
+            <div><p class="app-eyebrow">MODEL TREND</p><h2 id="appTrendTitle">药物时间轨迹</h2></div>
+            <button id="homeOpenChart" class="app-subtle-button" type="button">完整曲线 <span aria-hidden="true">›</span></button>
+          </div>
+          <label class="app-drug-chooser" for="appHomeDrug">查看药物
+            <select id="appHomeDrug" name="appHomeDrug" aria-label="首页查看的药物"></select>
+          </label>
+          <div class="app-home-concentration">
+            <span>当前群体模型估算</span><strong id="appHomeConcentration">暂无记录</strong>
+          </div>
+          <div class="app-mini-chart" id="appMiniChartBox">
+            <svg id="appMiniChart" viewBox="0 0 320 114" preserveAspectRatio="none" role="img" aria-label="当前药物前后十二小时模型浓度变化简图"></svg>
+            <div class="app-mini-axis"><span>过去 12 小时</span><span>现在</span><span>未来 12 小时</span></div>
+          </div>
+          <p class="app-hero-disclaimer">群体参考模型 · 非个人实测血药浓度 · 不代表药效或用药建议</p>
+        </section>
+        <div id="appHomeWarning" class="app-home-warning" role="alert" hidden></div>
+        <section class="app-today-stats" aria-label="当天记录摘要">
+          <div class="app-stat"><span>今天已确认服用</span><strong id="appTodayCount">0 次</strong></div>
+          <div class="app-stat"><span>最近一次记录</span><strong id="appLastDose">暂无</strong><small id="appLastDoseTime">添加记录后显示</small></div>
+        </section>
+        <div class="app-section-heading"><h2>今天的记录</h2><button id="homeSeeHistory" type="button">查看全部 <span aria-hidden="true">›</span></button></div>
+        <div id="appHomeRecords" class="app-home-records" aria-live="polite"></div>
+        <div class="app-quick-actions"><button id="homeNewIntake" type="button">＋ 饮食 / 饮料</button><button id="homeNewDoseSecondary" type="button">＋ 服用记录</button></div>
+      </section>
+      <div id="appHistoryHeading" class="app-screen-heading"><p class="app-eyebrow">JOURNAL</p><h1>历史记录</h1><p>按日期查看、修改与核对已有记录</p><div id="appHistoryRecords" class="app-history-quicklist"></div></div>
+      <section id="appMy" class="app-screen app-my" aria-labelledby="appMyTitle">
+        <div class="app-view-heading"><div><p class="app-eyebrow">ACCOUNT & SETTINGS</p><h1 id="appMyTitle">我的</h1><p>同步、备份、设置与模型说明</p></div></div>
+        <div id="appMyContent"></div>
+      </section>
+      <nav class="view-quicknav" aria-label="工作区快速导航">
+        <a href="#recordSection" data-view-pane="records">记录</a>
+        <a href="#chartTitle" data-view-pane="results">时间轴</a>
+        <button id="openAdvanced" type="button" data-view-pane="results">参考线与反算</button>
+        <button id="openHistory" type="button">查看历史</button>
+      </nav>
+      <div class="calc-nav"><button id="backToChooser" class="ghost" type="button">‹ 返回日期</button><div><strong id="calcContext">计算与记录</strong><span>群体药代模型 · 非用药建议</span></div><label class="calc-drug-label" for="calcDrug">选择药物<select id="calcDrug" name="calcDrug"></select></label></div>
+    <section class="panel day-panel" aria-label="按日期查看所有药物">
+      <div class="day-head"><div><div class="eyebrow muted">DAILY OVERVIEW</div><h2>当天记录总览</h2></div><label for="viewDate">选择日期<input id="viewDate" type="date" name="viewDate"></label></div>
+      <div id="daySummary" class="day-summary" aria-live="polite"></div>
+      <div id="dayCourseList" class="day-course-list"></div>
+      <details class="overview-disclosure" id="dailyChartsGuide" data-pref="dailyChartsGuide"><summary>查看当天的多药浓度概览</summary><div id="dayCharts" class="day-charts"></div></details>
+    </section>
+    <div id="mobilePanels" class="mobile-panels" role="group" aria-label="手机端查看区域"><button id="mobileRecords" type="button" aria-pressed="true">记录与饮食</button><button id="mobileResults" type="button" aria-pressed="false">曲线与反算</button></div>
+    <div class="workspace">

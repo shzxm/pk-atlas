@@ -1,0 +1,32 @@
+/* Compact reference controls and account prescription panel. */
+.reference-drug-hint{display:inline-flex;align-items:center;margin:2px 0 6px;padding:6px 10px;border:1px solid #34556d;border-radius:8px;background:#1c3040;color:#d7e9f7;font-size:12px;font-weight:750}
+.reference-options{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.reference-options .threshold-row{min-width:0;gap:8px}
+.reference-options .threshold-row>div{min-width:0;max-width:none}
+.reference-options .threshold-row input{min-width:0;width:100%;max-width:none}
+.controls .plan-panel{margin-top:22px;padding:18px 15px}
+.controls .plan-panel .spec-entry,.controls .plan-panel .plan-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.controls .plan-panel .spec-entry>*{min-width:0}
+.controls .plan-panel .spec-entry button,.controls .plan-panel .spec-entry label:last-of-type{grid-column:1/-1}
+.controls .plan-panel .plan-save-row{flex-wrap:wrap}
+.drug-safety{margin-top:14px;padding-top:12px;border-top:1px solid #40505c}
+.drug-safety strong{display:block;margin-top:9px;color:#f5d1ae;font-size:12px}
+.drug-safety a{display:inline-block;margin-top:7px;color:#80c5ff;font-size:11px}
+.drug-safety .dose-warning{padding:10px;border:1px solid #a9654c;border-radius:8px;background:#442d2b;color:#ffe0d0;font-weight:700}
+.day-summary{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin}
+.day-summary>div:first-child{display:flex;align-items:baseline;gap:8px;flex:none}
+.day-summary>div:first-child span{white-space:nowrap}
+.day-summary-drugs{flex-wrap:nowrap;white-space:nowrap}
+.day-summary-review{width:auto;flex:none;white-space:nowrap}
+@media(max-width:700px){.reference-options{grid-template-columns:repeat(2,minmax(0,1fr))}.reference-options .threshold-row{display:flex;flex-direction:column;align-items:stretch}.reference-options .threshold-row>div{width:100%}.reference-options .threshold-row span{font-size:10px}}
+.chart-wrap,.chart-wrap svg{height:390px}
+@media(max-width:600px){.chart-wrap,.chart-wrap svg{height:300px}}
+.chart-panel .legend[hidden],.chart-panel .probe[hidden],.chart-wrap[hidden]{display:none}
+.reference-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:10px 0 15px}
+.reference-actions button{min-height:42px;padding:9px 18px}
+.reference-actions span{color:#a9c9d8;font-size:12px}
+.reference-actions button:disabled{opacity:.5;cursor:not-allowed}
+.reference-actions button.pending{border-color:#6cbdff;background:#1b628f;color:#fff;box-shadow:0 0 0 2px #2797ff33}
+.actual-match{margin-top:5px;padding:6px 8px;border-radius:7px;background:#1a3b39;color:#c1f5e8;font-size:12px;font-weight:700}
+.planned-match{margin-top:5px;color:#9fb0bd;font-size:11px}
+.adopt-adjustment{display:block;width:100%;min-height:46px;margin:10px 0 15px;border-color:#56bd9b;background:#1d654f;color:#fff;font-weight:800}

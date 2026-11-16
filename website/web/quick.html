@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>药时快捷面板</title><meta name="description" content="药时快捷面板：在登录后记录服药、查看群体药代模型曲线，管理个人 API 密钥。"><link rel="icon" type="image/png" href="/icon-192.png"><link rel="stylesheet" href="/quick.css?v=studio-20261115"><link rel="stylesheet" href="/support.css?v=duo-20261115"></head><body class="loading support-quick">
+<a class="skip-link" href="#quickMain">跳到主要内容</a><main id="quickMain">
+<a href="/">‹ 完整网站</a><h1>药时快捷面板</h1><a class="install-link" href="/install.html">安装药时快捷指令到 iPhone ›</a><details class="support-disclosure"><summary>快捷指令如何连接药时？</summary><p>安装后编辑快捷指令开头的两个文本动作，写入用户名和个人 API 密钥。运行时再选择药物、剂量、查看摘要或反算；结果由网站 API 计算。先在下方生成个人密钥。</p></details><p id="account">正在检查登录…</p><p id="status" role="status"></p>
+<div id="loginGate" class="card login-gate" hidden><h2>先登录药时</h2><p>登录后可使用快捷面板记录服用、查看曲线和反算。</p><a class="button-link" href="/">前往登录</a></div>
+<section class="card" id="add"><h2>快速记录实际服用</h2><form id="doseForm" method="post" autocomplete="off"><div class="grid"><label>药物<select id="drug" name="drug"></select></label><label>服用时间<input id="time" type="datetime-local" required name="time"></label></div>
+<div class="grid"><label>单次剂量<input id="amount" type="number" min=".001" step="any" required name="amount"></label><label>单位<select id="unit" name="unit"><option>mg</option><option>g</option></select></label></div>
+<div class="row"><button type="button" class="secondary" id="now">设为现在</button><button>保存服用</button></div></form><h3>当天记录</h3><ol id="doses"></ol></section>
+<section class="card" id="chart"><h2>估算药物曲线</h2><div class="grid"><label>药物<select id="curveDrug" name="curveDrug"></select></label><label>日期<input id="curveDate" type="date" name="curveDate"></label></div>
+<button id="curve">获取曲线</button><p id="curveText"></p><svg id="plot" role="img" aria-label="估算血药浓度曲线"></svg><small>群体药代教学模型，不是实测浓度。</small></section>
+<section class="card" id="calculate"><details class="support-disclosure"><summary>持续时长反算（进阶）</summary><div class="support-disclosure-body"><p>先在完整网站保存药盒规格。这里仅计算完整单位的有限候选数学情景，不是服药建议。</p>
+<div class="grid"><label>药物<select id="inverseDrug" name="inverseDrug"></select></label><label>参考类型<select id="mode" name="mode"><option value="blood">血药浓度 mg/L</option><option value="equivalent">剂量等效量 mg</option></select></label></div>
+<div class="grid"><label>参考值<input id="threshold" type="number" min=".000001" step="any" name="threshold"></label><label>开始时间<input id="start" type="datetime-local" name="start"></label></div>
+<div class="grid"><label>持续时长（小时）<input id="hours" type="number" min=".25" max="24" step=".25" value="2" name="hours"></label><label>假设次数（可留空）<input id="count" type="number" min="1" max="8" name="count"></label></div>
+<button id="inverse">计算数学情景</button><pre id="inverseText">尚未计算</pre></div></details></section>
+<section class="card" id="keySettings"><h2>个人 API 密钥</h2><p>供外部快捷指令或程序调用。请求传用户名，并在 Authorization 请求头带个人密钥；密钥仅在生成时显示一次。<a href="/api.html">查看 API 文档</a>。</p>
+<div class="row"><button id="createKey">生成或更换</button><button id="copyKey" class="secondary" hidden>复制密钥</button><button id="revokeKey" class="danger">撤销</button></div><pre id="key" hidden></pre><small id="keyStatus"></small></section>
+</main>
+<script defer src="/api-client.js?v=autosave-20261115"></script>
+<script defer src="/quick.js?v=mwg-20261115"></script></body></html>

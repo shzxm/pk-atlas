@@ -1,0 +1,53 @@
+/* Shared Yaoshi Studio 2 language for quick, install and API help. */
+:root{color-scheme:dark;--support-bg:#09121c;--support-border:#2d4b62;--support-muted:#9eb6c7}
+html{background:var(--support-bg)}
+body{background:radial-gradient(circle at 90% 0%,#1b3b4e65,transparent 42%),var(--support-bg);color:#eef8ff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;line-height:1.6}
+h1,h2,h3{letter-spacing:-.03em;color:#eff8ff}p,small,li{color:#b5cad9}a{color:#8cd7f5}a:hover{color:#e3faff}
+.card{background:linear-gradient(150deg,#16293a,#101e2c);border:1px solid var(--support-border);border-radius:17px;box-shadow:0 14px 40px #0002}
+button:not(.danger),.button,.button-link,.install-link{background:#236487;color:#e9faff;border:1px solid #447e9e;border-radius:11px}
+button:hover:not(.danger),.button:hover,.button-link:hover,.install-link:hover{background:#2b7799;color:#fff}
+input,select{background:#162a3a;color:#f1faff;border:1px solid #375369;border-radius:10px}
+:is(a,button,input,select,summary):focus-visible{outline:2px solid #9ddcf3;outline-offset:3px}
+pre,code{font-variant-ligatures:none}
+pre{background:#0e2030;border:1px solid #29495e;border-radius:11px;color:#d9effc}
+.support-disclosure{display:block;margin:12px 0;border:1px solid #315269;border-radius:12px;background:#142b3b}
+.support-disclosure>summary{display:block;cursor:pointer;list-style:none;color:#b9e4f7;padding:12px 15px;font-size:13px;font-weight:750}
+.support-disclosure>summary::-webkit-details-marker{display:none}
+.support-disclosure>summary::after{content:"＋";float:right;font-size:17px;font-weight:450;line-height:1}
+.support-disclosure[open]>summary::after{content:"−"}
+.support-disclosure-body,.support-disclosure>p{padding:0 16px 15px;margin:0}
+.support-disclosure-body>p{margin:9px 0}
+.support-disclosure.card{padding:0}
+.support-disclosure.card>summary{padding:17px 20px;font-size:15px}
+.support-disclosure.card>.support-disclosure-body{padding:0 20px 20px}
+.support-table-wrap{overflow:auto;max-width:100%;border:1px solid #325369;border-radius:12px;scrollbar-color:#49738a #102436}
+.support-table-wrap table{min-width:580px}
+.support-quick h1{font-size:clamp(26px,5vw,36px)}
+.support-quick .install-link{margin:8px 0}
+.support-quick .card h2{margin-top:0}
+.support-install main{max-width:760px}
+.support-install .card:first-of-type{border-color:#40718a}
+.support-install .button{background:linear-gradient(115deg,#368bab,#52abc6)}
+.support-api main{max-width:890px}
+.support-api h1{font-size:clamp(30px,5vw,42px);margin:14px 0}
+.support-api .support-disclosure>summary{font-size:15px;padding:16px}
+@media(max-width:600px){.support-quick,.support-api{padding:16px 14px 64px}.support-install{padding:20px 14px 65px}.support-disclosure.card>summary{padding:15px}.support-disclosure.card>.support-disclosure-body{padding:0 15px 15px}.support-table-wrap table{min-width:540px}}
+
+
+/* Safari 27.1 / iPhone Duo: use the available web viewport, not a presumed
+   device screen; safe insets may differ on opposite sides. */
+:root{--support-safe-left:env(safe-area-inset-left,0px);--support-safe-right:env(safe-area-inset-right,0px)}
+html{min-height:100%;min-height:100dvh}
+body{min-height:100vh;min-height:100dvh;overflow-x:clip}
+.support-quick,.support-api,.support-install{
+  padding-inline-start:max(14px,var(--support-safe-left));
+  padding-inline-end:max(14px,var(--support-safe-right));
+  padding-bottom:max(56px,env(safe-area-inset-bottom,0px));
+}
+.support-quick main,.support-api main,.support-install main{min-width:0;max-width:100%}
+.support-quick .card,.support-install .card,.support-api .support-disclosure{min-width:0}
+.support-api pre{overflow-x:auto;white-space:pre-wrap;overflow-wrap:anywhere}
+@media(pointer:coarse){
+  .support-quick :is(button,input,select),
+  .support-install .button,.support-api a.install{min-height:44px}
+}

@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#090b0f">
+  <meta name="robots" content="noindex,nofollow">
+  <title>同步与数据迁移 · 药时</title>
+  <link rel="icon" type="image/png" href="/icon-192.png">
+  <link rel="stylesheet" href="/styles.css?v=stable-point-20261116">
+  <link rel="stylesheet" href="/data-center.css?v=20261116b">
+  <script defer src="/api-client.js?v=autosave-20261115"></script>
+  <script defer src="/data-portability-core.js?v=20261116b"></script>
+  <script defer src="/data-center.js?v=20261116b"></script>
+</head>
+<body data-page="data-center">
+  <a class="skip-link" href="#main">跳到主要内容</a>
+  <header class="topbar"><a class="notifications-back" href="/">‹ 返回药时</a>
+    <div class="brand"><span class="brand-icon" aria-hidden="true">✳</span><span>药时 <small>PK ATLAS</small></span></div>
+  </header>
+  <main id="main" class="layout data-center-layout">
+    <div class="data-center-heading"><div class="eyebrow muted">DATA & SYNC</div>
+      <h1>同步与数据迁移中心</h1>
+      <p>核对云端、本机草稿，安全导出或合并历史记录。所有下载均在当前浏览器生成，不上传至第三方。</p>
+    </div>
+    <p id="dataCenterStatus" role="status" aria-live="polite">正在核对登录身份…</p>
+    <section class="panel" id="dataCenterGate" hidden>
+      <h2>需要登录</h2><p>请先在药时首页登录。离线时仍可以从首页导出已保存的本机草稿。</p>
+      <a class="secondary account-link" href="/">返回首页登录</a>
+    </section>
+    <div id="dataCenterContent" hidden>
+      <section class="panel data-center-panel" aria-labelledby="syncCenterTitle">
+        <h2 id="syncCenterTitle">云端同步中心</h2>
+        <p id="dataAccount"></p>
+        <div class="data-stats" aria-live="off">
+          <div><small>云端版本</small><strong id="syncCloudVersion">—</strong></div>
+          <div><small>云端服药记录</small><strong id="syncRecordCount">—</strong></div>
+          <div><small>云端饮食记录</small><strong id="syncIntakeCount">—</strong></div>
+          <div><small>本机未清理草稿</small><strong id="syncDraftCount">—</strong></div>
+        </div>
+        <p id="syncCenterDetail" class="data-muted" role="status">尚未核对。</p>
+        <p id="syncCenterTime" class="data-muted"></p>
+        <div class="data-actions">
+          <button type="button" class="secondary" id="syncCenterCheck">重新读取云端核对</button>
+          <a class="ghost account-link" href="/">返回首页自动同步/处理冲突</a>
+        </div>
+        <details><summary>为什么这里不直接覆盖云端？</summary>
+          <p>服药、饮食和已采用的模型可能被另一台设备修改。中心只读比对；需要合并时使用主页带版本检查的自动同步，避免错把较旧的本机数据写到云端。</p>
+        </details>
+      </section>
+      <section class="panel data-center-panel" aria-labelledby="dataExportTitle">
+        <h2 id="dataExportTitle">导出与迁移</h2>
+        <p>下载文件可能包含完整服药历史、个人参数和模型方案。请保存在私人设备，不要上传至公开网盘。</p>
+        <div class="data-actions data-export-buttons">
+          <button type="button" id="exportFull" class="secondary">完整云端备份 JSON</button>
+          <button type="button" id="exportLegacy" class="ghost">旧版药时兼容 JSON</button>
+          <button type="button" id="exportNativeJournal" class="ghost">原导入格式 iOS Journal 17.1 JSON</button>
+          <button type="button" id="exportJournal" class="ghost">本站 iOS Journal 归档 JSON</button>
+          <button type="button" id="exportJournalCsv" class="ghost">iOS Journal 历史 CSV</button>
+          <button type="button" id="exportDrafts" class="ghost">导出本机未同步草稿</button>
+        </div>
+        <p class="data-muted">“原导入格式”采用当初 import_ios_journal.py 接受的 exportSource/experiences/ingestions JSON 结构，可交给该脚本重新导入；“本站归档”额外保留 journal 完整元数据与网站修改信息。由于原始文件已不可见，体验的原始分组及未导入的原 App 字段不能重建。</p>
+        <div class="data-import">
+          <h3>从 JSON 文件安全合并</h3>
+          <label for="dataImportFile">选择之前导出的药时 JSON 文件</label>
+          <input type="file" id="dataImportFile" accept=".json,application/json">
+          <p id="dataImportPreview" class="data-muted" role="status">只读取并预览；不会立即修改数据。</p>
+          <button type="button" class="record-danger" id="dataImportCommit" disabled>核对后合并到云端</button>
+        </div>
+        <details><summary>兼容格式与合并原则</summary>
+          <p>支持新版完整备份、旧版药时五分区 JSON、早期“导出本机草稿”文件、本站 iOS Journal 17.1 标准化归档 JSON 和原导入格式 exportSource: iOS Journal 17.1 的文件。按记录 ID 去重；遇到同一 ID 但内容不同、方案冲突或云端版本发生变化，会停止写入，不会静默覆盖。</p>
+          <p>仅在云端账号完全没有服药、饮食、周期或方案时，自动恢复导入文件中的个人设置和已采用反算方案。已有账号默认保留现有设置。</p>
+        </details>
+      </section>
+    </div>
+  </main>
+  <footer>药时 / PK ATLAS <span>群体估算模型 · 非医疗建议</span></footer>
+</body>
+</html>

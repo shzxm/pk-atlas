@@ -1,0 +1,32 @@
+name: Source checks
+on:
+  push:
+  pull_request:
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: python3 scripts/build.py
+        working-directory: website
+      - run: PYTHONPATH=backend python3 -m unittest discover -s tests -q
+        working-directory: website
+      - run: python3 tests/integration_server.py
+        working-directory: website
+      - run: node tests/portability_node.cjs
+        working-directory: website
+  native-syntax:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse Swift sources
+        run: |
+          find ios/Sources -name '*.swift' -print0 | while IFS= read -r -d '' f; do
+            xcrun swiftc -frontend -parse "$f"
+          done

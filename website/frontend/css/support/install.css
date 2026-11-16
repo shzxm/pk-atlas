@@ -1,0 +1,9 @@
+:root{color-scheme:dark;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;background:#090b0f;color:#f4f5f6}
+    *{box-sizing:border-box}body{margin:0;padding:22px 18px 48px}main{max-width:680px;margin:0 auto}
+    a{color:#9ee9c2}.back{display:inline-block;margin-bottom:38px;text-decoration:none;color:#b7c0c5}
+    h1{font-size:clamp(28px,7vw,42px);line-height:1.2;margin:0 0 12px}p{line-height:1.7;color:#bbc3c8}
+    .lead{font-size:16px;margin-bottom:28px}.card{background:#161c20;border:1px solid #29343a;border-radius:18px;padding:22px;margin:20px 0}
+    .button{display:block;background:#a6efc9;color:#102419;border-radius:13px;text-decoration:none;text-align:center;font-weight:750;padding:16px 18px;margin:18px 0;font-size:17px}
+    ol{padding-left:24px;line-height:1.8;color:#e4e9e7}li{padding:5px 0}.small{font-size:13px;color:#a4b0b4}
+    .secondary{display:inline-block;margin:8px 0 0}.note{border-left:3px solid #78cea4;padding-left:14px}
+    :is(a,button):focus-visible{outline:3px solid #a6efc9;outline-offset:3px}

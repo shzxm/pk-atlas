@@ -1,0 +1,342 @@
+/*
+ * Safari 27.1 / iPhone Duo adaptive layout.
+ * Web content is already inset by Safari's reserved toolbar region. Keep the
+ * default viewport behavior, respect each safe inset independently, and avoid
+ * assuming a fixed fold size or device orientation.
+ */
+:root {
+  --pk-blood: #ffca83;
+  --pk-equivalent: #58e5c4;
+  --pk-unfed: #b9c4d2;
+  --pk-reference: #ff5da8;
+  --pk-reference-equivalent: #d7fc72;
+  --pk-preview-blood: #55aaff;
+  --pk-preview-equivalent: #cb9cff;
+  --pk-target: #ff9257;
+  --pk-safe-inline-start: env(safe-area-inset-left, 0px);
+  --pk-safe-inline-end: env(safe-area-inset-right, 0px);
+}
+html { scroll-padding-top: 12px; }
+body { min-height: 100vh; min-height: 100dvh; }
+.layout {
+  padding-inline-start: max(16px, var(--pk-safe-inline-start));
+  padding-inline-end: max(16px, var(--pk-safe-inline-end));
+}
+.topbar {
+  padding-inline-start: max(16px, var(--pk-safe-inline-start));
+  padding-inline-end: max(16px, var(--pk-safe-inline-end));
+}
+:is(.chart-panel,.account-panel,.day-panel,.disclosure-section,.controls) {
+  min-inline-size: 0;
+}
+:is(#chartWrap,#chartTitle,#recordSection,#advancedTools,#historyGuide,#mobilePanels,#probeValues) {
+  scroll-margin-block-start: 14px;
+}
+
+/* Keep cloud state visible, but collapse the seven secondary account actions. */
+.stage-choose .account-panel,
+.stage-calc .account-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 9px 16px;
+}
+.account-copy { min-width: 0; }
+.account-copy :is(strong,span,small) { overflow-wrap: anywhere; }
+.account-tools { min-inline-size: 0; justify-self: end; align-self: center; }
+.account-tools[open] { grid-column: 1 / -1; justify-self: stretch; width: 100%; }
+.account-tools > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 9px 13px;
+  border: 1px solid #46718a;
+  border-radius: 11px;
+  background: #20394d;
+  color: #e3f3ff;
+  cursor: pointer;
+  list-style: none;
+  font-size: 12px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+.account-tools > summary::-webkit-details-marker { display: none; }
+.account-tools > summary::after {
+  content: "⌄";
+  color: #a3ddf3;
+  font-size: 18px;
+  line-height: 1;
+}
+.account-tools[open] > summary::after { content: "⌃"; }
+.account-tools > summary small { font-size: 10px; font-weight: 500; color: #a3becf; }
+.account-tools .account-actions {
+  margin-top: 11px;
+  padding: 12px;
+  border: 1px solid #2e4f66;
+  border-radius: 12px;
+  background: #102533;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  width: 100%;
+}
+.account-tools .account-actions > :is(button,a) {
+  display: inline-flex;
+  min-height: 44px;
+  min-width: 0;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+@media (max-width: 560px) {
+  .stage-choose .account-panel,
+  .stage-calc .account-panel { grid-template-columns: minmax(0, 1fr); }
+  .account-tools { width: 100%; justify-self: stretch; }
+  .account-tools > summary { justify-content: space-between; }
+  .account-tools[open] { grid-column: 1; }
+}
+@media (max-width: 345px) {
+  .account-tools > summary small { display: none; }
+  .account-tools .account-actions { grid-template-columns: 1fr; }
+}
+
+/* Fix the overlapping selector: it is part of document flow, never sticky. */
+.stage-calc .calc-nav {
+  position: static;
+  inset: auto;
+  z-index: auto;
+  box-shadow: none;
+  scroll-margin-top: 14px;
+}
+.stage-calc .calc-nav .calc-drug-label { min-width: 0; }
+.stage-calc .calc-nav :is(select,button) { max-width: 100%; }
+
+/* The screenshot's long one-column probe becomes two aligned summary columns. */
+.chart-panel .probe-values {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+.chart-panel .probe-value {
+  min-width: 0;
+  min-height: 79px;
+  padding: 10px 11px;
+  border-left-width: 4px;
+}
+.chart-panel .probe-value > span {
+  font-size: 11px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.chart-panel .probe-value > strong {
+  font-size: clamp(13px, 3.15vw, 17px);
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+}
+.chart-panel .probe-value.blood { border-left-color: var(--pk-blood); }
+.chart-panel .probe-value.blood strong { color: var(--pk-blood); }
+.chart-panel .probe-value.equivalent { border-left-color: var(--pk-equivalent); }
+.chart-panel .probe-value.equivalent strong { color: var(--pk-equivalent); }
+.chart-panel .probe-value.unfed { border-left-color: var(--pk-unfed); }
+.chart-panel .probe-value.unfed strong { color: var(--pk-unfed); }
+.chart-panel .probe-value.reference { border-left-color: var(--pk-reference); }
+.chart-panel .probe-value.reference strong { color: var(--pk-reference); }
+.chart-panel .probe-value.reference.equivalent-reference { border-left-color: var(--pk-reference-equivalent); }
+.chart-panel .probe-value.reference.equivalent-reference strong { color: var(--pk-reference-equivalent); }
+.chart-panel .probe-value.preview-blood { border-left-color: var(--pk-preview-blood); }
+.chart-panel .probe-value.preview-blood strong { color: var(--pk-preview-blood); }
+.chart-panel .probe-value.preview-equivalent { border-left-color: var(--pk-preview-equivalent); }
+.chart-panel .probe-value.preview-equivalent strong { color: var(--pk-preview-equivalent); }
+.chart-panel .probe-value.target,
+.chart-panel .probe-value.target.blood-target { border-left-color: var(--pk-target); }
+.chart-panel .probe-value.target strong { color: var(--pk-target); }
+
+/* Make a two-column legend, not a continuous paragraph of similar grey labels. */
+.chart-panel .legend {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 9px;
+  font-size: 11px;
+}
+.chart-panel .legend > span {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #2a4357;
+  border-radius: 9px;
+  background: #142736;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.chart-panel .legend i {
+  flex: 0 0 25px;
+  width: 25px;
+  margin: 7px 0 0;
+  border-top-width: 3px;
+  border-top-color: var(--pk-blood);
+}
+.chart-panel .legend i.equivalent { border-top-color: var(--pk-equivalent); }
+.chart-panel .legend i.unfed,
+.chart-panel .legend i.preview-unfed { border-top-color: var(--pk-unfed); }
+.chart-panel .legend i.dashed { border-top: 3px dashed var(--pk-reference); }
+.chart-panel .legend i.equivalent-reference { border-top-color: var(--pk-reference-equivalent); }
+.chart-panel .legend i.preview { border-top: 3px dashed var(--pk-preview-blood); }
+.chart-panel .legend i.equivalent-preview { border-top: 3px dashed var(--pk-preview-equivalent); }
+.chart-panel .legend i.target-marker { border-top: 3px dashed var(--pk-target); }
+.chart-panel .legend i.target-marker.equivalent-target { border-top-color: var(--pk-target); }
+.chart-panel .legend [hidden] { display: none !important; }
+
+/* The speed-dial is a native Popover, keyboard friendly and never clipped by
+   chart-panel overflow. It exposes already-calculated values, not new dosing logic. */
+.chart-panel .chart-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.chart-panel .chart-tools button { min-height: 38px; padding: 7px 12px; }
+.chart-panel #quickReference {
+  border-color: #c35e95;
+  background: #472842;
+  color: #ffd8ed;
+}
+.chart-panel #quickReference:hover { background: #643757; }
+.reference-glance {
+  box-sizing: border-box;
+  position: fixed;
+  inset: auto;
+  top: max(12px, env(safe-area-inset-top, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(560px, calc(100dvw - 30px));
+  max-height: min(85dvh, 740px);
+  overflow: auto;
+  margin: 0;
+  padding: 19px;
+  border: 1px solid #547c99;
+  border-radius: 20px;
+  background: #12283b;
+  color: #eef8ff;
+  box-shadow: 0 28px 70px #000a;
+  overscroll-behavior: contain;
+}
+.reference-glance::backdrop { background: #030b16a6; backdrop-filter: blur(3px); }
+.reference-glance-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+.reference-glance-title strong { font-size: 16px; }
+.reference-glance-title button { min-height: 40px; }
+.reference-glance > p { color: #bdcfdf; font-size: 12px; margin: 10px 0 12px; }
+.reference-glance-values {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+.reference-glance-values > div {
+  min-width: 0;
+  border: 1px solid #344e63;
+  border-left: 4px solid var(--pk-blood);
+  border-radius: 11px;
+  padding: 12px;
+  background: #1b3145;
+}
+.reference-glance-values > div.equivalent { border-left-color: var(--pk-equivalent); }
+.reference-glance-values > div.reference { border-left-color: var(--pk-reference); }
+.reference-glance-values > div.equivalent-reference { border-left-color: var(--pk-reference-equivalent); }
+.reference-glance-values > div.preview-blood { border-left-color: var(--pk-preview-blood); }
+.reference-glance-values > div.preview-equivalent { border-left-color: var(--pk-preview-equivalent); }
+.reference-glance-values > div.target { border-left-color: var(--pk-target); }
+.reference-glance-values > div > span { display: block; font-size: 11px; color: #bbccdb; }
+.reference-glance-values > div > strong { display: block; font-size: 15px; margin-top: 4px; overflow-wrap: anywhere; }
+.reference-glance #referenceGlanceEdit { margin-top: 13px; min-height: 44px; width: 100%; }
+@media (max-width: 350px) {
+  .chart-panel .probe-value { padding-inline: 8px; }
+  .chart-panel .legend > span { padding: 7px 5px; font-size: 10px; }
+  .reference-glance { width: calc(100dvw - 14px); padding: 12px; }
+}
+
+/* Foldable-sized open-screen and narrow side-by-side browser windows. */
+.workspace, .results, .chart-panel, .chart-tools, .metrics { min-inline-size: 0; }
+@media (min-width: 701px) and (max-width: 819px) {
+  .workspace { grid-template-columns: 1fr; }
+  .chart-panel .chart-wrap { max-width: 100%; }
+  .calc-nav { grid-template-columns: auto minmax(0, 1fr) minmax(145px, 190px); }
+}
+/* iPhone Duo inner display: show controls and chart together whenever the
+   actual viewport has room. Never assume a hardware pixel width. */
+@media (min-width: 820px) and (max-width: 1000px) {
+  .workspace {
+    display: grid;
+    grid-template-columns: minmax(275px, 35%) minmax(0, 1fr);
+    gap: 14px;
+    align-items: start;
+  }
+  .workspace > :is(.controls,.results) { min-width: 0; }
+  .chart-panel .chart-wrap { max-width: 100%; }
+}
+@media (max-width: 700px) {
+  .layout {
+    padding-inline-start: max(12px, var(--pk-safe-inline-start));
+    padding-inline-end: max(12px, var(--pk-safe-inline-end));
+    padding-bottom: max(70px, env(safe-area-inset-bottom, 0px));
+  }
+  .topbar {
+    padding-inline-start: max(12px, var(--pk-safe-inline-start));
+    padding-inline-end: max(12px, var(--pk-safe-inline-end));
+  }
+  .stage-calc .calc-nav {
+    margin-inline: 0;
+    width: 100%;
+    padding: 11px 12px;
+  }
+  .chart-panel .chart-tools label { flex: 1 1 100%; }
+  .chart-panel .chart-tools #jumpNow,
+  .chart-panel .chart-tools #quickReference,
+  .chart-panel .chart-tools #chartAddDose { flex: 1; min-width: 0; }
+  .chart-panel .probe-value { min-height: 70px; }
+  .quick-add {
+    width: 49px;
+    height: 49px;
+    right: max(10px, env(safe-area-inset-right, 0px));
+    bottom: max(14px, env(safe-area-inset-bottom, 0px));
+    font-size: 25px;
+  }
+}
+/* Do not park a floating add button on top of the chart values or the legend. */
+.stage-calc.chart-onscreen .quick-add { display: none !important; }
+
+@media (pointer: coarse) {
+  .account-tools > summary,
+  .chart-panel .legend > span,
+  .chart-panel #quickReference { min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .quick-add { transition: none; }
+  .reference-glance { scroll-behavior: auto; }
+}
+
+/* Correct the screenshot's missing inner text inset on the chart disclosures.
+   Content must never touch the disclosure border or extend beyond its card. */
+.chart-panel #chartCaptionGuide > #chartCaption {
+  margin: 0;
+  padding: 12px 15px 15px;
+  border-top: 1px solid #35556a;
+  color: #b6cada;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.chart-panel #chartMealGuide > #chartMealStatus:not([hidden]) {
+  margin: 0 12px 12px;
+  padding: 12px;
+  overflow-wrap: anywhere;
+}
+.chart-panel #chartCaptionGuide[open] > summary,
+.chart-panel #chartMealGuide[open] > summary {
+  background: #1a394c;
+  border-radius: 10px 10px 0 0;
+}

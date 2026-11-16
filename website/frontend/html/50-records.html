@@ -1,0 +1,46 @@
+      <aside class="panel controls" id="recordSection">
+        <div class="section-head"><span>01</span><h2>选择药物</h2></div>
+        <label class="field-label" for="drug">当前观察</label><select id="drug" name="drug"></select>
+        <details class="evidence-disclosure drug-detail-disclosure" id="drugDetailGuide" data-pref="drugDetailGuide"><summary>查看药物参数、风险及说明书</summary><div id="drugInfo" class="drug-info"></div></details><div id="drugSafetyAlert" class="drug-alert" role="alert" hidden></div>
+        <div class="section-head spaced"><span>02</span><h2>新增当天服用</h2></div>
+        <form id="doseForm" method="post" autocomplete="off">
+          <div class="field-label"><label for="doseTime">服用日期与时间</label><button class="text-button" id="nowButton" type="button">现在</button></div>
+          <input id="doseTime" type="datetime-local" required name="doseTime">
+          <p class="hint">输入自动保存草稿；点击保存才会记为实际服用。</p>
+          <label class="field-label" for="doseAmount">单次服用剂量 <span>选择输入单位</span></label>
+          <div class="dose-input-row"><input id="doseAmount" type="number" min="0.1" step="any" required name="doseAmount"><select id="doseUnit" aria-label="剂量单位" name="doseUnit"><option value="mg">mg</option><option value="g">g</option></select></div>
+          <p id="doseLimit" class="hint"></p><p id="dosePillHint" class="hint"></p>
+          <button class="primary" id="doseSubmit" type="submit"><span>＋</span> 保存这次服用</button>
+          <div class="dose-edit-actions">
+            <button class="ghost cancel-edit" id="doseCancel" type="button" hidden>取消修改</button>
+            <button class="record-danger" id="doseDelete" type="button" hidden>删除此条服用记录</button>
+          </div>
+        </form>
+        <div class="list-head"><span>所选日期的已记录剂量</span><small>所有药物</small></div>
+        <div id="dayRecordSummary" class="day-record-summary" aria-live="polite"></div>
+        <div id="recordList" class="record-list"></div>
+        <div class="section-head spaced intake-heading"><span>03</span><h2>饮食与饮料记录</h2></div>
+        <p class="hint">自动记录时间。餐型可能影响部分药物的吸收估计；饮料不直接改写浓度。</p>
+        <form id="intakeForm" class="intake-form" method="post" autocomplete="off">
+          <label for="intakeKind">记录类型<select id="intakeKind" name="intakeKind"><option value="meal">用餐</option><option value="drink">仅饮料</option></select></label>
+          <div class="field-label"><label for="intakeTime">发生时间</label><button class="text-button" id="intakeNow" type="button">现在</button></div>
+          <input id="intakeTime" type="datetime-local" required name="intakeTime">
+          <label id="mealTypeWrap" for="mealType">餐型<select id="mealType" name="mealType"><option value="regular">普通用餐</option><option value="highFat">高脂或丰盛餐</option></select></label>
+          <label for="intakeDrink">饮料<select id="intakeDrink" name="intakeDrink"><option value="none">未记录</option><option value="water">水</option><option value="coffee">咖啡</option><option value="tea">茶</option><option value="milk">牛奶</option><option value="juice">果汁</option><option value="alcohol">酒精饮料</option><option value="other">其他饮料</option></select></label>
+          <label for="intakeNote">备注（可选）<input id="intakeNote" type="text" maxlength="100" placeholder="例如午餐、饮料名称" name="intakeNote"></label>
+          <button class="secondary" id="intakeSubmit" type="submit">＋ 保存饮食记录</button><button class="ghost cancel-edit" id="intakeCancel" type="button" hidden>取消修改</button><button class="record-danger" id="intakeDelete" type="button" hidden>删除此条饮食记录</button>
+        </form>
+        <div class="list-head"><span>所选日期的饮食记录</span><small>跨设备同步</small></div>
+        <div id="intakeList" class="record-list"></div>
+        <details class="evidence-disclosure meal-impact-disclosure" id="mealImpactGuide" data-pref="mealImpactGuide"><summary>查看饮食对本次模型的影响</summary><div id="mealImpact" class="meal-impact" aria-live="polite"></div></details>
+        <details class="food-evidence"><summary>查看已收录药物的饮食与饮料依据</summary><div id="foodEvidence"></div></details>
+        <details class="evidence-disclosure" data-pref="mealTiming"><summary>了解餐后匹配窗口与限制</summary><p class="hint">普瑞巴林速释胶囊：模型将服药前 4 小时至服药后 15 分钟内的最近一次用餐视为餐后情景；人体研究涵盖普通餐后 30 分钟和 4 小时给药；将 4 小时窗口用于高脂餐属于模型外推，且没有测得个人消化完成时间，也不证明第 4 小时后影响突然消失。其他药物仍用服药前 90 分钟至服药后 15 分钟的模拟窗口。已吸收的剂量不会因后来吃饭而重新吸收；用餐记录不改变消除半衰期。</p></details>
+        <details class="panel plan-panel disclosure-section" id="planPanel" data-pref="planPanel"><summary class="disclosure-head"><span class="disclosure-title">处方与药盒核对</span><span class="disclosure-hint">点击展开</span></summary><div class="disclosure-body">
+          <p>按账号保存每种药物持有的多种规格。模型只按已保存规格的完整单位组合剂量；这里不会判断包装真伪、剂型是否适合混用或是否应拆分。</p>
+          <label class="field-label" for="planDrug">管理哪种药物的规格</label><select id="planDrug" name="planDrug"></select>
+          <div class="spec-entry"><label for="planStrength">每单位含量（mg）<input id="planStrength" type="number" min="0.001" step="any" inputmode="decimal" placeholder="例如 75" name="planStrength"></label><label for="planUnit">包装单位<select id="planUnit" name="planUnit"><option value="粒">粒</option><option value="片">片</option><option value="袋">袋</option></select></label><label for="planStrengthLabel">包装备注（可选）<input id="planStrengthLabel" type="text" maxlength="40" placeholder="例如家中现有药盒" name="planStrengthLabel"></label><button id="planAddStrength" class="secondary" type="button">＋ 添加规格并保存</button></div>
+          <div id="planStrengthList" class="spec-list" aria-live="polite"></div>
+          <div class="plan-grid"><label>处方每次剂量<input id="planDose" type="number" min="0.001" step="any" inputmode="decimal" placeholder="按处方填写" name="planDose"><small>mg / 次，若保存则作为反算单次上限</small></label><label>处方指定间隔<input id="planInterval" type="number" min="0.1" max="168" step="any" inputmode="decimal" placeholder="按处方填写" name="planInterval"><small>小时，若保存则作为反算最短间隔</small></label><label>上次计划时间<input id="planLastTime" type="datetime-local" name="planLastTime"><small>仅用于处方时间核对，不当作实际服用</small></label></div>
+          <div id="planResult" class="plan-result" aria-live="polite">添加规格后显示整单位组成核对。</div><p class="hint">输入时会自动同步编辑草稿；点击“保存该药处方信息”才将其作为已确认处方数据用于核对。</p><div class="plan-save-row"><button id="planSave" type="button" class="secondary">保存该药处方信息</button><span id="planStored">尚未保存规格</span></div>
+          <p class="hint">胶囊、片剂或缓释剂型不能默认拆分；不同制剂的真实吸收可能不同。若规格不能组成处方剂量，请向药师核对。</p></div></details>
+      </aside>

@@ -1,0 +1,24 @@
+  <header class="topbar">
+    <a class="brand" href="/"><span class="brand-icon" aria-hidden="true">✳</span><span>药时 <small>PK ATLAS</small></span></a>
+    <a class="shortcut-install" href="/install.html" aria-label="安装原生快捷指令（药时）">安装原生快捷指令 <span aria-hidden="true">↓</span></a>
+    <span class="top-note"><i class="live-dot" aria-hidden="true"></i> 自动保存 · 云端核对</span>
+    <button id="appHeaderSync" class="app-header-sync" type="button" aria-label="打开同步与账户设置">
+      <span class="app-sync-dot" aria-hidden="true"></span><span id="appHeaderSyncText">检查同步状态</span>
+    </button>
+  </header>
+  <div id="offlineAppBanner" class="offline-app-banner" role="status" hidden>离线模式 · 本机草稿尚未同步</div>
+  <main id="mainContent" class="layout" tabindex="-1">
+    <section id="bootScreen" class="boot-screen" role="status" aria-live="polite" aria-atomic="true">
+      <div class="boot-brand-mark" aria-hidden="true">✳</div>
+      <div class="boot-spinner" aria-hidden="true"></div>
+      <div class="boot-headline">药时正在准备就绪</div>
+      <p id="bootStatus">正在安全恢复登录与云端记录…</p>
+      <div class="boot-track" aria-hidden="true"><div class="boot-track-glow"></div></div>
+      <small>已保存的服药记录不会因页面加载而改变</small>
+    </section>
+    <section class="intro">
+      <div class="eyebrow">PHARMACOKINETIC JOURNAL <span>探索版</span></div>
+      <h1>记录每一次服用，<em>看见时间变化。</em></h1>
+      <p>服药记录、浓度曲线与模型探索，集中在一个清晰的时间轴。</p>
+    </section>
+    <div class="notice notice-compact" role="note"><span class="notice-symbol" aria-hidden="true">i</span><strong>群体估算模型 · 非血药实测</strong><details class="mini-disclosure" data-pref="introDisclaimer"><summary>重要使用说明</summary><p>服用剂量用 mg 或 g 输入，模型估算浓度使用 mg/L，二者不能直接互换。曲线不等于药效，也不能用于自行调整给药方案。</p></details></div>
