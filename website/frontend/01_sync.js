@@ -8,7 +8,8 @@ const SYNC_TAB_ID=(()=>{
   try{return crypto.randomUUID()}catch{return String(Date.now())+"-"+Math.random().toString(36).slice(2)}
 })();
 let syncRevision=0,syncTimer=0,syncRetryDelay=1000,syncRecoveredDrafts=[],syncLastEditAt=0;
-let syncStorageError=false,syncPulling=false;
+let syncStorageError=false,syncPulling=false,syncUploadId=null;
+const syncNewOperationId=()=>crypto.randomUUID?.()||('op-'+Date.now()+'-'+Math.random().toString(36).slice(2));
 const syncKey=username=>SYNC_DRAFT_PREFIX+encodeURIComponent(username)+":"+SYNC_TAB_ID;
 const syncApi=(path,method="GET",body)=>PKApi.request(path,method,body,{timeoutMs:16000});
 const syncDraftChanges=(a,b)=>SYNC_NAMES.filter(key=>!same(a?.[key],b?.[key]));
@@ -54,7 +55,7 @@ function syncReadDrafts(username){
 function syncSaveDraft(){
   if(!authUser)return true;
   const draft={schema:2,username:authUser,tabId:SYNC_TAB_ID,savedAt:Date.now(),
-    version:stateVersion,base:structuredClone(baseState||{}),state:snapshot()};
+    version:stateVersion,operationId:syncUploadId,base:structuredClone(baseState||{}),state:snapshot()};
   try{
     localStorage.setItem(syncKey(authUser),JSON.stringify(draft));
     syncStorageError=false;
@@ -65,14 +66,14 @@ function syncSaveDraft(){
     return false;
   }
 }
-function syncClearAcknowledgedDrafts(){
+function syncClearAcknowledgedDrafts(acceptedId=null){
   if(!authUser)return;
   try{
     // Never delete a newer draft from another tab or a later edit on this tab.
     const key=syncKey(authUser),raw=localStorage.getItem(key);
     if(raw){
       const saved=JSON.parse(raw);
-      if(saved?.username===authUser&&same(saved.state,snapshot()))
+      if(saved?.username===authUser&&(same(saved.state,snapshot())||(acceptedId&&saved.operationId===acceptedId)))
         localStorage.removeItem(key);
     }
     for(const entry of syncRecoveredDrafts){
@@ -130,6 +131,7 @@ function persist(){
   mealMatchCache.clear();
   if(authUser){
     syncRevision++;
+    syncUploadId=syncNewOperationId();
     syncLastEditAt=Date.now();
     const safe=syncSaveDraft();
     syncPending=true;
@@ -149,142 +151,95 @@ function persist(){
 async function syncRecoverPending(){
   if(!authUser)return;
   const drafts=syncReadDrafts(authUser);
-  if(!drafts.length){
-    syncSetStatus("synced","已读取云端最新数据");
-    return;
-  }
-  let merged=structuredClone(baseState);
-  for(const entry of drafts){
-    const proposed=mergeState(entry.draft.base,entry.draft.state,merged);
-    if(!proposed){syncRecoveredDrafts=drafts;syncConflictNotice();return}
-    merged=proposed;
-  }
+  const pending=drafts.filter(item=>syncDraftChanges(item.draft.base,item.draft.state).length);
+  if(!pending.length){syncSetStatus("synced","已读取云端最新数据");return}
+  // Only the latest LOCAL draft wins. Never union deleted records back in.
+  const newest=pending[pending.length-1];
   syncRecoveredDrafts=drafts;
-  if(syncDraftChanges(baseState,merged).length){
-    syncApplyMerged(merged);
-    syncRevision++;
-    syncPending=true;
-    syncSaveDraft();
-    syncSetStatus("pending",`发现 ${drafts.length} 份未同步草稿，已安全合并，正在补传云端…`);
-    syncSchedule(80);
-  }else{
-    syncClearAcknowledgedDrafts();
-    syncSetStatus("synced","本机草稿与云端一致，已核对");
-  }
+  syncApplyMerged(newest.draft.state);
+  syncUploadId=newest.draft.operationId||syncNewOperationId();
+  syncRevision++;syncPending=true;syncSaveDraft();
+  syncSetStatus("pending","恢复未上传的完整本机草稿，等待最后上传优先同步");
+  syncSchedule(80);
 }
 async function flushSync(){
   clearTimeout(syncTimer);syncTimer=0;
   if(syncRunning||!authUser||appOfflineRestored||syncConflict||!syncPending)return;
   if(!navigator.onLine){syncRetryLater(new Error("offline"));return}
-  syncRunning=true;
-  syncPending=false;
-  const sent=snapshot(),base=structuredClone(baseState||{}),version=stateVersion;
-  const sections=Object.fromEntries(syncDraftChanges(base,sent).map(k=>[k,sent[k]]));
+  syncRunning=true;syncPending=false;
+  const sent=snapshot(),version=stateVersion,revision=syncRevision;
+  const dirty=syncDraftChanges(baseState,sent).length>0;
+  const operationId=syncUploadId||(syncUploadId=syncNewOperationId());
   try{
-    syncSetStatus("saving","正在安全同步云端…");
-    if(Object.keys(sections).length)
-      await syncApi("/api/state/sections","PUT",{version,sections});
-    // Read back the durable state; an HTTP 200 alone is not sufficient proof.
-    const verified=await syncApi("/api/state");
-    const latest=snapshot();
-    const merged=mergeState(Object.keys(sections).length?sent:base,latest,verified.state);
-    if(!merged){syncConflictNotice();return}
-    const changedMemory=!same(merged,latest);
-    baseState=structuredClone(verified.state);
-    stateVersion=verified.version;
-    offlineSaveVerified(authUser,verified.state,verified.version);
-    if(changedMemory){
-      syncApplyMerged(merged);
-      renderDrug();
-      window.dispatchEvent(new Event("pk-atlas-records-changed"));
+    if(dirty){
+      syncSetStatus("saving","上传完整快照，以服务器最后成功提交的设备为准…");
+      await syncApi("/api/state","PUT",{version,state:sent,
+        syncPolicy:"last-upload-wins-v1",operationId});
     }
-    if(syncDraftChanges(baseState,snapshot()).length){
-      syncRevision++;
-      syncPending=true;
-      syncSaveDraft();
-      syncSetStatus("pending","合并了其他设备或刚刚输入的更改，正在继续同步…");
-      syncRetryDelay=1000;
-      syncSchedule(200);
-    }else{
-      syncClearAcknowledgedDrafts();
-      syncRetryDelay=1000;
-      if(!syncStorageError)syncSetStatus("synced","所有更改已保存到云端 · 已回读核对");
-      $("syncRetry").hidden=true;
-      window.dispatchEvent(new Event("pk-atlas-records-changed"));
+    const remote=await syncApi("/api/state");
+    if(remote.syncPolicy!=="last-upload-wins-v1"){
+      syncConflictNotice();
+      syncSetStatus("conflict","服务器尚不支持最后上传优先规则，请先升级服务端。");
+      return;
     }
+    baseState=structuredClone(remote.state);
+    stateVersion=remote.version;
+    offlineSaveVerified(authUser,remote.state,remote.version);
+    if(syncRevision!==revision){
+      syncPending=true;syncSaveDraft();
+      syncSetStatus("pending","上传期间产生新修改，将继续提交较新的本机快照…");
+      syncSchedule(250);
+      return;
+    }
+    // Another device could have committed between our write and GET.
+    // In that case it has won. Do not re-upload our older snapshot.
+    syncApplyMerged(remote.state);
+    syncClearAcknowledgedDrafts(operationId);
+    syncUploadId=null;syncRetryDelay=1000;
+    renderDrug();
+    syncSetStatus("synced","已回读最后成功上传设备的完整快照");
+    $("syncRetry").hidden=true;
+    window.dispatchEvent(new Event("pk-atlas-records-changed"));
   }catch(error){
-    if(error.status===409&&error.data?.state&&Number.isInteger(error.data.version)){
-      const merged=mergeState(base,snapshot(),error.data.state);
-      if(!merged){syncConflictNotice();return}
-      baseState=structuredClone(error.data.state);
-      stateVersion=error.data.version;
-      syncApplyMerged(merged);
-      renderDrug();
-      syncRevision++;
-      syncPending=true;
-      syncSaveDraft();
-      syncSetStatus("pending","另一台设备已有新内容；已合并不冲突的更改，正在重试…");
-      syncSchedule(80);
+    if(error.status===409){
+      syncConflictNotice();
+      syncSetStatus("conflict","服务器仍使用旧版冲突规则，停止重试；保留本机草稿。");
     }else if(error.status===401){
       syncPending=true;
-      syncSetStatus("error","登录已过期。本机草稿已保留，请重新登录后自动恢复同步。");
-      $("authRetry").hidden=false;
-      $("syncRetry").hidden=false;
+      syncSetStatus("error","登录已过期，本机完整草稿已保留。");
+      $("authRetry").hidden=false;$("syncRetry").hidden=false;
     }else syncRetryLater(error);
   }finally{
     syncRunning=false;
-    // A new change might have arrived during the awaited request.
     if(syncPending&&!syncConflict&&!syncTimer)syncSchedule(250);
   }
 }
 async function syncPullRemote(){
   if(!authUser||appOfflineRestored||syncPulling||syncRunning||syncPending||syncConflict||!navigator.onLine)return;
-  // No redundant 30-second cloud reads while a home-screen PWA is in the
-  // background. Visibility/focus listeners refresh immediately on return.
   if(document.hidden)return;
   if(Date.now()-syncLastEditAt<3500)return;
   if(document.activeElement?.matches?.("input,textarea,select,[contenteditable=true]"))return;
-  syncPulling=true;
-  const rev=syncRevision;
+  syncPulling=true;const revision=syncRevision;
   try{
-    const data=await syncApi("/api/state");
-    if(syncRevision!==rev||syncPending||syncRunning)return;
-    if(data.version!==stateVersion){
-      const merged=mergeState(baseState,snapshot(),data.state);
-      if(!merged){syncConflictNotice();return}
-      baseState=structuredClone(data.state);
-      stateVersion=data.version;
-      syncApplyMerged(merged);
+    const remote=await syncApi("/api/state");
+    if(syncRevision!==revision||syncPending||syncRunning)return;
+    if(remote.version!==stateVersion){
+      baseState=structuredClone(remote.state);
+      stateVersion=remote.version;
+      syncApplyMerged(remote.state);
+      offlineSaveVerified(authUser,remote.state,remote.version);
       renderDrug();
-      if(syncDraftChanges(baseState,snapshot()).length){
-        syncRevision++;syncPending=true;syncSaveDraft();syncSchedule(100);
-      }else{
-        syncSetStatus("synced","已载入另一台设备的最新内容");
-        window.dispatchEvent(new Event("pk-atlas-records-changed"));
-      }
+      syncSetStatus("synced","已加载另一设备最后提交的完整版本");
+      window.dispatchEvent(new Event("pk-atlas-records-changed"));
     }
-  }catch{/* transient polling failures never erase local changes */ }
+  }catch{/* Poll failures never erase a local draft or upload stale data. */}
   finally{syncPulling=false}
 }
 async function syncManualRetry(){
   if(!authUser||appOfflineRestored||syncRunning)return;
-  if(syncConflict){
-    try{
-      const data=await syncApi("/api/state");
-      const drafts=syncReadDrafts(authUser);
-      let merged=structuredClone(data.state);
-      for(const entry of drafts){
-        merged=mergeState(entry.draft.base,entry.draft.state,merged);
-        if(!merged){syncConflictNotice();return}
-      }
-      syncConflict=false;
-      baseState=structuredClone(data.state);stateVersion=data.version;
-      syncApplyMerged(merged);
-      syncRecoveredDrafts=drafts;
-      renderDrug();
-    }catch(e){syncSetStatus("error",`重新核对失败：${e.message}`);return}
-  }
-  syncRevision++;syncPending=true;syncSaveDraft();syncSchedule(0);
+  syncConflict=false;syncPending=true;
+  if(!syncUploadId)syncUploadId=syncNewOperationId();
+  syncSaveDraft();syncSchedule(0);
 }
 function syncDownloadDraft(){
   if(!authUser)return;
