@@ -108,7 +108,7 @@ class ModernWebTests(unittest.TestCase):
             self.assertIn(f'id="{name}"',html)
         for symbol in ("function syncSaveDraft()", "function syncRecoverPending()",
                        "async function flushSync()", "function syncConflictNotice()",
-                       "function syncCaptureEditor(event)", "/api/state/sections"):
+                       "function syncCaptureEditor(event)", 'syncPolicy:"last-upload-wins-v1"'):
             self.assertIn(symbol,src)
         self.assertIn('signal:controller.signal',api)
         self.assertNotIn('"accountPassword"',src[src.find('const EDITOR_IDS='):src.find('function safeEditorDrafts(')])
