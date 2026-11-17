@@ -11,7 +11,8 @@
   <link rel="stylesheet" href="/data-center.css?v=20261116b">
   <script defer src="/api-client.js?v=autosave-20261115"></script>
   <script defer src="/data-portability-core.js?v=20261116b"></script>
-  <script defer src="/data-center.js?v=20261116b"></script>
+  <script defer src="/sync-center-core.js?v=20261117a"></script>
+  <script defer src="/data-center.js?v=20261117a"></script>
 </head>
 <body data-page="data-center">
   <a class="skip-link" href="#main">跳到主要内容</a>
@@ -36,13 +37,14 @@
           <div><small>云端版本</small><strong id="syncCloudVersion">—</strong></div>
           <div><small>云端服药记录</small><strong id="syncRecordCount">—</strong></div>
           <div><small>云端饮食记录</small><strong id="syncIntakeCount">—</strong></div>
-          <div><small>本机未清理草稿</small><strong id="syncDraftCount">—</strong></div>
+          <div><small>待处理本机草稿</small><strong id="syncDraftCount">—</strong></div>
         </div>
         <p id="syncCenterDetail" class="data-muted" role="status">尚未核对。</p>
         <p id="syncCenterTime" class="data-muted"></p>
+        <p id="syncDraftClassification" class="data-muted"></p>
         <div class="data-actions">
           <button type="button" class="secondary" id="syncCenterCheck">重新读取云端核对</button>
-          <a class="ghost account-link" href="/">返回首页自动同步/处理冲突</a>
+          <a class="ghost account-link" href="/">返回首页执行自动同步与冲突处理</a>
         </div>
         <details><summary>为什么这里不直接覆盖云端？</summary>
           <p>服药、饮食和已采用的模型可能被另一台设备修改。中心只读比对；需要合并时使用主页带版本检查的自动同步，避免错把较旧的本机数据写到云端。</p>

@@ -3,9 +3,11 @@
   const $=id=>document.getElementById(id);
   const req=(path,method="GET",body)=>PKApi.request(path,method,body,{timeoutMs:16000});
   let user="",current=null,version=-1,pendingImport=null,importFileName="";
+  let draftAccessError=false;
   const status=(text,kind="info")=>{$("dataCenterStatus").textContent=text;$("dataCenterStatus").dataset.kind=kind};
   const drafts=()=>{
     const out=[];
+    draftAccessError=false;
     try{
       const prefix="pk-atlas-sync-draft-v2:"+encodeURIComponent(user)+":";
       for(let i=0;i<localStorage.length;i++){
@@ -13,9 +15,16 @@
         if(!key||!(key.startsWith(prefix)||key==="pk-atlas-sync-draft-v1"))continue;
         const raw=localStorage.getItem(key);
         if(!raw)continue;
-        try{const parsed=JSON.parse(raw);if(parsed.username===user&&parsed.state)out.push({key,draft:parsed})}catch{}
+        try{
+          const parsed=JSON.parse(raw);
+          if(parsed.username===user&&parsed.state)out.push({key,draft:parsed,raw});
+          else if(key.startsWith(prefix))out.push({key,invalid:true,raw});
+        }catch{if(key.startsWith(prefix))out.push({key,invalid:true,raw})}
       }
-    }catch{status("本机存储权限不足，无法枚举未同步草稿。","error")}
+    }catch{
+      draftAccessError=true;
+      status("本机存储空间或权限不可用，无法核对草稿，导入已安全锁定。","error");
+    }
     return out;
   };
   async function read(){
@@ -29,28 +38,36 @@
     $("syncCenterCheck").disabled=true;
     status("正在只读核对云端版本与本机草稿…");
     try{
-      const response=await read(),local=drafts(),changes=[];
+      const response=await read(),local=drafts();
+      const review=PKSyncCenter.summarize(local,response.state);
       $("dataAccount").textContent="当前账号："+user;
       $("syncCloudVersion").textContent="v"+response.version;
       $("syncRecordCount").textContent=response.state.records?.length??0;
       $("syncIntakeCount").textContent=response.state.intakes?.length??0;
-      $("syncDraftCount").textContent=local.length;
-      for(const entry of local){
-        const base=entry.draft.base||{};
-        const content=entry.draft.state||{};
-        for(const key of PKPortability.SECTIONS){
-          if(JSON.stringify(content[key])!==JSON.stringify(base[key])&&!changes.includes(key))changes.push(key);
-        }
-      }
-      const active=local.length>0;
+      $("syncDraftCount").textContent=draftAccessError?"无法读取":review.needsAction;
       const box=$("syncCenterDetail");
-      box.textContent=active?
-        "找到 "+local.length+" 份本机草稿；含更改分区："+(changes.join("、")||"未检测到与基线的差异")+
-        "。请先返回首页执行自动同步，确认“已同步”后再进行导入。":
-        "当前浏览器没有残留的待同步草稿。请注意，其他设备的本机草稿无法从这台设备检测。";
-      box.dataset.kind=active?"warning":"info";
-      $("syncCenterTime").textContent="服务器核对完成："+new Date().toLocaleString("zh-CN")+"；仅表示服务器此刻已响应，不代表其他设备也完成同步。";
-      status("已读取云端最新版本；未覆盖任何记录。");
+      if(draftAccessError){
+        box.textContent="本机存储不可读取，不能判断是否存在未同步草稿。请勿清除浏览器数据。";
+        box.dataset.kind="error";
+      }else if(review.needsAction){
+        box.textContent=review.tally.possible_conflict?
+          "发现 "+review.tally.possible_conflict+" 份可能与云端同分区修改冲突的草稿。先导出备份，再到首页核对；此处不会自动覆盖云端。":
+          "发现 "+review.needsAction+" 份待处理或无法解析的草稿。先导出草稿，再返回首页执行自动同步。";
+        box.dataset.kind=review.tally.possible_conflict?"error":"warning";
+      }else{
+        box.textContent="本机没有检测到待同步变更。其他设备的本机草稿无法从此处查看。";
+        box.dataset.kind="info";
+      }
+      $("syncDraftClassification").textContent=draftAccessError?"":
+        "草稿分类：待同步 "+review.tally.pending+" · 潜在冲突 "+review.tally.possible_conflict+
+        " · 已与云端一致 "+review.tally.already_in_cloud+
+        " · 无更改 "+review.tally.unchanged+
+        " · 无法解析 "+review.tally.unreadable+
+        "。涉及分区："+(review.changed.join("、")||"无")+
+        "。这是分区级保守检查，不会自行删除或写入草稿。";
+      $("syncCenterTime").textContent="服务器核对完成："+new Date().toLocaleString("zh-CN")+"；只证明这台设备已取得云端版本，不代表其他设备同步完成。";
+      status(draftAccessError?"本机存储检查受限。":review.needsAction?"云端读取成功，但本机仍有需要处理的草稿。":"已核对云端和本机草稿；未更改任何记录。",
+             draftAccessError?"error":"info");
       $("dataCenterContent").hidden=false;
       $("dataCenterGate").hidden=true;
     }catch(e){
@@ -101,7 +118,8 @@
       // local draft snapshots automatically.
       if(parsed.format==="pk-atlas-local-drafts-v1")throw Error("本机草稿包需要在原设备登录后交由自动同步恢复，不能批量覆盖云端");
       const latest=await req("/api/state");
-      if(drafts().length)throw Error("检测到这台设备存在未同步草稿。先返回首页恢复同步，再导入历史文件");
+      const pending=PKSyncCenter.summarize(drafts(),latest.state);
+      if(draftAccessError||pending.needsAction)throw Error("检测到本机待处理/无法解析草稿或存储受限；先导出草稿并在首页完成同步再导入");
       const result=PKPortability.combine(latest.state,incoming,
         {nativeImport:parsed.exportSource==="iOS Journal 17.1"});
       if(JSON.stringify(result.state).length>7_000_000)throw Error("合并后的文件过大");
@@ -125,8 +143,9 @@
                 " 项。云端原有同 ID 记录不会被覆盖。确认继续吗？"))return;
     const button=$("dataImportCommit");button.disabled=true;
     try{
-      if(drafts().length)throw Error("本机存在未同步草稿，请先同步");
       const latest=await req("/api/state");
+      const pending=PKSyncCenter.summarize(drafts(),latest.state);
+      if(draftAccessError||pending.needsAction)throw Error("本机存在待处理草稿或无法读取存储，请先同步");
       if(latest.version!==plan.version)throw Error("云端版本已更新。请重新选择文件、重新预览");
       const sections=Object.fromEntries(PKPortability.SECTIONS.filter(k=>
         JSON.stringify(plan.state[k])!==JSON.stringify(latest.state[k])).map(k=>[k,plan.state[k]]));

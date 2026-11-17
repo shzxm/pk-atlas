@@ -24,7 +24,7 @@ HTML_PARTS = ('00-document.html','10-shell.html','20-account.html','30-journal.h
 # Standalone authenticated diagnostics and portable import/export tools.
 # This does not append code into the scientific calculation bundle.
 for name in ('data-center.html','data-center.css','data-center.js',
-             'data-portability-core.js','push-diagnostics.js'):
+             'data-portability-core.js','sync-center-core.js','push-diagnostics.js'):
     (ROOT / 'web' / name).write_text((ROOT / 'frontend/pages' / name).read_text())
 for page in ('quick','install','api'):
     (ROOT / 'web' / (page+'.css')).write_text((ROOT / 'frontend/css/support' / (page+'.css')).read_text())

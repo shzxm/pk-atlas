@@ -21,6 +21,8 @@ jobs:
         working-directory: website
       - run: node tests/portability_node.cjs
         working-directory: website
+      - run: node tests/sync_center_node.cjs
+        working-directory: website
   native-syntax:
     runs-on: macos-latest
     steps:

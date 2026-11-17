@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="/data-center.css?v=20261116a">
   <script defer src="/api-client.js?v=autosave-20261115"></script>
   <script defer src="/push.js?v=11"></script>
-  <script defer src="/push-diagnostics.js?v=20261116a"></script>
+  <script defer src="/push-diagnostics.js?v=20261117a"></script>
   <title>通知设置 · 药时</title>
   <meta name="description" content="药时模型提醒：管理当前设备的通知权限、参考线和情景时间提醒。">
   <link rel="icon" type="image/png" href="/icon-192.png">
@@ -49,8 +49,11 @@
           <div><dt>未来提醒</dt><dd id="pushDiagUpcoming">—</dd></div>
           <div><dt>服务商已接受请求</dt><dd id="pushDiagAccepted">—</dd></div>
           <div><dt>最近一次服务商接受</dt><dd id="pushDiagLatest">—</dd></div>
+          <div><dt>下一个模型时间节点</dt><dd id="pushDiagNext">—</dd></div>
+          <div><dt>运行方式</dt><dd id="pushDiagMode">—</dd></div>
+          <div><dt>本机接收条件</dt><dd id="pushDiagReady">—</dd></div>
         </dl>
-        <p>“已接受”只表示 Web Push 服务商接收了发送请求，并不表示 iPhone 已显示通知、声音已播放或用户已阅读。</p>
+        <p>“已接受”只表示 Web Push 服务商接收了发送请求，并不表示 iPhone 已显示通知、声音已播放或用户已阅读。诊断页面不会主动请求权限或发送测试推送；使用上方「发送测试通知」进行人工验证。</p>
         <button type="button" id="pushDiagRefresh" class="ghost">重新检查通知状态</button>
       </details>
     </section>

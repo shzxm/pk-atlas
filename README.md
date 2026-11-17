@@ -106,3 +106,17 @@ xcodegen generate --spec project.yml
 生产账号、数据库、登录 Cookie、证书、Telegram Token、VAPID 私钥、IPA 签名材料、个人用药日记以及服务器私有配置均不在此仓库。请勿在 Issue 上传真实健康记录或密钥。详见 [SECURITY.md](SECURITY.md)。
 
 本项目源代码按 [MIT](LICENSE) 开源。引用医学资料、第三方软件、商标及相关设备名称仍归原权利人所有。欢迎提交带测试用例的 Issue 和 Pull Request。
+
+
+## 2026-11-17 同步与通知诊断更新
+
+- **同步中心**：本机草稿区分待同步、可能冲突、已与云端一致、无修改、无法解析。
+  仅待处理草稿阻止新导入，保留本机原稿并引导到首页继续自动同步。
+- **通知诊断中心**：增加下一个模型节点、独立 App/浏览器运行方式，以及当前设备
+  是否满足可检查的发送条件。服务商接受仍**不等于**设备已显示通知。
+- **数据迁移**：保留网站完整 JSON、旧版五分区 JSON、
+  iOS Journal 17.1 原始导入器结构、标准化归档 JSON、CSV 和分区版本检查。
+- **Cloudflare Free**：白名单缓存规则已准备，但**尚未在用户 Zone 上启用**。
+  Free 方案不能直接设置强制 Edge TTL 120 秒；规则采用遵守源站
+  s-maxage=120 的模式，并对 /api/ 采用显式 Bypass。
+  详见 website/config/cloudflare-cache-rules-yao.md 和 JSON 规则文件。

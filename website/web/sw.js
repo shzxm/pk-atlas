@@ -3,7 +3,7 @@
  * All /api/ traffic bypasses this worker: never cache credentials, session
  * responses, private state, medication records, or notification subscriptions.
  */
-const SHELL_CACHE="pk-atlas-public-shell-v20261116-4";
+const SHELL_CACHE="pk-atlas-public-shell-v20261117-1";
 const CACHE_PREFIX="pk-atlas-public-shell-";
 const SHELL_ASSETS=[
   "/","/index.html",
@@ -17,9 +17,9 @@ const SHELL_ASSETS=[
   "/push.js?v=11",
   "/manifest.webmanifest","/icon-192.png","/icon-512.png",
   "/quick.html","/quick.js?v=mwg-20261115","/quick.css",
-  "/notifications.html","/push-diagnostics.js?v=20261116b",
+  "/notifications.html","/push-diagnostics.js?v=20261117a",
   "/data-center.html","/data-center.css?v=20261116b",
-  "/data-center.js?v=20261116b","/data-portability-core.js?v=20261116b",
+  "/data-center.js?v=20261117a","/sync-center-core.js?v=20261117a","/data-portability-core.js?v=20261116b",
   "/install.html","/install.css","/api.html","/api.css"
 ];
 const assets=new Set(SHELL_ASSETS.map(path=>new URL(path,self.location.origin).href));
