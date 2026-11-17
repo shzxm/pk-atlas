@@ -62,7 +62,7 @@ function make(){
   };
   const globalDeclarations=`
     var authUser="sync_test",stateVersion=0,baseState=${JSON.stringify(base())},
-      syncPending=false,syncRunning=false,syncConflict=false;
+      syncPending=false,syncRunning=false,syncConflict=false,appOfflineRestored=false;
     var records=[],courses=[],intakes=[],plans={},renal=null,referenceMemory={},inverseMemory={},editorDrafts={};
     var current="amoxicillin";
     var RECORD_KEY="records",COURSE_KEY="courses",PLAN_KEY="plans",INTAKE_KEY="intakes",RENAL_KEY="renal",DRAFT_KEY="legacy-draft";
