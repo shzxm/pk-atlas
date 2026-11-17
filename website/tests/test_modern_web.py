@@ -96,7 +96,7 @@ class ModernWebTests(unittest.TestCase):
         import xml.etree.ElementTree as ET
         robots=(ROOT / "web/robots.txt").read_text()
         self.assertIn("Disallow: /api/",robots)
-        self.assertIn("Sitemap: https://yao.shzxm.com/sitemap.xml",robots)
+        self.assertIn("Sitemap: https://pk.example.com/sitemap.xml",robots)
         root=ET.parse(ROOT / "web/sitemap.xml").getroot()
         self.assertEqual(len(root),3)
 

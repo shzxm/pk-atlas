@@ -75,7 +75,7 @@ final class ReminderCoordinator: NSObject, ObservableObject, UNUserNotificationC
             if reportResult { report("请先在药时中登录，然后再同步本机提醒。") }
             return
         }
-        let url = URL(string: "https://yao.shzxm.com/api/push/pending")!
+        let url = URL(string: "https://pk.example.com/api/push/pending")!
         var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData)
         request.setValue(cookie, forHTTPHeaderField: "Cookie")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
@@ -87,7 +87,7 @@ final class ReminderCoordinator: NSObject, ObservableObject, UNUserNotificationC
         let (body, response) = try await URLSession(configuration: config).data(for: request)
         guard let http = response as? HTTPURLResponse,
               http.url?.scheme == "https",
-              http.url?.host == "yao.shzxm.com" else {
+              http.url?.host == "pk.example.com" else {
             throw URLError(.badServerResponse)
         }
         guard http.statusCode == 200 else {
@@ -159,7 +159,7 @@ final class ReminderCoordinator: NSObject, ObservableObject, UNUserNotificationC
         }
         guard let cookie = cookies.first(where: {
             $0.name == "pk_atlas_session" &&
-            $0.domain.lowercased() == "yao.shzxm.com" &&
+            $0.domain.lowercased() == "pk.example.com" &&
             $0.path.hasPrefix("/api") &&
             $0.isSecure && !$0.isExpired
         }) else { return nil }

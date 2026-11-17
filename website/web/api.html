@@ -15,12 +15,12 @@ Content-Type: application/json</pre><p>所有接口使用 HTTPS。GET 请求在�
 </tbody></table></div>
 <p><code>drug</code> 可用 ID 或中文名称。<code>unit</code> 为 <code>mg</code> 或 <code>g</code>。<code>time</code> 与 <code>targetStart</code> 可用带时区 ISO 8601、Unix 毫秒，或当天的 <code>HH:MM</code>；未传服用时间默认为现在。<code>mode</code> 为 <code>blood</code> 或 <code>equivalent</code>。反算前需在网站保存药盒规格。</p>
 </div></details>
-<details class="support-disclosure"><summary>示例：保存服用</summary><div class="support-disclosure-body"><pre>curl 'https://yao.shzxm.com/api/v1/doses' \
+<details class="support-disclosure"><summary>示例：保存服用</summary><div class="support-disclosure-body"><pre>curl 'https://pk.example.com/api/v1/doses' \
   -H 'Authorization: Bearer YOUR_KEY' \
   -H 'Content-Type: application/json' \
   --data '{"username":"YOUR_NAME","drug":"pregabalin","amount":25,"unit":"mg"}'</pre>
 </div></details>
-<details class="support-disclosure"><summary>示例：获取曲线</summary><div class="support-disclosure-body"><pre>curl 'https://yao.shzxm.com/api/v1/curve?username=YOUR_NAME&amp;drug=pregabalin' \
+<details class="support-disclosure"><summary>示例：获取曲线</summary><div class="support-disclosure-body"><pre>curl 'https://pk.example.com/api/v1/curve?username=YOUR_NAME&amp;drug=pregabalin' \
   -H 'Authorization: Bearer YOUR_KEY'</pre>
 </div></details>
 <small>药时使用群体药代教学模型。曲线不是实测血药浓度；反算结果不是服药建议。</small></main></body></html>

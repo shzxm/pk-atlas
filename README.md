@@ -58,7 +58,7 @@ node tests/portability_node.cjs
 
 1. 使用自己的域名，例如 pk.example.com。运行 python3 scripts/configure_site.py pk.example.com 后检查修改内容，再执行 python3 scripts/build.py。
 2. 使用专用低权限账户运行 Python API，设置 PK_DB、PK_PUBLIC_HOST、PK_PORT（默认 8766）。
-3. 使用 [Nginx HTTPS 示例](website/config/nginx-yao.shzxm.com) 或同等的 TLS 反代，公开网站静态根目录，并将同源 /api/ 转发到仅绑定 loopback 的 Python API。
+3. 使用 [Nginx HTTPS 示例](website/config/nginx-pk.example.com) 或同等的 TLS 反代，公开网站静态根目录，并将同源 /api/ 转发到仅绑定 loopback 的 Python API。
 4. 数据库目录必须只允许服务账户访问。生成自己的 VAPID 密钥，并按需设置 PK_VAPID_PRIVATE、PK_VAPID_PUBLIC 和 PK_VAPID_SUBJECT。
 5. Cloudflare 只允许缓存无用户信息的公共 HTML、JS、CSS；所有 /api/ 必须 Bypass；/sw.js 需要更新时不得被错误缓存。见 [缓存策略](website/config/cloudflare-cache-rules-yao.md)。
 6. 初始化数据库为空，不包含作者用户记录。正式导入之前先测试完整备份与回滚。

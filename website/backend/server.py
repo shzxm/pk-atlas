@@ -22,7 +22,7 @@ import push_service
 DB = os.environ.get("PK_DB", "/var/lib/pk-atlas/pk.sqlite3")
 PORT = int(os.environ.get("PK_PORT", "8766"))
 HOST = "127.0.0.1"
-PUBLIC_HOST = os.environ.get("PK_PUBLIC_HOST", "yao.shzxm.com").lower().strip()
+PUBLIC_HOST = os.environ.get("PK_PUBLIC_HOST", "pk.example.com").lower().strip()
 COOKIE = "pk_atlas_session"
 # Per-browser sessions, not IP/UA device fingerprinting.
 REMEMBER_ABSOLUTE = 90 * 86400

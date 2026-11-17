@@ -18,7 +18,7 @@ with tempfile.TemporaryDirectory() as temporary:
     latest_set_cookie=[None]
     def call(path, method='GET', data=None, token=None):
         payload = json.dumps(data).encode() if data is not None else None
-        headers = {'Host':'yao.shzxm.com','Origin':'https://yao.shzxm.com'}
+        headers = {'Host':'pk.example.com','Origin':'https://pk.example.com'}
         if payload is not None:headers['Content-Type']='application/json'
         if cookie[0]:headers['Cookie']=cookie[0]
         if token:headers['Authorization']='Bearer '+token
@@ -138,7 +138,7 @@ with tempfile.TemporaryDirectory() as temporary:
         # unsupported route on production, NOT a reason to remove CSRF checks.
         bad = urllib.request.Request('http://127.0.0.1:9877/api/state/sections',
             data=json.dumps({'version':-1,'sections':{'plans':{}}}).encode(),
-            headers={'Host':'yao.shzxm.com','Origin':'https://other.example',
+            headers={'Host':'pk.example.com','Origin':'https://other.example',
                      'Content-Type':'application/json','Cookie':cookie[0]},method='PUT')
         try:
             opener.open(bad,timeout=4)

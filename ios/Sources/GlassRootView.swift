@@ -192,7 +192,7 @@ private struct AboutPanel: View {
                     Text("药时 · PK ATLAS")
                         .font(.title2.bold())
                     Text("原生 SwiftUI 导航和 Liquid Glass，复用经过验证的药代模型与账户数据。支持 iPhone Duo 展开、折叠和多任务布局。")
-                    Label("始终连接 yao.shzxm.com；不会向第三方转发服药记录。", systemImage: "lock.shield")
+                    Label("始终连接 pk.example.com；不会向第三方转发服药记录。", systemImage: "lock.shield")
                     Label("页面可以离线显示最近验证的记录，云端同步需要联网。", systemImage: "wifi.slash")
                     Label("系统提醒需主动授权，并在启动或记录修改时刷新。", systemImage: "bell")
                     Text("模型只用于估算与记录，不代表血药实测、药效或医疗建议。不要根据反算结果自行调整剂量。")

@@ -159,7 +159,7 @@ function mergeLocalForUpload(remote,local){
 }
 function incomingLocalTransfer(){try{return JSON.parse(sessionStorage.getItem(TRANSFER_KEY)||"null")}catch{return null}}
 function startLocalTransfer(){
-  const targetOrigin="https://yao.shzxm.com";
+  const targetOrigin="https://pk.example.com";
   const draft=(()=>{try{return JSON.parse(getStored(DRAFT_KEY)||"null")}catch{return null}})();
   const guest=snapshot(),hasGuest=guest.records.length||guest.intakes.length||Object.keys(guest.plans).length||guest.settings.renal;
   const source=draft?.state?hasGuest?mergeLocalForUpload(draft.state,guest):draft.state:guest;
@@ -177,7 +177,7 @@ function startLocalTransfer(){
 }
 function initLocalTransferReceiver(){
   if(!new URLSearchParams(location.search).has("local-transfer")||!window.opener)return;
-  const allowed=new Set(["http://127.0.0.1","http://181.shzxm.com"]);
+  const allowed=new Set(["http://127.0.0.1","http://181.example.com"]);
   window.addEventListener("message",event=>{
     if(event.source!==window.opener||!allowed.has(event.origin)||event.data?.type!=="pk-atlas-transfer-data")return;
     const state=event.data.state;
@@ -626,9 +626,9 @@ async function loadAccount(prefetched=null){
 }
 async function initAuth(){
   initDeviceSessionUI();
-  $("transferLocal").hidden=location.origin==="https://yao.shzxm.com";
+  $("transferLocal").hidden=location.origin==="https://pk.example.com";
   $("transferLocal").addEventListener("click",startLocalTransfer);
-  if(location.origin!=="https://yao.shzxm.com"){
+  if(location.origin!=="https://pk.example.com"){
     $("authForm").hidden=true;$("authRetry").hidden=true;$("accountName").textContent="本机记录";
     setSyncStatus("点击下方按钮，在正式网站登录并保存本机记录。");showStage("auth");return;
   }
@@ -738,7 +738,7 @@ async function initAuth(){
     persist();renderDrug();setSyncStatus("已合并本机记录，正在同步…");
   });
   $("saveLocalCloud").addEventListener("click",async()=>{
-    if(location.origin!=="https://yao.shzxm.com"){startLocalTransfer();return}
+    if(location.origin!=="https://pk.example.com"){startLocalTransfer();return}
     if(!authUser){setSyncStatus("请先登录正式网站，再保存本机数据。",true);return}
     if(syncRunning){setSyncStatus("当前同步尚未结束，请稍后再保存本机数据。",true);return}
     let draftText=getStored(DRAFT_KEY),draft=null;

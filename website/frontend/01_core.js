@@ -158,7 +158,7 @@ function mergeLocalForUpload(remote,local){
 }
 function incomingLocalTransfer(){try{return JSON.parse(sessionStorage.getItem(TRANSFER_KEY)||"null")}catch{return null}}
 function startLocalTransfer(){
-  const targetOrigin="https://yao.shzxm.com";
+  const targetOrigin="https://pk.example.com";
   const draft=(()=>{try{return JSON.parse(getStored(DRAFT_KEY)||"null")}catch{return null}})();
   const guest=snapshot(),hasGuest=guest.records.length||guest.intakes.length||Object.keys(guest.plans).length||guest.settings.renal;
   const source=draft?.state?hasGuest?mergeLocalForUpload(draft.state,guest):draft.state:guest;
@@ -176,7 +176,7 @@ function startLocalTransfer(){
 }
 function initLocalTransferReceiver(){
   if(!new URLSearchParams(location.search).has("local-transfer")||!window.opener)return;
-  const allowed=new Set(["http://127.0.0.1","http://181.shzxm.com"]);
+  const allowed=new Set(["http://127.0.0.1","http://181.example.com"]);
   window.addEventListener("message",event=>{
     if(event.source!==window.opener||!allowed.has(event.origin)||event.data?.type!=="pk-atlas-transfer-data")return;
     const state=event.data.state;

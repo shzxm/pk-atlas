@@ -21,7 +21,7 @@ PK_DB=$PWD/dev-data/pk.sqlite3 PK_PUBLIC_HOST=pk.example.com python3 backend/ser
 \`\`\`
 
 使用自己的 Nginx HTTPS 反代并在同一站点路径根目录提供 \`web/\`，将 \`/api/\` 转发给 API。请使用部署模板，并把源文件中的
-\`yao.shzxm.com\` 替换成自己的域名后重新构建（建议使用 \`scripts/configure_site.py\`）。
+\`pk.example.com\` 替换成自己的域名后重新构建（建议使用 \`scripts/configure_site.py\`）。
 
 **请勿将** SQLite、VAPID 私钥、登录账号、用户记录和具体服务器证书加入 Git。
 

@@ -20,8 +20,8 @@ private final class WeakAtlasScriptHandler: NSObject, WKScriptMessageHandler {
 }
 
 final class AtlasWebSession: NSObject, ObservableObject {
-    static let home = URL(string: "https://yao.shzxm.com/")!
-    private static let allowedHost = "yao.shzxm.com"
+    static let home = URL(string: "https://pk.example.com/")!
+    private static let allowedHost = "pk.example.com"
 
     @Published private(set) var selectedSection: AtlasSection = .today
     @Published private(set) var syncState = "pending"
@@ -89,7 +89,7 @@ final class AtlasWebSession: NSObject, ObservableObject {
           };
           const valid = () => {
             try {
-              return new URL(location.href).origin === 'https://yao.shzxm.com';
+              return new URL(location.href).origin === 'https://pk.example.com';
             } catch { return false; }
           };
           const post = (kind, value) => {
@@ -253,7 +253,7 @@ final class AtlasWebSession: NSObject, ObservableObject {
 
     private func trusted(_ url: URL) -> Bool {
         // URL components give a strict (scheme, host, port) check. Prefixes
-        // like yao.shzxm.com.attacker.example are never trusted.
+        // like pk.example.com.attacker.example are never trusted.
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
             return false
         }

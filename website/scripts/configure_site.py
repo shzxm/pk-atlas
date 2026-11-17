@@ -24,8 +24,8 @@ def main():
     for f in FILES:
         if not f.is_file():continue
         s=f.read_text()
-        if "yao.shzxm.com" in s:
-            f.write_text(s.replace("yao.shzxm.com",a.hostname))
+        if "pk.example.com" in s:
+            f.write_text(s.replace("pk.example.com",a.hostname))
             count+=1
     print(f"Configured {count} source files; set PK_PUBLIC_HOST={a.hostname}")
 if __name__=="__main__":

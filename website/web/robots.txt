@@ -3,4 +3,4 @@ Allow: /
 Disallow: /api/
 Disallow: /quick.html
 Disallow: /notifications.html
-Sitemap: https://yao.shzxm.com/sitemap.xml
+Sitemap: https://pk.example.com/sitemap.xml

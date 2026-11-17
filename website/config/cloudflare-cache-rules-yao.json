@@ -1,11 +1,11 @@
 {
-  "zone": "shzxm.com",
-  "hostname": "yao.shzxm.com",
+  "zone": "example.com",
+  "hostname": "pk.example.com",
   "policy": "Free-plan compatible: respect origin Cache-Control s-maxage=120, never force 120s Edge TTL",
   "rules": [
     {
       "description": "PKAtlas public HTML only - respect origin cache directives",
-      "expression": "(http.host eq \"yao.shzxm.com\" and http.request.method eq \"GET\" and http.request.uri.path in {\"/\" \"/index.html\" \"/quick.html\" \"/notifications.html\" \"/data-center.html\" \"/install.html\" \"/api.html\"})",
+      "expression": "(http.host eq \"pk.example.com\" and http.request.method eq \"GET\" and http.request.uri.path in {\"/\" \"/index.html\" \"/quick.html\" \"/notifications.html\" \"/data-center.html\" \"/install.html\" \"/api.html\"})",
       "action": "set_cache_settings",
       "action_parameters": {
         "cache": true,
@@ -15,7 +15,7 @@
     },
     {
       "description": "PKAtlas private API never cache - last matching rule",
-      "expression": "(http.host eq \"yao.shzxm.com\" and starts_with(http.request.uri.path, \"/api/\"))",
+      "expression": "(http.host eq \"pk.example.com\" and starts_with(http.request.uri.path, \"/api/\"))",
       "action": "set_cache_settings",
       "action_parameters": {"cache": false}
     }

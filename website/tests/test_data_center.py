@@ -59,7 +59,7 @@ class DataCenterContractTests(unittest.TestCase):
     def test_cloudflare_free_uses_origin_ttl_not_invalid_120s_override(self):
         import json
         policy=json.loads((ROOT/"config/cloudflare-cache-rules-yao.json").read_text())
-        self.assertEqual(policy["hostname"],"yao.shzxm.com")
+        self.assertEqual(policy["hostname"],"pk.example.com")
         rules=policy["rules"]
         self.assertEqual(len(rules),2)
         self.assertNotIn('/api/',rules[0]["expression"])

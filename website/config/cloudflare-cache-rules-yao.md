@@ -1,7 +1,7 @@
-# Cloudflare Cache Rules: yao.shzxm.com
+# Cloudflare Cache Rules: pk.example.com
 
 **状态：未启用。** 2026-11-17 已通过 API 验证现有 Cloudflare Token：
-shzxm.com Zone 可读取，方案为 Free Website，但查询 Rulesets
+example.com Zone 可读取，方案为 Free Website，但查询 Rulesets
 返回 HTTP 403 (10000 Authentication error)。
 现有 DDNS Token 权限不足，不应擅自扩大。
 
@@ -28,14 +28,14 @@ https://developers.cloudflare.com/cache/how-to/cache-rules/order/
 
 ## 公共 HTML 白名单
 
-(http.host eq "yao.shzxm.com" and http.request.method eq "GET" and http.request.uri.path in {"/" "/index.html" "/quick.html" "/notifications.html" "/data-center.html" "/install.html" "/api.html"})
+(http.host eq "pk.example.com" and http.request.method eq "GET" and http.request.uri.path in {"/" "/index.html" "/quick.html" "/notifications.html" "/data-center.html" "/install.html" "/api.html"})
 
 Action：Eligible for cache，Edge TTL 读取源站控制头，缺失则跳过。
 全部个人数据只经登录后的 /api/ 请求，不在公共 HTML 中。
 
 ## 私人 API 绕过缓存（置于最后）
 
-(http.host eq "yao.shzxm.com" and starts_with(http.request.uri.path, "/api/"))
+(http.host eq "pk.example.com" and starts_with(http.request.uri.path, "/api/"))
 
 Action：Bypass cache。多个 Cache Rules 冲突时最后匹配的规则生效。
 /api/ 源站返回 no-store。/sw.js 始终 no-cache/no-store。

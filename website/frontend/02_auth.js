@@ -60,9 +60,9 @@ async function loadAccount(prefetched=null){
 }
 async function initAuth(){
   initDeviceSessionUI();
-  $("transferLocal").hidden=location.origin==="https://yao.shzxm.com";
+  $("transferLocal").hidden=location.origin==="https://pk.example.com";
   $("transferLocal").addEventListener("click",startLocalTransfer);
-  if(location.origin!=="https://yao.shzxm.com"){
+  if(location.origin!=="https://pk.example.com"){
     $("authForm").hidden=true;$("authRetry").hidden=true;$("accountName").textContent="本机记录";
     setSyncStatus("点击下方按钮，在正式网站登录并保存本机记录。");showStage("auth");return;
   }
@@ -172,7 +172,7 @@ async function initAuth(){
     persist();renderDrug();setSyncStatus("已合并本机记录，正在同步…");
   });
   $("saveLocalCloud").addEventListener("click",async()=>{
-    if(location.origin!=="https://yao.shzxm.com"){startLocalTransfer();return}
+    if(location.origin!=="https://pk.example.com"){startLocalTransfer();return}
     if(!authUser){setSyncStatus("请先登录正式网站，再保存本机数据。",true);return}
     if(syncRunning){setSyncStatus("当前同步尚未结束，请稍后再保存本机数据。",true);return}
     let draftText=getStored(DRAFT_KEY),draft=null;

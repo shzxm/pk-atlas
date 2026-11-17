@@ -67,10 +67,10 @@ def audit(host: str) -> tuple[bool, list[dict], bool]:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--host", default="https://yao.shzxm.com/")
+    parser.add_argument("--host", default="https://pk.example.com/")
     parser.add_argument("--json", action="store_true", help="Machine-readable headers only, never API payload")
     args = parser.parse_args()
-    if args.host != "https://yao.shzxm.com/":
+    if args.host != "https://pk.example.com/":
         parser.error("This audit is restricted to PK Atlas production HTTPS.")
     try:
         private_safe, results, shell_hit = audit(args.host)
