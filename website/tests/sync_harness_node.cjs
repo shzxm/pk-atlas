@@ -57,7 +57,7 @@ function make(){
     safeRecords:a=>a??[],safeCourses:a=>a??[],safeIntakes:a=>a??[],
     safeRenal:a=>a??null,safeInverseMemory:a=>a||{},safeEditorDrafts:a=>a||{},
     MODEL_PARAMS:{clear(){}},mealMatchCache:{clear(){}},
-    renderDrug(){},setSyncStatus(){},$(){return {hidden:false,dataset:{},textContent:""}},
+    renderDrug(){},offlineSaveVerified(){},setSyncStatus(){},$(){return {hidden:false,dataset:{},textContent:""}},
     alert(){},getStored:key=>local.getItem(key),setStored:(key,v)=>local.setItem(key,v),
   };
   const globalDeclarations=`
