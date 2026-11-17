@@ -16,6 +16,7 @@ from urllib.parse import parse_qs, urlsplit
 
 import api_v1
 import state_store
+import last_upload
 import curve_png
 import push_service
 
@@ -74,6 +75,7 @@ def setup() -> None:
         con.execute("CREATE TABLE IF NOT EXISTS push_scenarios (id TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id), kind TEXT NOT NULL, drug TEXT NOT NULL, doses TEXT NOT NULL, created_at INTEGER NOT NULL)")
         con.execute("CREATE INDEX IF NOT EXISTS push_scenarios_user ON push_scenarios(user_id)")
         state_store.initialize(con)
+        last_upload.initialize(con)
 
 
 def rate_ok(key: str, limit: int, window: int) -> bool:
@@ -469,7 +471,7 @@ class Handler(BaseHTTPRequestHandler):
         elif self.endpoint() == "/api/state":
             with db() as con:
                 row = con.execute("SELECT version, body FROM user_state WHERE user_id=?", (user_id,)).fetchone()
-            self.respond(200, {"version": row["version"], "state": json.loads(row["body"])})
+            self.respond(200, {"version": row["version"], "state": json.loads(row["body"]), "syncPolicy": last_upload.POLICY})
         elif self.endpoint() == "/api/state/sections":
             with db() as con:
                 row = con.execute("SELECT version FROM user_state WHERE user_id=?", (user_id,)).fetchone()
@@ -786,10 +788,25 @@ class Handler(BaseHTTPRequestHandler):
                 self.respond(400, {"error": "同步数据格式无效"})
                 return
             changed = None
+        sync_policy = data.get("syncPolicy")
+        use_lww = sync_policy == last_upload.POLICY
+        if sync_policy not in (None, last_upload.POLICY):
+            self.respond(400, {"error": "不支持的同步策略"})
+            return
+        if use_lww and (section_mode or not last_upload.valid_operation_id(data.get("operationId"))):
+            self.respond(400, {"error": "最后上传者优先需要完整快照和唯一上传编号"})
+            return
         with db() as con:
+            # The SQLite transaction orders commits, not client wall clocks.
             con.execute("BEGIN IMMEDIATE")
             row = con.execute("SELECT version,body FROM user_state WHERE user_id=?", (session[0],)).fetchone()
-            if row["version"] != data["version"]:
+            if use_lww:
+                receipt = last_upload.lookup(con, session[0], data["operationId"])
+                if receipt is not None:
+                    self.respond(200, {"version": row["version"], "acceptedVersion": receipt,
+                                       "replayed": True, "syncPolicy": last_upload.POLICY})
+                    return
+            elif row["version"] != data["version"]:
                 self.respond(409, {"error": "另一台设备已更新数据", "version": row["version"], "state": json.loads(row["body"])})
                 return
             previous = json.loads(row["body"])
@@ -806,10 +823,16 @@ class Handler(BaseHTTPRequestHandler):
                 self.respond(413, {"error": "同步数据过大"})
                 return
             names = [name for name in state_store.SECTIONS if previous.get(name, state_store.DEFAULTS[name]) != state.get(name, state_store.DEFAULTS[name])]
+            if use_lww:
+                # Bounded, private recovery point before destructive replace.
+                last_upload.backup(con, session[0], row["version"], row["body"])
             con.execute("UPDATE user_state SET version=version+1,body=? WHERE user_id=?", (payload, session[0]))
             state_store.mirror(con, session[0], state, names)
             version = row["version"] + 1
-        self.respond(200, {"version": version})
+            if use_lww:
+                last_upload.remember(con, session[0], data["operationId"], version)
+        self.respond(200, {"version": version,
+                           "syncPolicy": last_upload.POLICY if use_lww else "conditional-v1"})
 
 
 if __name__ == "__main__":
