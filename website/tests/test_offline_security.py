@@ -54,7 +54,7 @@ class OfflineSecurityTests(unittest.TestCase):
         sync=(ROOT/"frontend/01_sync.js").read_text()
         self.assertIn('syncConflict||appOfflineRestored)return;',sync)
         self.assertIn('if(syncRunning||!authUser||appOfflineRestored',sync)
-        self.assertIn('offlineSaveVerified(authUser,verified.state,verified.version)',sync)
+        self.assertIn('offlineSaveVerified(authUser,remote.state,remote.version)',sync)
         self.assertIn('if(authUser&&!appOfflineRestored)',sync)
     def test_auth_wires_remember_logout_and_device_management(self):
         js=(ROOT/"frontend/02_auth.js").read_text()
