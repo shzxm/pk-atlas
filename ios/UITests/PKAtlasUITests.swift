@@ -78,6 +78,46 @@ final class PKAtlasUITests: XCTestCase {
         XCTAssertLessThan(left.frame.midX, right.frame.midX)
     }
 
+    func testCalculatedCandidatesJumpToActualCurvePlotNotPanelHeader() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-PKAtlasUITestInverseChartJump"]
+        app.launch()
+        let tab = app.buttons["反算"]
+        XCTAssertTrue(tab.waitForExistence(timeout: 30))
+        tab.tap()
+        for variant in ["A", "B"] {
+            let action = app.buttons["native.inverse.preview.\(variant)"]
+            for _ in 0..<24 where !action.isHittable { app.swipeUp() }
+            XCTAssertTrue(action.waitForExistence(timeout: 15), "\(variant) candidate action must exist")
+            XCTAssertTrue(action.isHittable)
+            action.tap()
+            let anchor = app.staticTexts["native.inverse.chart.plot-anchor"]
+            XCTAssertTrue(anchor.waitForExistence(timeout: 20))
+            // The anchor is immediately before the graphic. On the old code,
+            // scrollTo targeted the beginning of a huge card, often leaving
+            // the actual plot offscreen below the toolbar/precision inputs.
+            let inViewport = NSPredicate { _, _ in
+                let y = anchor.frame.minY
+                return y >= 0 && y < app.frame.height * 0.72
+            }
+            expectation(for: inViewport, evaluatedWith: anchor)
+            waitForExpectations(timeout: 14)
+            let plot = app.descendants(matching: .any)
+                .matching(identifier: "native.inverse.curve").firstMatch
+            XCTAssertTrue(plot.waitForExistence(timeout: 18),
+                "The jump must lead to a real rendered chart")
+            // The caption alone appearing in the viewport was a false pass:
+            // the actual SVG/WKWebView could remain below the bottom edge.
+            let plotInViewport = NSPredicate { _, _ in
+                let rect = plot.frame
+                return rect.minY >= -25 && rect.minY < app.frame.height * 0.72 &&
+                    rect.maxY > 90
+            }
+            expectation(for: plotInViewport, evaluatedWith: plot)
+            waitForExpectations(timeout: 14)
+        }
+    }
+
     func testMainCurveRendersAndNeverSilentlyStaysEmpty() throws {
         let app = XCUIApplication()
         app.launch()

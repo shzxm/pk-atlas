@@ -133,3 +133,7 @@ xcodegen generate --spec project.yml
 ### Superseded adopted-plan reminder fix (2026-11-19.2)
 
 The current math plan replaces the previous model's pending confirmation and push notifications. The prior mathematics remain available as historical data, not a second checklist. Matching native iOS source: v2.25 Build 31.
+
+### Chart jump location fix (2026-11-19.3)
+
+The inverse result A/B and accepted-plan show-in-chart actions now change to the visible chart pane before scrolling, center the selected target time, and ignore superseded navigations. iOS v2.26 Build32 scrolls to the actual rendered plot instead of its caption.

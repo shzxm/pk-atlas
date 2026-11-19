@@ -11,3 +11,7 @@ The deployed frontend uses a network-first Service Worker HTML shell, falling ba
 ## 2026-11-19 superseded adopted plan confirmation fix
 
 Only nodes belonging to the **current accepted adjustment** can generate pending yes/no confirmations or adopted-plan notifications. The replaced original plan remains as mathematical history, without a second actionable checklist. Native iOS v2.25 Build31 also clears stale queued OS model reminders on adoption and re-fetches the current canonical server notification set. Web Push adopted-change notifications now coalesce to the newest revision; the production IPA stays private.
+
+## Inverse chart navigation correction (2026-11-19)
+
+A/B and adopted-preview navigation in mobile/PWA first reveals the proper chart pane and waits for its layout before scrolling to the SVG plot. The horizontal position follows the scenario target time. The native iOS mirror v2.26 Build32 uses a persistent actual-plot ScrollViewReader anchor and a post-render recenter.

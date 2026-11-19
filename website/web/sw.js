@@ -3,17 +3,17 @@
  * All /api/ traffic bypasses this worker: never cache credentials, session
  * responses, private state, medication records, or notification subscriptions.
  */
-const SHELL_CACHE="pk-atlas-public-shell-v20261119-adopted-replacement-1";
+const SHELL_CACHE="pk-atlas-public-shell-v20261119-inverse-chart-navigation-2";
 const CACHE_PREFIX="pk-atlas-public-shell-";
 const SHELL_ASSETS=[
   "/","/index.html",
   "/styles.css?v=adopted-pending-20261119c",
   "/api-client.js?v=autosync-20261115",
-  "/app.js?v=adopted-replacement-20261119e",
+  "/app.js?v=inverse-chart-navigation-20261119g",
   "/model-sync.js?v=server-catalog-20261117c",
   // Versioned inverse worker is now deployed with matching model code.
   "/inverse-worker.js?v=server-math-20261117b",
-  "/push.js?v=adopted-replacement-20261119e",
+  "/push.js?v=inverse-chart-navigation-20261119g",
   "/manifest.webmanifest","/icon-192.png","/icon-512.png",
   "/quick.html","/quick.js?v=mwg-20261115","/quick.css",
   "/notifications.html","/push-diagnostics.js?v=20261117a",

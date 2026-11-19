@@ -3353,7 +3353,7 @@ let appOfflineRestored=false;
 function initOfflineShell(){
   if(location.protocol!=="https:"||!("serviceWorker" in navigator))return;
   const install=()=>navigator.serviceWorker.register(
-    "/sw.js?v=adopted-replacement-20261119e",{scope:"/"}
+    "/sw.js?v=inverse-chart-navigation-20261119g",{scope:"/"}
   ).catch(()=>{/* A failed shell install must not block login or autosave. */});
   if(document.readyState==="complete")void install();
   else window.addEventListener("load",install,{once:true});
@@ -3712,9 +3712,55 @@ function init(){
     $(id).addEventListener(id.endsWith("Mode")?"change":"input",()=>{rememberInverseInputs();appliedPointScenario=null;schedulePointInverse()});
   }
   $("pointLive").addEventListener("click",()=>{if(!adoptedPlan())return;if(!confirm("确定取消已采用方案？已记录的服用和实时反算候选不会删除。"))return;delete inverseMemory[current].adoptedPointPlan;persist();appliedPointScenario=null;renderPointInverse();drawChart()});
-  $("adoptedPreview").addEventListener("click",()=>{const plan=adoptedPlan();if(!plan)return;const state=currentAdoptedEvaluation(plan);appliedPointScenario={drug:current,target:plan.target,threshold:plan.threshold,mode:plan.mode,doses:state.pending,adoptedVariant:plan.variant||"A",matchedRecordIds:state.completed.map(item=>item.record.id)};$("scenarioTime").value="";$("scenarioDose").value="";render();$("chartWrap").scrollIntoView({behavior:"smooth",block:"center"})});
-  $("pointPreview").addEventListener("click",()=>{if(!pointScenario||pointScenario.drug!==current)return;appliedPointScenario={...pointScenario};if(pointScenario.doses){$("scenarioTime").value="";$("scenarioDose").value=""}else{$("scenarioTime").value=localInput(pointScenario.time);$("scenarioDose").value=String(Number(pointScenario.mg.toPrecision(12)));$("scenarioUnit").value="mg"}render();$("chartWrap").scrollIntoView({behavior:"smooth",block:"center"});});
-  $("pointMinimumPreview").addEventListener("click",()=>{if(!minimumPointScenario||minimumPointScenario.drug!==current)return;appliedPointScenario={...minimumPointScenario};$("scenarioTime").value="";$("scenarioDose").value="";render();$("chartWrap").scrollIntoView({behavior:"smooth",block:"center"})});
+  // Changing the mathematical preview and navigating to the chart are two
+  // distinct operations. Switching the small-screen pane (or installed PWA
+  // tab) must finish before we scroll to the graph, otherwise scrollIntoView
+  // targets a display:none element and lands on the wrong section.
+  let inverseChartJumpSerial=0;
+  function showInverseScenarioOnChart(scenario){
+    if(!scenario || scenario.drug!==current)return;
+    const request=++inverseChartJumpSerial;
+    // A target may belong to the next day while the currently selected
+    // record date is historical. Ensure the 48-hour chart window contains
+    // the target before looking for its horizontal pixel position.
+    const wantedTarget=Number(scenario.target);
+    if(Number.isFinite(wantedTarget) &&
+       (wantedTarget<dayStart(selectedDate) || wantedTarget>=dayStart(selectedDate)+48*3600000)){
+      selectedDate=dateKey(wantedTarget-12*3600000);
+      selectedDateFollowsToday=selectedDate===dateKey(Date.now());
+      $("viewDate").value=selectedDate;
+    }
+    appliedPointScenario={...scenario};
+    $("scenarioTime").value="";$("scenarioDose").value="";
+    if(document.body.classList.contains("app-mode"))appSetView("chart",{scroll:false});
+    else if(matchMedia("(max-width:700px)").matches)setMobilePane("results");
+    render();
+    requestAnimationFrame(()=>requestAnimationFrame(async()=>{
+      if(request!==inverseChartJumpSerial ||
+         !document.body.classList.contains("stage-calc") ||
+         document.body.classList.contains("app-mode")&&document.body.dataset.appView!=="chart")return;
+      const wrap=$("chartWrap");
+      // Await in supporting browsers. Safari gracefully resolves the
+      // undefined return immediately without blocking the chart preview.
+      await wrap.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"instant":"smooth",block:"start"});
+      if(request!==inverseChartJumpSerial)return;
+      const wanted=Number(scenario.target);
+      if(chartView && Number.isFinite(wanted)){
+        const t=Math.max(chartView.start,Math.min(chartView.end,wanted));
+        wrap.scrollLeft=Math.max(0,chartView.x(t)-wrap.clientWidth/2);
+        updateProbe(Math.round((t-chartView.start)/(chartView.end-chartView.start)*(chartView.points.length-1)));
+      }
+    }));
+  }
+  $("adoptedPreview").addEventListener("click",()=>{
+    const plan=adoptedPlan();if(!plan)return;
+    const state=currentAdoptedEvaluation(plan);
+    showInverseScenarioOnChart({drug:current,target:plan.target,threshold:plan.threshold,
+      mode:plan.mode,doses:state.pending,adoptedVariant:plan.variant||"A",
+      matchedRecordIds:state.completed.map(item=>item.record.id)});
+  });
+  $("pointPreview").addEventListener("click",()=>showInverseScenarioOnChart(pointScenario));
+  $("pointMinimumPreview").addEventListener("click",()=>showInverseScenarioOnChart(minimumPointScenario));
   for(const id of ["scenarioTime","scenarioDose","scenarioUnit"])$(id).addEventListener("input",()=>{appliedPointScenario=null;render()});
   $("timeScrubber").addEventListener("input",e=>updateProbe(e.target.value));
   $("chartScale").addEventListener("change",drawChart);

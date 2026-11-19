@@ -43,13 +43,15 @@ struct InverseNativeView: View {
     @State private var inverseChartSummary = PKWebsiteChartSummary()
     @State private var lastHandledChartRequest = 0
     @State private var chartNavigationInFlight = false
+    @State private var inverseFocusTime: Date?
+    @State private var inverseNavigationToken = 0
+    @State private var chartScrollTask: Task<Void, Never>?
     @State private var solving = false
     @State private var result: PKInverseOutput?
     @State private var solutionMessage = ""
     @State private var previewVariant = "A"
     @State private var calculatedIncludedScheduledDoses: [PKDose] = []
     @State private var showAdoptedOnly = false
-    @State private var inverseCenterOnNow = false
 
     @State private var showingExplanation = false
     @State private var showingStrengthEditor = false
@@ -278,11 +280,20 @@ struct InverseNativeView: View {
                 time: Date(timeIntervalSince1970: $0.time / 1000)) }
         } ?? store.selectedAdoptedDoses()
         let adopted = store.adoptedPlanObject()
-        let variant = evaluated != nil ? previewVariant : adopted?["variant"]?.string
-        let plotTargetTime = (page == "point" ? targetTime : durationStart)
-        let target = threshold.map { PKWebsiteChartTarget(
-            time: plotTargetTime.timeIntervalSince1970 * 1000,
-            mode: unitMode, value: $0, variant: variant) }
+        let viewingAdopted = evaluated == nil && adopted != nil
+        let plottedTime = viewingAdopted
+            ? PKInverseChartFocus.adoptedTarget(adopted, fallback: .now)
+            : (page == "point" ? targetTime : durationStart)
+        let plottedMode = viewingAdopted
+            ? (adopted?["mode"]?.string == "equivalent" ? "equivalent" : "blood")
+            : unitMode
+        let plottedThreshold = viewingAdopted ? adopted?["threshold"]?.number : threshold
+        let variant = viewingAdopted ? adopted?["variant"]?.string : previewVariant
+        let target = plottedThreshold.flatMap { value -> PKWebsiteChartTarget? in
+            guard value.isFinite && value > 0 else { return nil }
+            return PKWebsiteChartTarget(time: plottedTime.timeIntervalSince1970 * 1000,
+                mode: plottedMode, value: value, variant: variant)
+        }
         // The inverse curve must not silently add unrelated scheduled doses.
         // Accepted A/B uses the stored adoption snapshot; a newly calculated
         // candidate uses only its own solver inputs. Confirmed actual entries
@@ -301,55 +312,80 @@ struct InverseNativeView: View {
                 allScenarios.append(dose)
             }
         }
+        // A deliberate navigation centers the 48h math window on the
+        // selected candidate/adopted target even at 00:00, rather than
+        // leaving the target pinned to the far left of a calendar-day plot.
+        let focus = inverseFocusTime
+        let center = focus ?? (evaluated != nil ? plottedTime :
+            PKInverseChartFocus.browsingCenter(day: inverseDay))
         inversePlot.load(model: store.model, drug: drug, day: inverseDay,
             scale: inversePrecision, viewport: inverseWidth, planned: allScenarios,
             matchedRecordIDs: Set(store.adoptedReview?.completed.map(\.record.id) ?? []),
-            referenceBlood: unitMode == "blood" ? threshold :
+            referenceBlood: plottedMode == "blood" ? plottedThreshold :
                 store.referenceValue(drugID: drug.id, mode: "blood"),
-            referenceEquivalent: unitMode == "equivalent" ? threshold :
+            referenceEquivalent: plottedMode == "equivalent" ? plottedThreshold :
                 store.referenceValue(drugID: drug.id, mode: "equivalent"),
             target: target, variant: variant, catalogVersion: store.modelVersion,
-            engineVersion: store.engineVersion,
-            scrollTo: inverseCenterOnNow ? .now : (evaluated != nil ? plotTargetTime : .now))
+            engineVersion: store.engineVersion, scrollTo: center,
+            windowStart: focus.map(PKInverseChartFocus.chartStart),
+            navigationToken: inverseNavigationToken)
+    }
+
+    private func focusChartPlot(_ proxy: ScrollViewProxy, afterRender: Bool) {
+        guard chartNavigationInFlight else { return }
+        chartScrollTask?.cancel()
+        let token = inverseNavigationToken
+        chartScrollTask = Task { @MainActor in
+            await Task.yield()
+            guard !Task.isCancelled, token == inverseNavigationToken else { return }
+            withAnimation(.easeOut(duration: 0.20)) {
+                proxy.scrollTo("inverse.chart.plot", anchor: .top)
+            }
+            if afterRender {
+                // SwiftUI and WKWebView have independent layout passes. The
+                // fixed plot anchor survives loading/empty/rendered states.
+                try? await Task.sleep(for: .milliseconds(350))
+                guard !Task.isCancelled, token == inverseNavigationToken else { return }
+                withAnimation(.easeOut(duration: 0.15)) {
+                    proxy.scrollTo("inverse.chart.plot", anchor: .top)
+                }
+                chartNavigationInFlight = false
+            }
+        }
     }
 
     private func handleChartNavigation(_ proxy: ScrollViewProxy) {
         let request = store.inverseChartRequest
         guard request > lastHandledChartRequest else { return }
         lastHandledChartRequest = request
-        switch store.inverseChartRequestVariant {
+        let variant = store.inverseChartRequestVariant
+        switch variant {
         case "adopted": showAdoptedOnly = true
         case "A", "B":
             showAdoptedOnly = false
-            previewVariant = store.inverseChartRequestVariant!
+            previewVariant = variant!
         default: break
         }
-        inverseCenterOnNow = false
-        // Keep the chosen target/day in view, not a stale calendar day.
-        if store.inverseChartRequestVariant == "A" || store.inverseChartRequestVariant == "B" {
-            if result == nil {
+        let focus: Date
+        if variant == "adopted" {
+            focus = PKInverseChartFocus.adoptedTarget(store.adoptedPlanObject(), fallback: .now)
+        } else {
+            guard result != nil else {
                 solutionMessage = "候选结果已失效，请重新计算后再显示曲线。"
-            } else {
-                let day = Calendar.current.startOfDay(for: page == "point" ? targetTime : durationStart)
-                if !Calendar.current.isDate(inverseDay, inSameDayAs: day) { inverseDay = day }
+                return
             }
+            focus = page == "point" ? targetTime : durationStart
         }
-        refreshPreview()
-        // A/B and adopted scenarios share one navigation path. Scrolling
-        // twice across layout passes handles both same-tab and cold tab entry.
+        inverseFocusTime = focus
+        inverseDay = focus
+        inverseNavigationToken += 1
         chartNavigationInFlight = true
-        Task { @MainActor in
-            await Task.yield()
-            withAnimation(.easeOut(duration: 0.28)) {
-                proxy.scrollTo("inverse.chart.top", anchor: .top)
-            }
-            try? await Task.sleep(for: .milliseconds(180))
-            proxy.scrollTo("inverse.chart.top", anchor: .top)
-            chartNavigationInFlight = false
-        }
+        refreshPreview()
+        focusChartPlot(proxy, afterRender: false)
     }
 
     private func changeInverseDay(_ direction: Int) {
+        inverseFocusTime = nil
         inverseDay = Calendar.current.date(byAdding: .day, value: direction,
             to: inverseDay) ?? inverseDay
     }
@@ -400,8 +436,10 @@ struct InverseNativeView: View {
                             .font(.caption2).foregroundStyle(.secondary)
                         Spacer(minLength: 6)
                         Button {
-                            inverseCenterOnNow = true
-                            inverseDay = .now
+                            let now = Date.now
+                            inverseFocusTime = now
+                            inverseDay = now
+                            inverseNavigationToken += 1
                             refreshPreview()
                         } label: {
                             Label("定位现在", systemImage: "location.fill")
@@ -422,30 +460,44 @@ struct InverseNativeView: View {
                      inversePrecision == 90 ? "当前显示窗口约 6 小时" : "当前显示窗口约 3 小时")
                     .font(.caption2).foregroundStyle(.secondary)
                     .accessibilityIdentifier("native.inverse.chart.precision.status")
-                if let data = inversePlot.payload {
-                    PKWebsiteChartView(payload: data, displayScale: inversePrecision,
-                                       contentHeight: $inverseChartHeight,
-                                       summary: $inverseChartSummary)
-                        .frame(height: max(370, inverseChartHeight))
-                        .accessibilityIdentifier("native.inverse.curve")
-                } else if inversePlot.computing {
-                    ProgressView("按网站绘图精度计算所有反算曲线…")
-                        .frame(maxWidth: .infinity, minHeight: 220)
-                } else {
-                    VStack(spacing: 12) {
-                        ContentUnavailableView("当前模型无法生成反算曲线", systemImage: "exclamationmark.triangle",
-                            description: Text(inversePlot.modelOrigin))
-                        Button("重新检查模型并绘制") {
-                            Task {
-                                await store.refreshModel(force: true)
-                                refreshPreview()
+                Text(inverseFocusTime.map {
+                    "模型曲线 · 已定位 \($0.formatted(date: .abbreviated, time: .shortened))"
+                } ?? "模型曲线 · 可横向滑动查看")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("native.inverse.chart.plot-anchor")
+                // The ScrollViewReader ID must belong to the actual plot's
+                // persistent layout box, not to a caption above the chart.
+                // Otherwise scrolling can stop at the header while WKWebView
+                // is still measuring its dynamic height on compact iPhones.
+                VStack(spacing: 0) {
+                    if let data = inversePlot.payload {
+                        PKWebsiteChartView(payload: data, displayScale: inversePrecision,
+                                           contentHeight: $inverseChartHeight,
+                                           summary: $inverseChartSummary)
+                            .frame(height: max(370, inverseChartHeight))
+                            .accessibilityIdentifier("native.inverse.curve")
+                    } else if inversePlot.computing {
+                        ProgressView("按网站绘图精度计算所有反算曲线…")
+                            .frame(maxWidth: .infinity, minHeight: 220)
+                    } else {
+                        VStack(spacing: 12) {
+                            ContentUnavailableView("当前模型无法生成反算曲线", systemImage: "exclamationmark.triangle",
+                                description: Text(inversePlot.modelOrigin))
+                            Button("重新检查模型并绘制") {
+                                Task {
+                                    await store.refreshModel(force: true)
+                                    refreshPreview()
+                                }
                             }
+                            .buttonStyle(.bordered)
+                            .accessibilityIdentifier("native.inverse.chart.retry")
                         }
-                        .buttonStyle(.bordered)
-                        .accessibilityIdentifier("native.inverse.chart.retry")
+                        .frame(maxWidth: .infinity, minHeight: 220)
                     }
-                    .frame(maxWidth: .infinity, minHeight: 220)
                 }
+                .frame(maxWidth: .infinity, alignment: .top)
+                .id("inverse.chart.plot")
                 VStack(alignment: .leading, spacing: 9) {
                     Label(inversePlot.modelOrigin, systemImage: "checkmark.shield")
                         .font(.caption.weight(.semibold))
@@ -685,14 +737,42 @@ struct InverseNativeView: View {
         .navigationTitle("数学反算")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
-            restoreInverseDraft(); loadReference(); refreshPreview()
+            restoreInverseDraft(); loadReference()
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("-PKAtlasUITestInverseChartJump") {
+                // Debug-only deterministic fixture for testing real SwiftUI
+                // button -> ScrollViewReader -> embedded WebKit navigation.
+                page = "point"
+                let at = Date.now.addingTimeInterval(4 * 3600)
+                targetTime = at
+                thresholdText = "0.5"
+                let base = at.timeIntervalSince1970 * 1000
+                let data = """
+                {"result":{"doses":[{"time":\(base - 3600000),"mg":25}],"mg":25},
+                 "minimum":{"doses":[{"time":\(base - 7200000),"mg":20}],"mg":20}}
+                """
+                result = try? JSONDecoder().decode(PKInverseOutput.self, from: Data(data.utf8))
+            }
+            #endif
+            refreshPreview()
             Task { await store.refreshAdoptedReview() }
             handleChartNavigation(scrollProxy)
         }
         .onChange(of: store.inverseChartRequest) { _, _ in
             handleChartNavigation(scrollProxy)
         }
-        .onChange(of: inverseDay) { _, _ in refreshPreview() }
+        .onChange(of: inverseDay) { _, day in
+            if let focus = inverseFocusTime,
+               !Calendar.current.isDate(focus, inSameDayAs: day) {
+                inverseFocusTime = nil
+            }
+            refreshPreview()
+        }
+        .onChange(of: inversePlot.payload?.navigationToken) { _, token in
+            if chartNavigationInFlight, token == inverseNavigationToken {
+                focusChartPlot(scrollProxy, afterRender: true)
+            }
+        }
         .onChange(of: inversePrecision) { _, _ in refreshPreview() }
         .onChange(of: inverseWidth) { _, _ in refreshPreview() }
         .onChange(of: store.selectedDrugID) { _, _ in
