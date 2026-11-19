@@ -1,0 +1,26 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>药时 API 文档</title><meta name="description" content="药时个人 API 接口说明：认证、记录、曲线、反算、访问密钥与 JSON 请求格式。"><link rel="icon" type="image/png" href="/icon-192.png"><link rel="stylesheet" href="/api.css?v=system-colors-20261118"><link rel="stylesheet" href="/support.css?v=system-colors-20261118"></head><body class="support-api"><main id="apiMain"><a href="/quick.html">‹ 返回快捷面板</a><h1>药时 API</h1><p>快捷指令安装后，在开头的两个文本动作填写一次用户名和个人 API 密钥。密钥在<a href="/quick.html#keySettings">快捷面板</a>生成，仅显示一次。用户名用于定位账号；访问记录和计算结果还必须提供密钥。</p><a class="install" href="/install.html">查看快捷指令安装步骤</a>
+<details class="support-disclosure"><summary>认证与格式</summary><div class="support-disclosure-body"><pre>Authorization: Bearer &lt;个人 API 密钥&gt;
+Content-Type: application/json</pre><p>所有接口使用 HTTPS。GET 请求在查询参数中传 <code>username</code>，POST 请求在 JSON 正文中传 <code>username</code>。错误响应为 <code>{"error":"原因"}</code>；401 表示用户名或密钥无效。</p>
+</div></details>
+<details class="support-disclosure"><summary>接口</summary><div class="support-disclosure-body"><div class="support-table-wrap"><table><thead><tr><th>方法与路径</th><th>参数</th><th>结果</th></tr></thead><tbody>
+<tr><td><code>GET /api/v1/drugs</code></td><td><code>username</code></td><td>支持的药物名称和 ID</td></tr>
+<tr><td><code>GET /api/v1/doses</code></td><td><code>username</code>；可选 <code>date=YYYY-MM-DD</code></td><td>当天服用记录</td></tr>
+<tr><td><code>POST /api/v1/doses</code></td><td><code>username, drug, amount, unit</code>；可选 <code>time</code>、<code>idempotencyKey</code></td><td>保存服用记录和 <code>message</code></td></tr>
+<tr><td><code>GET /api/v1/curve</code></td><td><code>username, drug</code>；可选 <code>date</code>、<code>stepMinutes</code></td><td>完整采样点、<code>nowText</code>、<code>caption</code>；快捷指令只显示后两项</td></tr>
+<tr><td><code>POST /api/v1/curve</code></td><td>同上，改为 JSON 正文</td><td>同上</td></tr>
+<tr><td><code>POST /api/v1/curve.png</code></td><td>同曲线 POST</td><td>24 小时估算血药浓度 PNG 图；快捷指令文字模式无需调用</td></tr>
+<tr><td><code>POST /api/v1/inverse</code></td><td><code>username, drug, mode, threshold, targetStart, holdHours</code>；可选 <code>count</code></td><td>有限候选数学情景和文字摘要</td></tr>
+<tr><td><code>POST /api/v1/inverse/point</code></td><td><code>username, drug, mode, threshold, targetTime</code>；可选 <code>maxDose</code>、<code>count</code></td><td>按目标时刻自动反算数学情景</td></tr>
+<tr><td><code>GET /api/v1/state</code></td><td><code>username</code></td><td>账号完整状态</td></tr>
+</tbody></table></div>
+<p><code>drug</code> 可用 ID 或中文名称。<code>unit</code> 为 <code>mg</code> 或 <code>g</code>。<code>time</code> 与 <code>targetStart</code> 可用带时区 ISO 8601、Unix 毫秒，或当天的 <code>HH:MM</code>；未传服用时间默认为现在。<code>mode</code> 为 <code>blood</code> 或 <code>equivalent</code>。反算前需在网站保存药盒规格。</p>
+</div></details>
+<details class="support-disclosure"><summary>示例：保存服用</summary><div class="support-disclosure-body"><pre>curl 'https://pk.example.com/api/v1/doses' \
+  -H 'Authorization: Bearer YOUR_KEY' \
+  -H 'Content-Type: application/json' \
+  --data '{"username":"YOUR_NAME","drug":"pregabalin","amount":25,"unit":"mg"}'</pre>
+</div></details>
+<details class="support-disclosure"><summary>示例：获取曲线</summary><div class="support-disclosure-body"><pre>curl 'https://pk.example.com/api/v1/curve?username=YOUR_NAME&amp;drug=pregabalin' \
+  -H 'Authorization: Bearer YOUR_KEY'</pre>
+</div></details>
+<small>药时使用群体药代教学模型。曲线不是实测血药浓度；反算结果不是服药建议。</small></main></body></html>

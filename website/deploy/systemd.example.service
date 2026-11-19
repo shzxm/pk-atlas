@@ -1,0 +1,18 @@
+[Unit]
+Description=PK Atlas same-origin API
+After=network.target
+[Service]
+Type=simple
+User=pkatlas
+WorkingDirectory=/opt/pk-atlas
+Environment=PK_DB=/var/lib/pk-atlas/pk.sqlite3
+Environment=PK_PUBLIC_HOST=example.com
+Environment=PK_PORT=8766
+ExecStart=/usr/bin/python3 /opt/pk-atlas/backend/server.py
+Restart=on-failure
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/pk-atlas
+PrivateTmp=true
+[Install]
+WantedBy=multi-user.target

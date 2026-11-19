@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#090b0f" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f3f7fc" media="(prefers-color-scheme: light)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="药时">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <link rel="stylesheet" href="/styles.css?v=appmode-20261115">
+  <link rel="stylesheet" href="/data-center.css?v=20261116a">
+  <script defer src="/api-client.js?v=autosave-20261115"></script>
+  <script defer src="/push.js?v=runtime-repair-20261119a"></script>
+  <script defer src="/push-diagnostics.js?v=20261117a"></script>
+  <title>通知设置 · 药时</title>
+  <meta name="description" content="药时模型提醒：管理当前设备的通知权限、参考线和情景时间提醒。">
+  <link rel="icon" type="image/png" href="/icon-192.png">
+</head>
+<body data-page="notifications">
+  <a class="skip-link" href="#notificationsMain">跳到主要内容</a>
+  <header class="topbar notifications-topbar">
+    <a class="notifications-back" href="/" aria-label="返回药时首页">‹ 返回药时</a>
+    <div class="brand"><span class="brand-icon" aria-hidden="true">✳</span><span>药时 <small>PK ATLAS</small></span></div>
+  </header>
+  <main id="notificationsMain" class="layout notifications-layout" tabindex="-1">
+    <div class="notifications-heading"><div class="eyebrow muted">NOTIFICATIONS</div><h1>通知设置</h1><p>为当前账号选择提醒类型，并在这台设备开启系统通知。</p><span id="notificationsUser"></span></div>
+    <p id="notificationsLoading" role="status">正在读取登录状态…</p>
+    <section id="notificationsLoginGate" class="panel notifications-gate" hidden><h2>请先登录</h2><p>通知设置关联你的服药记录，需要先在首页登录账号。</p><a class="secondary account-link" href="/">返回首页登录</a></section>
+    <section id="pushPanel" class="panel push-panel" aria-label="模型时间提醒" hidden>
+      <div class="push-intro"><h2>模型时间提醒</h2><p>网站根据服药记录计算预计时间。参考线由你按药物填写，表示模型浓度，不代表真实起效、退效或补药时机。</p><p id="pushStatus" role="status">正在检查当前设备…</p></div>
+      <div class="push-settings"><label class="push-switch"><input id="pushAuto" type="checkbox" name="pushAuto"> 自动安排模型提醒</label>
+        <div class="push-switches"><label><input id="pushDose" type="checkbox" name="pushDose"> 服药记录时间</label><label><input id="pushComeup" type="checkbox" name="pushComeup"> 起效开始 · 上升越过低线</label><label><input id="pushPeak" type="checkbox" name="pushPeak"> 模型峰值</label><label><input id="pushOffset" type="checkbox" name="pushOffset"> 退效开始 · 下降越过高线</label><label><input id="pushEnd" type="checkbox" name="pushEnd"> 效果结束 · 下降低于低线</label></div>
+        <div class="push-thresholds"><label>药物<select id="pushDrug" name="pushDrug"></select></label><label>低参考线 mg/L<input id="pushLow" type="number" inputmode="decimal" min="0.000001" step="any" placeholder="自行填写" name="pushLow"></label><label>高参考线 mg/L<input id="pushHigh" type="number" inputmode="decimal" min="0.000001" step="any" placeholder="自行填写" name="pushHigh"></label></div>
+        <p>参考线仅用于计算模型阶段；未设置参考线的药物不会产生相应穿越提醒。高线须大于低线。</p><button id="pushSave" class="secondary" type="button">保存提醒设置</button></div>
+      <label class="push-privacy"><input id="pushDetails" type="checkbox" name="pushDetails">在锁屏通知中显示药名和预测数值</label>
+      <div class="push-actions"><button id="pushEnable" class="secondary" type="button">开启此设备提醒</button><button id="pushTest" class="ghost" type="button" hidden>发送测试通知</button><button id="pushDisable" class="ghost" type="button" hidden>关闭此设备提醒</button></div>
+      <div class="push-pending"><strong>未来 7 天待提醒</strong><p id="pushPendingStatus">正在计算…</p><div id="pushPendingList" class="push-pending-list"></div></div>
+      <div class="push-pending"><strong>自动采用方案的模型节点</strong><p>按当前云端已采用的反算方案自动排程，修改或取消采用后将重新计算未来节点；这是模型提醒，不是服药指令。</p><div id="pushScenarioList" class="push-pending-list"></div></div>
+      <details id="pushDiagnostics" class="push-diagnostics">
+        <summary>通知诊断中心 · 授权、排程与发送记录</summary>
+        <p id="pushDiagStatus" role="status">正在检查通知状态…</p>
+        <dl class="push-diag-grid">
+          <div><dt>系统通知权限</dt><dd id="pushDiagPermission">—</dd></div>
+          <div><dt>当前设备订阅</dt><dd id="pushDiagThisDevice">—</dd></div>
+          <div><dt>账号订阅设备</dt><dd id="pushDiagSubscribers">—</dd></div>
+          <div><dt>自动排程</dt><dd id="pushDiagAuto">—</dd></div>
+          <div><dt>未来提醒</dt><dd id="pushDiagUpcoming">—</dd></div>
+          <div><dt>服务商已接受请求</dt><dd id="pushDiagAccepted">—</dd></div>
+          <div><dt>最近一次服务商接受</dt><dd id="pushDiagLatest">—</dd></div>
+          <div><dt>下一个模型时间节点</dt><dd id="pushDiagNext">—</dd></div>
+          <div><dt>运行方式</dt><dd id="pushDiagMode">—</dd></div>
+          <div><dt>本机接收条件</dt><dd id="pushDiagReady">—</dd></div>
+        </dl>
+        <p>“已接受”只表示 Web Push 服务商接收了发送请求，并不表示 iPhone 已显示通知、声音已播放或用户已阅读。诊断页面不会主动请求权限或发送测试推送；使用上方「发送测试通知」进行人工验证。</p>
+        <button type="button" id="pushDiagRefresh" class="ghost">重新检查通知状态</button>
+      </details>
+    </section>
+  </main>
+  <footer>药时 / PK ATLAS <span>群体模型 · 非医疗建议</span></footer>
+</body>
+</html>

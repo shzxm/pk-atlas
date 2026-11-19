@@ -1,0 +1,27 @@
+:root{color-scheme:dark;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;background:#090b0f;color:#edf2f8}*{box-sizing:border-box}
+html,body{max-width:100%;overflow-x:clip}body{max-width:760px;margin:auto;padding:16px 16px 60px}h1{font-size:1.6rem}h2{font-size:1.15rem}p,small{color:#b7c1cf;line-height:1.5}a{color:#83cbff}
+.card{background:#151b24;border:1px solid #334052;border-radius:15px;padding:16px;margin:14px 0;min-width:0}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}label{display:grid;gap:6px;margin:9px 0;min-width:0}
+input,select,button{font:inherit;min-height:44px;border-radius:9px}input,select{width:100%;padding:8px;background:#0c1119;color:white;border:1px solid #435268}
+button{border:0;padding:8px 13px;background:#85caff;color:#06101a;font-weight:700}.row{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.secondary{background:#35475b;color:white}.danger{background:#693640;color:white}
+pre{white-space:pre-wrap;word-break:break-all;background:#0b1017;padding:12px;border-radius:9px}#plot{width:100%;height:230px;background:#0b1017;border-radius:9px}.error{color:#ffa4a4}
+.install-link,.button-link{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:10px 16px;border-radius:10px;background:#174366;color:#eaf6ff;font-weight:700;text-decoration:none}.install-link{width:100%;border:1px solid #3979a5}.button-link{background:#85caff;color:#06101a}.login-gate h2{margin:0 0 6px}.login-gate p{margin:0 0 16px}.loading section.card{display:none}
+@media(max-width:500px){.grid{grid-template-columns:1fr}input,select,button{font-size:16px}.card{padding:15px}.row button{flex:1}}
+
+/* Keyboard navigation and touch-friendly controls. */
+.skip-link{position:fixed;z-index:10;top:.65rem;left:.65rem;transform:translateY(-150%);padding:.7rem 1rem;border-radius:8px;background:#eef7ff;color:#061a27;font-weight:700;text-decoration:none}
+.skip-link:focus-visible{transform:none;outline:3px solid #83c9ff;outline-offset:3px}
+:is(input,select,button,a):focus-visible{outline:2px solid #83c9ff;outline-offset:3px}
+@media (pointer:coarse){input,select,button{min-height:48px;font-size:1rem}}
+
+:root{color-scheme:light dark}
+@media(prefers-color-scheme:light){
+  :root{color-scheme:light;background:#f3f7fc;color:#1e334a}
+  body{background:#f3f7fc;color:#1e334a}
+  .card{background:#fff;border-color:#c5d7e8;color:#1e334a}
+  h1,h2,h3{color:#1e334a}p,small{color:#546b80}a{color:#1761a4}
+  input,select{background:#f8fbff;color:#21364a;border-color:#b4cbe0}
+  button,.install-link,.button-link{background:#1765ab;color:#fff}
+  pre,#plot{background:#edf4fa;color:#25435e}
+  .secondary{background:#e5eef8;color:#17456e}
+  .error{color:#a32533}
+}

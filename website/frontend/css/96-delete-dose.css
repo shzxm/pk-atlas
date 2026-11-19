@@ -1,0 +1,40 @@
+.dose-edit-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
+.dose-edit-actions > button{flex:1 1 170px;min-height:45px}
+.record-danger{
+  min-height:44px;border:1px solid #b66c72;background:#442b36;
+  color:#ffe2e3;border-radius:11px;font-weight:740;padding:10px 16px;
+}
+.record-danger.solid{background:#a73948;border-color:#b94a57;color:#fff}
+.record-danger:focus-visible{outline:3px solid #f3b5b8;outline-offset:3px}
+.delete-dose-dialog[open]{
+  position:fixed;inset:0;margin:auto;box-sizing:border-box;
+  width:min(calc(100% - 32px),450px);max-width:450px;
+  max-height:calc(100dvh - 32px);
+  border:1px solid #825266;border-radius:19px;
+  background:#19283a;color:#f4f8fc;padding:0;
+  box-shadow:0 25px 95px #000b;overflow-y:auto;
+}
+.delete-dose-dialog:modal{overscroll-behavior:contain}
+.delete-dose-dialog::backdrop{background:#020711b8;overscroll-behavior:contain}
+.delete-dose-content{padding:24px}
+.delete-dose-mark{
+  width:42px;height:42px;border-radius:13px;
+  display:grid;place-items:center;color:#ffd7d8;background:#6d3542;
+  font-size:25px;font-weight:850;margin-bottom:14px
+}
+.delete-dose-content h2{margin:0 0 12px;font-size:21px;line-height:1.35}
+.delete-dose-content p{font-size:14px;color:#e1dce0;line-height:1.75;overflow-wrap:anywhere;margin:0 0 12px}
+.delete-dose-content .delete-dose-caution{font-size:12px;color:#bbcbdb}
+.delete-dose-buttons{display:flex;gap:11px;margin-top:20px}
+.delete-dose-buttons button{flex:1 1 0;min-height:48px}
+@media(max-width:390px){
+  .delete-dose-content{padding:19px}
+  .delete-dose-content h2{font-size:19px}
+}
+
+
+.app-record-delete{
+  border-color:#934f61!important;
+  background:#4a2d3a!important;
+  color:#ffdee0!important;
+}

@@ -1,0 +1,30 @@
+.session-remember{display:flex;align-items:flex-start;gap:11px;margin:5px 0 10px;color:#e8f5fe;font-size:13px;line-height:1.5}
+.session-remember input{flex:0 0 auto;width:20px;height:20px;margin-top:2px;accent-color:#7dc7eb}
+.session-remember span{display:grid;gap:4px}
+.session-remember small{color:#9eb8ca;font-size:11px}
+.device-session-guide{width:100%;border:1px solid #385c74;border-radius:13px;padding:12px;background:#122b40}
+.device-session-guide summary{cursor:pointer;font-size:13px;font-weight:750;min-height:30px}
+.device-session{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:11px;padding:12px 0;border-bottom:1px solid #36566e}
+.device-session:last-child{border-bottom:0}
+.device-session div{display:grid;gap:4px;min-width:0;overflow-wrap:anywhere}
+.device-session strong{font-size:13px}
+.device-session small{font-size:11px;color:#9eb8ca;line-height:1.6}
+.device-session button{min-height:44px;font-size:12px}
+.offline-app-banner{position:relative;z-index:3;display:block;background:#634223;border-block:1px solid #b88851;color:#fff4de;padding:12px max(16px,env(safe-area-inset-left,0px));text-align:center;font-size:12px;font-weight:700;line-height:1.6}
+.offline-app-banner[hidden]{display:none!important}
+
+/* Two independent inverse constraints with explicit non-interchangeable units. */
+.inverse-limit-field{display:grid;gap:7px;min-width:0;color:#cbd1d9;font-size:11px;font-weight:700}
+.inverse-unit-input{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:8px;min-width:0}
+.inverse-unit-input>select,.inverse-unit-input>input{width:100%;min-width:0;min-height:43px;font-size:13px}
+@media(max-width:390px){.inverse-unit-input{grid-template-columns:1fr}}
+.inverse-limit-field{grid-column:1/-1}
+
+/* Multi-select actual records under one model node without duplicating doses. */
+.match-multi-disclosure{margin:8px 0;padding:10px;border:1px solid #37526a;border-radius:12px;background:#142636}
+.match-multi-disclosure summary{cursor:pointer;color:#a8e7d8;font-weight:750;min-height:36px;display:list-item}
+.match-multi-options{display:grid;gap:6px;max-height:220px;overflow:auto;overscroll-behavior:contain}
+.match-multi-options label{display:flex;align-items:center;gap:9px;min-height:40px;padding:7px;border-radius:7px;font-size:12px;color:#d8e9f4}
+.match-multi-options label:has(input:checked){background:#244838}
+.match-multi-options input{accent-color:#70e0b3;width:20px;height:20px;flex:none}
+.match-multi-options label:has(input:disabled){opacity:.5}

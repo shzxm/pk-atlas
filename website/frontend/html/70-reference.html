@@ -1,0 +1,18 @@
+    <details class="panel history-panel disclosure-section" id="historyGuide" data-pref="historyGuide"><summary class="disclosure-head"><span class="disclosure-title">历史记录与跨日残留</span><span class="disclosure-hint">点击展开</span></summary><div class="disclosure-body"><p>不同药物分别显示各自的估算浓度，不把它们相加；此处不判断药物相互作用，也不把“低于显示精度”当作完全排出。历史服用的原始时间和剂量不会因模型更新而改动，历史曲线按当前参数重新计算；普瑞巴林参数于 2026-10-26 更新。</p><div id="historyList" class="history-list"></div></div></details>
+    <details class="panel sources disclosure-section" id="sourcesGuide" data-pref="sourcesGuide"><summary class="disclosure-head"><span class="disclosure-title">模型参数、来源与局限</span><span class="disclosure-hint">点击展开</span></summary><div class="disclosure-body"><p>参数取自公开说明书或研究中的特定剂型、剂量和人群。曲线采用简化口服吸收／消除模型并按文献峰值校准，跨剂量推算与多次记录叠加均是假设。</p><div id="sourceList"></div><p class="footnote">仅供学习与记录，不用于诊断、调整抗生素疗程或自行决定给药。需要个体化治疗时，请依据处方和医师／药师指导；必要时以实际检验为准。未登录时记录保存在当前浏览器；登录后记录同步到该账号。</p></div></details>
+    <details class="panel renal-panel renal-bottom disclosure-section" id="renalGuide" data-pref="renalGuide"><summary class="disclosure-head"><span class="disclosure-title">个人肌酐清除率（高级）</span><span class="disclosure-hint">点击展开</span></summary><div class="disclosure-body">
+
+          <p>可填写已有的 CrCl（mL/min），保存后仅用于普瑞巴林模型。留空或恢复标准时沿用说明书的正常肾功能参数。化验单上的 eGFR（mL/min/1.73 m²）不能直接填在这里。</p>
+          <label for="renalCrCl">肌酐清除率（mL/min）<input id="renalCrCl" type="number" min="15" max="150" step="any" inputmode="decimal" placeholder="例如 70" name="renalCrCl"></label>
+          <div class="renal-actions"><button id="renalSave" class="secondary" type="button">保存个人值并重算</button><button id="renalReset" class="ghost" type="button">恢复标准模型</button></div>
+          <details><summary>没有 CrCl？用成人 Cockcroft–Gault 公式估算</summary>
+            <div class="renal-fields"><label for="renalAge">年龄（岁）<input id="renalAge" type="number" min="18" max="120" step="1" inputmode="numeric" name="renalAge"></label><label for="renalWeight">体重（kg）<input id="renalWeight" type="number" min="20" max="300" step="any" inputmode="decimal" name="renalWeight"></label><label for="renalSex">公式系数<select id="renalSex" name="renalSex"><option value="1">男性 1.0</option><option value="0.85">女性 0.85</option></select></label><label for="renalCreatinine">血清肌酐<input id="renalCreatinine" type="number" min="0.01" step="any" inputmode="decimal" name="renalCreatinine"></label><label for="renalCreatinineUnit">单位<select id="renalCreatinineUnit" name="renalCreatinineUnit"><option value="umol">µmol/L</option><option value="mgdl">mg/dL</option></select></label></div>
+            <button id="renalCalculate" class="ghost" type="button">计算并填入上方</button>
+            <p>CrCl = (140 − 年龄) × 体重 kg ÷ (72 × 血清肌酐 mg/dL) × 公式系数；1 mg/dL ≈ 88.4 µmol/L。仅适用于肾功能稳定的成人估算；体型极端、妊娠、急性肾损伤或透析等情况不宜直接套用。</p>
+            <a href="https://www.kidney.org/sites/default/files/2024-08/ckd_evaluation_classification_stratification.pdf" target="_blank" rel="noopener noreferrer">查看 National Kidney Foundation 公式依据 ↗</a>
+          </details>
+          <div id="renalStatus" role="status">尚未设置个人 CrCl，使用标准模型。</div>
+          <p class="renal-caution">本站以 100 mL/min 作为正常参考锚点，假设分布容积不变、普瑞巴林清除速度与 CrCl 成比例；这是教学模型外推，不是个人实测药代参数。仅支持 15–150 mL/min，透析不适用。所存值会统一重算历史曲线，不能证明过去的肾功能也相同。不能据此调整用药剂量或间隔。<a href="https://pubmed.ncbi.nlm.nih.gov/12638396/" target="_blank" rel="noopener noreferrer">普瑞巴林肾功能药代研究 ↗</a></p>
+        </div></details>
+    </div>
+  </main>

@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; font-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>药时代码内置·与网站共规范SVG曲线</title>
+<meta name="color-scheme" content="light dark">
+<style>
+:root{color-scheme:light dark;font:12px -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;color:#d9dfe8}
+*{box-sizing:border-box}body{margin:0;background:#111820;overflow-x:hidden;overflow-y:visible;padding-bottom:24px}#chartWrap{overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;touch-action:pan-x;scrollbar-width:thin;background:linear-gradient(#161d24,#14191e);border-radius:12px}#chart{display:block;max-width:none;overflow:visible;touch-action:pan-x}
+#probe{display:flex;align-items:center;gap:8px;margin:12px 2px 7px;flex-wrap:wrap}#probeReadout{font-weight:700;color:white;font-size:13px;min-width:150px}
+#probeValues{display:flex;gap:12px;flex-wrap:wrap;font-size:12px}#probeValues span{color:#a4b2c1}#timeScrubber{display:block;width:100%;margin:6px 0 11px;accent-color:#ffca83}
+#legend{display:flex;flex-wrap:wrap;gap:9px 15px;line-height:1.5;color:#a7b5c4}#legend .item{display:inline-flex;align-items:center;gap:6px}#legend i{width:24px;height:0;display:inline-block;border-top:3px solid var(--c,#ffca83)}#legend .dash{border-top-style:dashed}#legend .dot{border-top-style:dotted}#chartCaption{margin:13px 1px 0;color:#929eaa;font-size:11px;line-height:1.5}
+@media (prefers-color-scheme: light){
+  :root{color-scheme:light}
+  body{background:#f8fbff;color:#25344a}
+  #chartWrap{background:linear-gradient(#f4f7fb,#eff3f9)}
+  #probeReadout{color:#20334a}
+  #probeValues span,#legend,#chartCaption,#stats,#crossingResult{color:#52657a!important}
+  #mealStatus{color:#087d51}
+  #stats strong{color:#25344a}
+}
+/* The verbose analytical notes are rendered as native text below the chart.
+   Keep them in the DOM as a single computation source, but do not let them
+   stretch the embedded plot or overlap native navigation on Duo. */
+#stats,#crossingResult,#chartCaption,#mealStatus{display:none}
+#stats strong{color:#fff}
+</style></head><body>
+<div id="chartWrap" aria-label="可横向拖动的完整药代曲线"><svg id="chart" role="img" aria-label="网站同款药代浓度、剂量等效量、饮食、已记录和假设方案曲线"></svg></div>
+<div id="probe"><span id="probeReadout">正在计算曲线…</span><span id="probeValues"></span></div>
+<input id="timeScrubber" type="range" min="0" max="600" value="0" aria-label="时间轴游标">
+<div id="legend" aria-label="网站颜色和线条规范"></div>
+<div id="stats"></div><div id="crossingResult" style="margin-top:7px;font-size:11px;color:#a2acb7"></div><div id="chartCaption"></div><div id="mealStatus"></div>
+<script>
+'use strict';
+// Same values, geometry and paint order as the 181 website frontend/05_chart.js.
+const DARK_CHART_COLORS=Object.freeze({blood:'#ffca83',equivalent:'#58e5c4',unfed:'#b9c4d2',reference:'#ff5da8',referenceEquivalent:'#d7fc72',previewBlood:'#55aaff',previewEquivalent:'#cb9cff',target:'#ff9257'});
+// Dark colors are preserved. Light mode uses sufficiently deep, distinct hues.
+const LIGHT_CHART_COLORS=Object.freeze({blood:'#a84b00',equivalent:'#006f61',unfed:'#65758c',reference:'#b30052',referenceEquivalent:'#6d6900',previewBlood:'#1559ba',previewEquivalent:'#813db5',target:'#a74400'});
+const lightTheme=()=>window.matchMedia('(prefers-color-scheme: light)').matches;
+// Proxy invariant: a frozen target cannot return alternate values for read-only keys.
+// Proxy a separate, extensible clone while preserving the immutable dark palette.
+const CHART_COLORS=new Proxy({...DARK_CHART_COLORS},{get:(colors,key)=>lightTheme()?LIGHT_CHART_COLORS[key]:colors[key]});
+const SVG='http://www.w3.org/2000/svg';
+const el=id=>document.getElementById(id);
+const svgEl=(tag,attrs={})=>{const node=document.createElementNS(SVG,tag);for(const [k,v] of Object.entries(attrs))node.setAttribute(k,String(v));return node};
+function line(parent,x1,y1,x2,y2,color,width=1,dash=null,opacity=null){
+ const attributes={x1,y1,x2,y2,stroke:color,'stroke-width':width};if(dash)attributes['stroke-dasharray']=dash;if(opacity!==null)attributes['stroke-opacity']=opacity;
+ const result=svgEl('line',attributes);parent.append(result);return result;
+}
+function text(parent,value,x,y,color='#87909c',size=10,anchor='start',weight=null){
+ const attrs={x,y,fill:color,'font-size':size,'text-anchor':anchor};if(weight)attrs['font-weight']=weight;
+ const result=svgEl('text',attrs);result.textContent=String(value);parent.append(result);return result;
+}
+const fmt=(n,d=2)=>Number(n).toLocaleString('en-US',{maximumFractionDigits:d});
+const dateText=value=>new Date(value).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false});
+const formatTime=value=>new Date(value).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false});
+const clamp=(n,a,b)=>Math.min(b,Math.max(a,n));
+let pending=null,view=null,probeManual=false,probeResetTimer=0,chartScrollFrame=0;
+function websiteRender(raw){
+ const data=typeof raw==='string'?JSON.parse(raw):raw;
+ pending=data;drawChart(data);
+}
+function drawChart(data){
+ const svg=el('chart'),wrap=el('chartWrap');
+ if(!data||!Array.isArray(data.points)||!data.points.length){svg.replaceChildren();el('probeReadout').textContent='此时段尚无可绘制采样点';return}
+ const previous=view,previousScroll=wrap.scrollLeft,previousViewport=wrap.clientWidth;
+ svg.replaceChildren();
+ const mobile=window.innerWidth<560,H=mobile?300:390,L=mobile?42:59,R=mobile?54:65,T=25,B=mobile?83:94;
+ const start=data.start,end=data.end,scale=[55,90,140].includes(data.scale)?data.scale:55;
+ const gridColor=lightTheme()?'#d5dfec':'#333942',axisColor=lightTheme()?'#55677f':'#87909c',secondaryGrid=lightTheme()?'#e1e8f0':'#292e36',equivalentAxis=lightTheme()?'#006f61':'#7bdec9';
+ const visibleHours=scale===55?12:scale===90?6:3;
+ const viewport=Math.max(240,wrap.clientWidth||window.innerWidth);
+ const plotViewport=Math.max(120,viewport-L-R);
+ const W=mobile
+   ? Math.min(16000,Math.max(viewport,Math.ceil((end-start)/3600000*plotViewport/visibleHours)+L+R))
+   : Math.min(16000,Math.max(760,viewport,Math.ceil((end-start)/3600000*scale)+L+R));
+ svg.setAttribute('viewBox',`0 0 ${W} ${H}`);svg.style.width=W+'px';svg.style.height=H+'px';
+ const points=data.points,records=data.records||[],planned=data.planned||[],meals=data.meals||[];
+ const count=points.length-1;
+ const refBlood=Number(data.referenceBlood)>0?Number(data.referenceBlood):null;
+ const refEq=Number(data.referenceEquivalent)>0?Number(data.referenceEquivalent):null;
+ const peak=points.reduce((a,b)=>b.c>a.c?b:a,{c:0,t:start}),unfedPeak=points.reduce((a,b)=>b.unfed>a.unfed?b:a,{unfed:0,t:start});
+ const hasFoodEffect=points.some(p=>Math.abs(p.c-p.unfed)>Math.max(.001,peak.c,unfedPeak.unfed)*.001);
+ const scenarioPeak=planned.length?Math.max(0,...points.map(p=>p.bloodPreview||0)):0;
+ const maxY=Math.max(.001,peak.c*1.23,hasFoodEffect?unfedPeak.unfed*1.23:0,scenarioPeak*1.2,refBlood?refBlood*1.13:0);
+ const maxEq=Math.max(1,...points.map(p=>Math.max(p.eq,p.eqPreview||0)),refEq||0)*1.18;
+ const x=t=>L+(t-start)/(end-start)*(W-L-R),y=c=>H-B-c/maxY*(H-T-B),yEq=amount=>H-B-amount/maxEq*(H-T-B);
+ const defs=svgEl('defs'),grad=svgEl('linearGradient',{id:'curveFill',x1:'0',y1:'0',x2:'0',y2:'1'});
+ grad.append(svgEl('stop',{offset:'0%','stop-color':CHART_COLORS.blood,'stop-opacity':'.27'}),svgEl('stop',{offset:'100%','stop-color':CHART_COLORS.blood,'stop-opacity':'.01'}));defs.append(grad);svg.append(defs);
+ for(let i=0;i<=4;i++){
+  const yy=y(maxY*i/4);line(svg,L,yy,W-R,yy,gridColor);
+  text(svg,fmt(maxY*i/4,maxY<1?3:1),L-7,yy+4,axisColor,10,'end');
+  text(svg,fmt(maxEq*i/4,maxEq<10?1:0),W-R+7,yy+4,equivalentAxis,10);
+ }
+ text(svg,'血药 mg/L',L,14,CHART_COLORS.blood);text(svg,'等效 mg',W-R+7,14,equivalentAxis);
+ const pxPerHour=(W-L-R)/((end-start)/3600000),tickHours=[1,2,3,4,6,8,12,24,48,72].find(h=>h*pxPerHour>=120)||72;
+ const axisLabel=(at,xx,anchor)=>text(svg,dateText(at),xx,H-B+18,axisColor,10,anchor);
+ axisLabel(start,L,'start');axisLabel(end,W-R,'end');
+ const tickMs=tickHours*3600000;
+ for(let t=Math.ceil(start/tickMs)*tickMs;t<end;t+=tickMs){const xx=x(t);if(xx<L+75||xx>W-R-75)continue;line(svg,xx,T,xx,H-B,secondaryGrid);axisLabel(t,xx,'middle')}
+ if(refBlood!==null){const yy=y(refBlood);line(svg,L,yy,W-R,yy,CHART_COLORS.reference,2,'6 5');text(svg,`参考 ${fmt(refBlood,3)} mg/L`,W-R-2,Math.max(14,yy-6),CHART_COLORS.reference,10,'end')}
+ if(refEq!==null){const yy=yEq(refEq);line(svg,L,yy,W-R,yy,CHART_COLORS.referenceEquivalent,2,'6 5');text(svg,`参考 ${fmt(refEq,3)} mg（等效）`,W-R-2,Math.max(14,yy-18),CHART_COLORS.referenceEquivalent,10,'end')}
+ const mealArray=meals.filter(m=>m.time>=start&&m.time<=end).sort((a,b)=>a.time-b.time).slice(0,16);
+ for(const [i,meal] of mealArray.entries()){
+   const xx=x(meal.time);line(svg,xx,T,xx,H-B,lightTheme()?'#087d51':'#8bd58c',1.5,'3 5');
+   text(svg,`${meal.time>Date.now()?'计划':'已记'}用餐 ${dateText(meal.time)}${meal.matched?'':' · 未匹配本药'}`,Math.min(W-R-5,xx+4),T+10+(i%2)*12,'#8bd58c');
+ }
+ const doseMarkers=[...records.map(r=>({...r,preview:false})),...planned.map(r=>({...r,preview:true}))].filter(r=>r.time>=start&&r.time<=end).sort((a,b)=>a.time-b.time);
+ const lastLabelX=[-Infinity,-Infinity,-Infinity];
+ for(const dose of doseMarkers){
+  const xx=x(dose.time),color=dose.preview?CHART_COLORS.previewBlood:dose.matched?'#77f0b6':CHART_COLORS.blood;
+  line(svg,xx,T,xx,H-B,color,1,'3 6',dose.preview?.8:.58);
+  const level=lastLabelX.findIndex(last=>xx-last>=(mobile?105:125)),slot=level<0?lastLabelX.indexOf(Math.min(...lastLabelX)):level;
+  lastLabelX[slot]=xx;
+  text(svg,`${dose.preview?'预计 ':dose.matched?'已匹配 ':''}${dateText(dose.time)} · ${fmt(dose.mg,3)} mg`,Math.min(W-R-5,Math.max(L+5,xx+4)),H-B+36+slot*15,color,mobile?9:10);
+ }
+ const pathFor=(points,getY)=>points.map((p,i)=>`${i?'L':'M'}${x(p.t).toFixed(2)} ${getY(p).toFixed(2)}`).join(' ');
+ // Curve geometry is driven by mathematical samples, not visible dose
+ // markers. When the selected day has no records inside the marker window,
+ // the previous guard hid a valid sampled curve entirely.
+ {
+  if(hasFoodEffect)svg.append(svgEl('path',{d:pathFor(points,p=>y(p.unfed)),fill:'none',stroke:CHART_COLORS.unfed,'stroke-width':2,'stroke-dasharray':'6 5','stroke-linejoin':'round'}));
+  const path=pathFor(points,p=>y(p.c));
+  svg.append(svgEl('path',{d:`${path} L${x(end)} ${y(0)} L${x(start)} ${y(0)} Z`,fill:'url(#curveFill)'}));
+  svg.append(svgEl('path',{d:path,fill:'none',stroke:CHART_COLORS.blood,'stroke-width':3,'stroke-linejoin':'round','stroke-linecap':'round',pathLength:1000,class:'chart-line'}));
+  svg.append(svgEl('path',{d:pathFor(points,p=>yEq(p.eq)),fill:'none',stroke:CHART_COLORS.equivalent,'stroke-width':2.5,'stroke-linejoin':'round','stroke-linecap':'round'}));
+  if(hasFoodEffect&&data.foodEffectPoint){const p=data.foodEffectPoint,xx=x(p.t);line(svg,xx,y(p.c),xx,y(p.unfed),'#f6cd83',2.5);for(const v of [p.c,p.unfed])svg.append(svgEl('circle',{cx:xx,cy:y(v),r:4,fill:'#f6cd83',stroke:'#1b1c20','stroke-width':1.5}))}
+  for(const record of records.filter(r=>r.time>=start&&r.time<=end))svg.append(svgEl('circle',{cx:x(record.time),cy:y(0),r:3.5,fill:CHART_COLORS.blood}));
+  if(planned.length){
+    svg.append(svgEl('path',{d:pathFor(points,p=>y(p.bloodPreview??p.c)),fill:'none',stroke:CHART_COLORS.previewBlood,'stroke-width':2.2,'stroke-dasharray':'5 5','stroke-linejoin':'round'}));
+    if(data.previewFoodEffect){svg.append(svgEl('path',{d:pathFor(points,p=>y(p.noFoodPreview??p.unfed)),fill:'none',stroke:CHART_COLORS.unfed,'stroke-width':1.6,'stroke-dasharray':'2 5','stroke-linejoin':'round'}))}
+    svg.append(svgEl('path',{d:pathFor(points,p=>yEq(p.eqPreview??p.eq)),fill:'none',stroke:CHART_COLORS.previewEquivalent,'stroke-width':2,'stroke-dasharray':'5 5','stroke-linejoin':'round'}));
+  }
+ }
+ if(data.target?.time>=start&&data.target?.time<=end){
+  const t=data.target,xx=x(t.time),eqMode=t.mode==='equivalent';
+  const closest=points.reduce((best,p)=>Math.abs(p.t-t.time)<Math.abs(best.t-t.time)?p:best,points[0]);
+  const level=eqMode?yEq(closest.eqPreview??closest.eq):y(closest.bloodPreview??closest.c);
+  line(svg,xx,T,xx,H-B,CHART_COLORS.target,1,'3 5');
+  svg.append(svgEl('circle',{cx:xx,cy:level,r:5,fill:CHART_COLORS.target,stroke:'#1b1c20','stroke-width':2}));
+  text(svg,`${t.variant?'已采用 '+t.variant+' · ':''}目标 ${dateText(t.time)} · ${fmt(t.value,3)} ${eqMode?'mg（等效）':'mg/L'}`,xx+7,Math.max(T+12,level-9),CHART_COLORS.target,11);
+ }
+ // Same draggable dotted probe used on website; touch swipe is reserved for scrolling.
+ const lineProbe=line(svg,L,T,L,H-B,lightTheme()?'#51637a':'#e4e6e9',1.2,'3 4');
+ const dot=svgEl('circle',{cx:L,cy:y(0),r:5,fill:'#f9e0c5',stroke:'#1b1c20','stroke-width':2});svg.append(dot);
+ const probeAxis=text(svg,'',L,H-4,lightTheme()?'#27384a':'#fff',11,'middle','700');
+ view={points,x,y,lineProbe,dot,probeAxis,start,end,W,L,R,count,drug:data.drugId,scale,scrollTo:data.scrollTo};
+ const slider=el('timeScrubber');slider.max=String(count);slider.value=String(clamp(Math.round(((data.probeTime||Date.now())-start)/(end-start)*count),0,count));
+ updateProbe(Number(slider.value));
+ const keepPosition=previous&&previous.start===start&&previous.end===end&&previous.drug===data.drugId&&previous.scale===scale&&previous.scrollTo===data.scrollTo;
+ const center=keepPosition?previous.start+(previousScroll+previousViewport/2-previous.L)/(previous.W-previous.L-previous.R)*(previous.end-previous.start):clamp(data.scrollTo||Date.now(),start,end);
+ wrap.scrollLeft=Math.max(0,x(center)-wrap.clientWidth/2);
+ const move=e=>{const rect=svg.getBoundingClientRect(),px=(e.clientX-rect.left)/rect.width*W;updateProbe(Math.round((px-L)/(W-L-R)*count))};
+ svg.onpointerdown=e=>{if(e.pointerType!=='touch')svg.setPointerCapture(e.pointerId);if(e.pointerType!=='touch')move(e)};
+ svg.onpointermove=e=>{if(e.buttons&&e.pointerType!=='touch')move(e)};
+ el('stats').replaceChildren();
+ const stats=[['峰值血药',records.length?fmt(peak.c,peak.c<1?3:2)+' mg/L':'—'],['窗口等效峰值',records.length?fmt(Math.max(...points.map(p=>p.eq)),1)+' mg（等效）':'—']];
+ for(const pair of stats){const block=document.createElement('span');block.textContent=pair[0]+' · ';const strong=document.createElement('strong');strong.textContent=pair[1];block.append(strong);el('stats').append(block)}
+ const legend=el('legend');legend.replaceChildren();
+ const addLegend=(value,color,style='solid')=>{const sp=document.createElement('span');sp.className='item';const i=document.createElement('i');i.style.setProperty('--c',color);if(style!=='solid')i.className=style;sp.append(i,document.createTextNode(' '+value));legend.append(sp)};
+ addLegend(hasFoodEffect?'已计饮食血药浓度 · 左轴 mg/L':'已记血药浓度 · 左轴 mg/L',CHART_COLORS.blood);
+ addLegend('剂量等效量 · 右轴 mg',CHART_COLORS.equivalent);
+ if(hasFoodEffect)addLegend('未计饮食参考',CHART_COLORS.unfed,'dash');
+ if(refBlood)addLegend('血药参考线 · 左轴 mg/L',CHART_COLORS.reference,'dash');
+ if(refEq)addLegend('等效参考线 · 右轴 mg',CHART_COLORS.referenceEquivalent,'dash');
+ if(planned.length){addLegend('蓝色虚线＝假设后的血药浓度 · 左轴',CHART_COLORS.previewBlood,'dash');if(data.previewFoodEffect)addLegend('浅灰点线＝假设节点不计饮食 · 左轴',CHART_COLORS.unfed,'dot');addLegend('紫色虚线＝假设后的剂量等效量 · 右轴',CHART_COLORS.previewEquivalent,'dash')}
+ if(data.target)addLegend('橙色虚线竖标＝目标时刻',CHART_COLORS.target,'dash');
+ // Same descending-crossing explanation as the website's renderCrossing,
+ // repeated for the two *independently persisted* reference inputs.
+ const crosses=[];
+ if(!records.length)crosses.push('当前药物还没有单次记录；请先在服用组中添加。');
+ else for(const reference of [[refBlood,'血药浓度',p=>p.c,'mg/L'],[refEq,'剂量等效量',p=>p.eq,'mg']]){
+  const [level,name,get,unit]=reference;
+  const peakPoint=points.reduce((best,p)=>get(p)>get(best)?p:best,points[0]);
+  const peakText=`当前图示时间窗的${name}模型峰值约 ${fmt(get(peakPoint),3)} ${unit}，时间约 ${dateText(peakPoint.t)}。`;
+  if(level===null){crosses.push(peakText+'输入参考值后显示下降交点。');continue}
+  if(level>get(peakPoint)){crosses.push(peakText+`所填 ${fmt(level,3)} ${unit} 高于模型峰值，本时间窗未达到。`);continue}
+  const timings=[];
+  for(let i=1;i<points.length;i++){
+   const a=points[i-1],b=points[i];
+   if(get(a)>=level&&get(b)<level)timings.push(a.t+(b.t-a.t)*(get(a)-level)/(get(a)-get(b)));
+  }
+  const future=timings.find(t=>t>=Date.now());
+  if(future){crosses.push(peakText+`按模型，约 ${dateText(future)} 再次低于 ${fmt(level,3)} ${unit}；这不是建议的下一次服药时间。`);continue}
+  const near=points.reduce((best,p)=>Math.abs(p.t-Date.now())<Math.abs(best.t-Date.now())?p:best,points[0]);
+  if(get(near)<level){crosses.push(peakText+`当前模型值已低于 ${fmt(level,3)} ${unit}；下方可作数学情景反算，但不能据此决定补服。`);continue}
+  crosses.push(peakText+`本时间窗未找到再次低于 ${fmt(level,3)} ${unit} 的交点。`);
+ }
+ el('crossingResult').textContent=crosses.length?crosses.join('；'):'未填写参考数值时不绘制参考线或计算下降交点。';
+ const foodName=data.foodType||'';
+ el('chartCaption').textContent=records.length?`仅统计${data.drugName||data.drugId} · 历史共 ${records.length} 次记录，同药物跨日残留已计入${data.adoptedVariant?' · 已采用方案 '+data.adoptedVariant+' 的剩余节点显示为虚线':''}${foodName?' · 餐型：'+foodName:''}${hasFoodEffect?' · 已计饮食峰值约 '+fmt(peak.c,3)+' mg/L；未计饮食参考峰值约 '+fmt(unfedPeak.unfed,3)+' mg/L':''} · 当前窗口 ${dateText(start)}—${dateText(end)}`:planned.length?`${data.drugName||data.drugId}暂无已记服用；蓝色虚线为假设血药浓度，紫色虚线为假设剂量等效量 · 当前窗口 ${dateText(start)}—${dateText(end)}`:`${data.drugName||data.drugId}暂无单次记录`;
+ el('chartCaption').textContent+=' · '+(data.serverVerified?'当前曲线由181服务器计算（同版本模型校验）':'当前曲线为本地签名数学模型（等待181或离线）');
+ const mealMessages=(data.mealMessages||[]);el('mealStatus').textContent=mealMessages.join('；');
+}
+function updateProbe(index,auto=false){
+ if(!view)return;
+ const {points,x,y,lineProbe,dot,probeAxis,count}=view;
+ const i=clamp(Math.round(index),0,count),p=points[i],xx=x(p.t),yy=y(p.c),data=pending;
+ lineProbe.setAttribute('x1',xx);lineProbe.setAttribute('x2',xx);dot.setAttribute('cx',xx);dot.setAttribute('cy',yy);
+ probeAxis.setAttribute('x',xx);probeAxis.textContent=dateText(p.t);el('timeScrubber').value=String(i);
+ const hasFoodEffect=points.some(point=>Math.abs(point.c-point.unfed)>0.001),hasPreview=(data?.planned||[]).length>0;
+ const values=[['已计饮食血药浓度',fmt(p.c,p.c<1?3:2)+' mg/L',CHART_COLORS.blood],
+               ['剂量等效量',fmt(p.eq,1)+' mg（等效）',CHART_COLORS.equivalent]];
+ if(hasFoodEffect)values.push(['未计饮食参考',fmt(p.unfed,p.unfed<1?3:2)+' mg/L',CHART_COLORS.unfed]);
+ if(hasPreview){values.push(['假设后血药浓度',fmt(p.bloodPreview,p.bloodPreview<1?3:2)+' mg/L',CHART_COLORS.previewBlood]);values.push(['假设后剂量等效量',fmt(p.eqPreview,1)+' mg（等效）',CHART_COLORS.previewEquivalent]);if(data.previewFoodEffect)values.push(['假设节点不计饮食',fmt(p.noFoodPreview,p.noFoodPreview<1?3:2)+' mg/L',CHART_COLORS.unfed])}
+ if(Number(data.referenceBlood)>0)values.push(['血药参考线',fmt(data.referenceBlood,3)+' mg/L',CHART_COLORS.reference]);
+ if(Number(data.referenceEquivalent)>0)values.push(['等效参考线',fmt(data.referenceEquivalent,3)+' mg',CHART_COLORS.referenceEquivalent]);
+ if(data.target){const target=points.reduce((best,point)=>Math.abs(point.t-data.target.time)<Math.abs(best.t-data.target.time)?point:best,points[0]);const value=data.target.mode==='equivalent'?(target.eqPreview??target.eq):(target.bloodPreview??target.c);values.push([`目标时刻 ${dateText(data.target.time)}`,fmt(value,3)+(data.target.mode==='equivalent'?' mg（等效）':' mg/L'),CHART_COLORS.target])}
+ const out=el('probeValues');out.replaceChildren();
+ for(const [label,value,color] of values){const box=document.createElement('span');box.textContent=label+'：';const strong=document.createElement('b');strong.style.color=color;strong.textContent=value;box.append(strong);out.append(box)}
+ if(!auto){probeManual=true;clearTimeout(probeResetTimer);probeResetTimer=setTimeout(showNowProbe,5000)}
+ el('probeReadout').textContent=`${auto?'现在':'选中'} ${formatTime(p.t)}`;
+}
+function showNowProbe(){
+ if(!view)return;
+ probeManual=false;
+ const {points,x,y,lineProbe,dot,probeAxis,start,end,count}=view,now=Date.now(),inside=now>=start&&now<=end;
+ const i=clamp(Math.round((now-start)/(end-start)*count),0,count);
+ updateProbe(i,true);
+ lineProbe.setAttribute('visibility',inside?'visible':'hidden');
+ dot.setAttribute('visibility',inside?'visible':'hidden');
+ probeAxis.setAttribute('visibility',inside?'visible':'hidden');
+ if(!inside)el('probeReadout').textContent='图示窗口外 · 当前 '+dateText(now);
+}
+el('timeScrubber').addEventListener('input',e=>updateProbe(Number(e.target.value)));
+el('chartWrap').addEventListener('scroll',()=>{
+ if(chartScrollFrame||!view)return;
+ chartScrollFrame=requestAnimationFrame(()=>{
+  chartScrollFrame=0;if(!view)return;
+  const wrap=el('chartWrap'),t=view.start+(wrap.scrollLeft+wrap.clientWidth/2-view.L)/(view.W-view.L-view.R)*(view.end-view.start);
+  updateProbe(Math.round((t-view.start)/(view.end-view.start)*view.count));
+ });
+},{passive:true});
+new ResizeObserver(()=>{if(pending)drawChart(pending)}).observe(el('chartWrap'));
+window.matchMedia('(prefers-color-scheme: light)').addEventListener('change',()=>{if(pending)drawChart(pending)});
+window.PKAtlasChart={inspect(){return {sampleCount:pending?.points?.length||0,paths:el('chart').querySelectorAll('path').length,viewport:el('chartWrap').clientWidth,contentWidth:el('chartWrap').scrollWidth}},height(){const last=el('legend');return Math.ceil(last.getBoundingClientRect().bottom-document.body.getBoundingClientRect().top+20)},summary(){return {stats:Array.from(el('stats').children).map(item=>item.textContent).join('  ·  '),crossing:el('crossingResult').textContent||'',caption:el('chartCaption').textContent||'',meals:el('mealStatus').textContent||''}},render:websiteRender,center(at){if(!view)return;el('chartWrap').scrollLeft=Math.max(0,view.x(at)-el('chartWrap').clientWidth/2);updateProbe(Math.round((at-view.start)/(view.end-view.start)*view.count))},reset(){if(pending)drawChart(pending)}};
+</script></body></html>

@@ -1,0 +1,401 @@
+/*
+ * Yaoshi Studio 2 / product-design layer
+ * Intentional: primary tasks remain visible; evidence, equations and advanced
+ * exploration use native details/summary disclosure controls.
+ */
+:root{
+  --bg:#09121c;
+  --surface:#101d2b;
+  --surface-2:#172636;
+  --line:#294057;
+  --text:#edf5fb;
+  --muted:#9aafc1;
+  --blue:#69bff4;
+  --amber:#e7ba79;
+  --soft-blue:#16364c;
+  --accent-mint:#75d9bd;
+  --radius-panel:18px;
+  --elevation:0 18px 50px rgba(0,3,10,.2);
+}
+body{
+  background:
+    radial-gradient(ellipse 700px 520px at 90% -8%,rgba(25,94,122,.15),transparent 80%),
+    radial-gradient(ellipse 510px 420px at -9% 29%,rgba(30,66,88,.17),transparent 86%),
+    var(--bg);
+  color:var(--text);
+  font-size:14px;
+  line-height:1.55;
+}
+::selection{background:#2b7290;color:#fff}
+a{color:#9ad4f6}
+a:hover{color:#d9f4ff}
+.topbar{
+  max-width:1380px;
+  height:75px;
+  border-bottom:1px solid #ffffff10;
+  padding-inline:clamp(16px,3.3vw,48px);
+  gap:16px;
+}
+.topbar .brand{text-decoration:none;color:#f0faff;white-space:nowrap;font-size:21px}
+.topbar .brand:hover{color:#fff}
+.brand-icon{
+  background:linear-gradient(145deg,#184e66,#143451);
+  border:1px solid #426d86;
+  color:#a0e5ff;
+  box-shadow:0 7px 24px #0004,inset 0 1px #ffffff16;
+}
+.shortcut-install{
+  background:#182f42;
+  border-color:#3b667f;
+  font-weight:720;
+  min-height:42px;
+  margin-left:auto;
+  border-radius:12px;
+}
+.shortcut-install:hover{background:#20445e;color:#fff}
+.top-note{color:#9db4c4}
+.live-dot{background:#59cca5;box-shadow:0 0 0 4px #61cfb223}
+.layout{max-width:1360px;padding:36px clamp(16px,3.3vw,48px) 96px}
+.panel{
+  border-radius:var(--radius-panel);
+  border-color:#2a4052;
+  background:linear-gradient(160deg,#152334 0%,#111e2a 100%);
+  box-shadow:var(--elevation);
+}
+.intro{max-width:780px}
+.intro h1{font-size:clamp(30px,4.25vw,53px);line-height:1.18;letter-spacing:-.055em;margin:13px 0 9px}
+.intro h1 em{color:#93d5f8}
+.intro p{font-size:14px;color:#a7bccd;line-height:1.65;margin-bottom:22px}
+.eyebrow{font-size:10px;letter-spacing:.16em;color:#87cdec}
+.eyebrow span{letter-spacing:.04em;font-weight:650}
+.notice.notice-compact{
+  display:flex;align-items:center;flex-wrap:wrap;
+  gap:8px 12px;
+  padding:12px 15px;
+  background:#122b38;
+  border:1px solid #30556b;
+  border-radius:12px;
+  margin:14px 0 20px;
+  color:#c8e0ee;
+}
+.notice-compact strong{font-size:12px}
+.notice-compact .mini-disclosure{margin-left:auto}
+.notice-symbol{color:#d0edff;background:#28536c}
+.mini-disclosure summary{
+  cursor:pointer;
+  color:#9cdef5;
+  font-weight:700;
+  font-size:12px;
+}
+.mini-disclosure p{color:#b8cddd;font-size:12px;line-height:1.65;margin:9px 0 2px}
+.notice-compact details[open]{width:100%;margin-left:34px}
+.account-panel{
+  border:1px solid #31506b;
+  background:linear-gradient(145deg,#152a3b,#121d2c);
+  box-shadow:0 15px 45px #01081240;
+}
+.account-copy strong{color:#f0f9ff}
+.account-copy #syncStatus{line-height:1.5}
+.stage-auth .layout{max-width:710px}
+.stage-auth .account-panel{padding:26px;gap:22px}
+.stage-auth .intro h1{font-size:clamp(32px,5vw,48px)}
+.stage-auth .auth-form .auth-field{font-size:13px}
+.auth-form .auth-field>input{border-radius:11px}
+.account-actions{gap:8px}
+.account-actions button{border-radius:9px}
+.entry-links{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px;
+  margin-top:18px;
+}
+.entry-link{
+  min-width:0;
+  border-radius:13px;
+  border-color:#304c60;
+  background:#122534;
+  padding:12px 14px;
+  min-height:67px;
+  box-shadow:0 6px 16px #0002;
+}
+.entry-link-primary{background:#14354b;border-color:#366781}
+.entry-link span strong{font-size:13px}
+.entry-link small{display:none}
+.entry-link:hover{border-color:#74caee;background:#1b3c52}
+.chooser{padding:28px;margin-top:18px}
+.chooser h2{font-size:clamp(23px,2.6vw,30px);margin-bottom:10px}
+.chooser-date{
+  background:#122535;border:1px solid #31576e;
+  padding:18px;border-radius:14px;
+}
+.chooser-grid{gap:11px}
+.chooser-card{
+  min-height:77px;border-radius:12px;border-color:#2b4559;
+  background:#182a3a;
+}
+.chooser-card:hover{background:#223f54;border-color:#77c2ec}
+.chooser-card.active{border-color:#78d6df}
+.chooser-section-head{margin-top:22px}
+.journal-help{margin:0 0 12px}
+.journal-help[open]{background:#152c3d;padding:9px 12px;border-radius:9px}
+.journal-help p{margin-bottom:0}
+.stage-choose .layout,.stage-calc .layout{padding-top:21px}
+.stage-choose .account-panel,.stage-calc .account-panel{
+  border-radius:13px;padding:14px 18px;margin-bottom:16px;
+}
+.view-quicknav{
+  display:flex;align-items:center;flex-wrap:wrap;gap:8px;
+  padding:0 0 14px;
+  margin:0;
+}
+.view-quicknav a,.view-quicknav button{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-height:39px;
+  padding:7px 14px;
+  border:1px solid #34566f;
+  background:#142738;
+  border-radius:100px;
+  color:#c9e2f4;
+  text-decoration:none;
+  font-size:12px;
+  font-weight:720;
+  line-height:1.2;
+}
+.view-quicknav :is(a,button):hover{background:#235070;border-color:#78caee;color:#fff}
+.calc-nav{
+  background:#142838;border-color:#345369;
+  border-radius:14px;padding:13px 16px;
+  box-shadow:0 8px 24px #0003;
+}
+.calc-nav strong{font-size:15px}
+.day-panel{padding:24px 26px;margin-bottom:20px}
+.day-head h2{font-size:clamp(19px,2.4vw,24px)}
+.day-course-list{gap:8px}
+.day-course{background:#1b2e3e;border-color:#345068}
+.day-course.active{background:#21465b}
+.day-summary{
+  background:linear-gradient(110deg,#21495b,#193044 88%);
+  border:1px solid #4787a0;
+}
+.day-chart-card{background:#122436;border-color:#29465b;border-radius:13px}
+.workspace{
+  grid-template-columns:minmax(300px,344px) minmax(0,1fr);
+  gap:19px;
+  align-items:start;
+}
+.controls{padding:25px}
+.section-head{gap:12px;margin-bottom:18px}
+.section-head>span{
+  background:#214154;color:#a5e6fa;border:1px solid #35637c;
+  border-radius:9px;min-width:30px;height:30px;
+}
+.section-head h2{font-size:16px;font-weight:760}
+.field-label{color:#d1deea}
+input:not([type=range]):not([type=checkbox]),select{
+  background:#172636;border-color:#344b60;
+  color:#ecf6fc;border-radius:10px;
+}
+input:focus-visible,select:focus-visible,button:focus-visible,summary:focus-visible,a:focus-visible{
+  outline:2px solid #9adbf8;outline-offset:3px;
+}
+.primary{
+  background:linear-gradient(120deg,#2c91bd,#3d9dc7);
+  color:#f8feff;
+  border-radius:11px;
+  box-shadow:0 8px 21px #106e9433;
+}
+.primary:hover{background:linear-gradient(120deg,#36a5d4,#4caeda)}
+.secondary{
+  background:#1b4660;border-color:#367998;
+  color:#dff7ff;border-radius:10px;
+}
+.ghost{
+  background:#203042;border-color:#365165;
+  color:#bcd5e5;border-radius:10px;
+}
+.drug-info{background:#1a2b39;border-color:#344e61}
+.drug-info .numbers span{background:#22384a}
+.record{border-bottom-color:#294052}
+.record strong{color:#f3faff}
+.results{gap:14px}
+.chart-panel{padding:23px 25px}
+.chart-head h2{font-size:clamp(20px,2.1vw,26px)}
+.chart-wrap{
+  background:linear-gradient(180deg,#152738,#0f1d2b);
+  border:1px solid #263f54;
+  border-radius:13px;
+  height:350px;
+}
+.chart-wrap svg{height:350px}
+.probe-value{border-color:#355064;background:#15283a;border-radius:9px}
+.metric{
+  border-color:#324b62;
+  background:linear-gradient(150deg,#1a2e3f,#152333);
+  border-radius:12px;
+}
+.metric strong{font-variant-numeric:tabular-nums}
+.chart-meal-status{background:#19382e;color:#cae9da}
+.chart-caption{line-height:1.55}
+.disclosure-section{
+  display:block;
+  overflow:visible;
+  padding:0!important;
+  margin:0;
+  background:linear-gradient(155deg,#142537,#111e2b);
+}
+.disclosure-section>.disclosure-head{
+  min-height:68px;
+  display:flex;align-items:center;justify-content:space-between;gap:13px;
+  cursor:pointer;
+  padding:17px 21px;
+  color:#e8f4fc;
+  font-size:15px;
+  font-weight:760;
+  list-style:none;
+  border-radius:inherit;
+}
+.disclosure-section>.disclosure-head::-webkit-details-marker{display:none}
+.disclosure-section>.disclosure-head::after{
+  content:"";
+  width:9px;height:9px;flex:none;
+  border-right:2px solid #95cae2;border-bottom:2px solid #95cae2;
+  transform:rotate(45deg);
+  transition:transform .2s;
+  margin-left:6px;
+}
+.disclosure-section[open]>.disclosure-head::after{transform:rotate(225deg)}
+.disclosure-section[open]>.disclosure-head{
+  border-bottom:1px solid #2d465c;
+  border-radius:var(--radius-panel) var(--radius-panel) 0 0;
+}
+.disclosure-title{font-size:15px;letter-spacing:-.01em}
+.disclosure-hint{font-size:11px;font-weight:550;color:#90abbc;margin-left:auto}
+.disclosure-section[open] .disclosure-hint{visibility:hidden}
+.disclosure-body{padding:20px 22px 22px;min-width:0}
+.disclosure-body>p:first-child{margin-top:0}
+.disclosure-body>p{color:#aebfce;line-height:1.6;font-size:12px}
+.disclosure-section .section-head{margin-top:0}
+.plan-panel{margin-top:18px!important;box-shadow:none;border-radius:14px}
+.plan-panel>.disclosure-head{min-height:62px}
+.plan-panel .disclosure-body{padding:16px}
+.plan-panel .disclosure-hint{white-space:nowrap}
+.threshold-panel{border-radius:16px}
+.reading .disclosure-body{padding-top:13px}
+.history-panel{margin-top:17px}
+.sources{border:1px solid #2a4052;border-radius:16px;margin-top:12px}
+.renal-bottom{margin-top:13px!important}
+.evidence-disclosure,.food-evidence{
+  background:#142a34;
+  border:1px solid #315367;
+  border-radius:11px;
+  padding:0;
+  margin-top:12px;
+  color:#bcd3dc;
+}
+.evidence-disclosure>summary,.food-evidence>summary{
+  cursor:pointer;
+  padding:12px 15px;
+  font-size:12px;
+  font-weight:720;
+  list-style:none;
+  color:#9ddaca;
+}
+.evidence-disclosure>summary::-webkit-details-marker,.food-evidence>summary::-webkit-details-marker{display:none}
+.evidence-disclosure>summary::after,.food-evidence>summary::after{
+  content:"＋";float:right;font-size:17px;font-weight:400;line-height:1;
+  color:#7ebfae;
+}
+.evidence-disclosure[open]>summary::after,.food-evidence[open]>summary::after{content:"−"}
+.evidence-disclosure>p,.food-evidence>div{
+  padding:0 15px 14px;margin:0;
+  color:#b1c5ce;font-size:12px;line-height:1.6;
+}
+.evidence-disclosure .equivalent-explain{
+  border-left:0;background:transparent;border-radius:0;margin:0;
+  color:#b6d7cd;
+}
+.food-evidence #foodEvidence{padding-top:6px}
+.food-evidence article{border-top-color:#345368}
+.renal-panel .renal-caution{color:#b8cdd8}
+.studio-footer{border-top:1px solid #273a4d}
+@media(max-width:1050px){
+  .workspace{grid-template-columns:minmax(265px,316px) minmax(0,1fr);gap:14px}
+  .controls{padding:20px}
+  .chart-panel{padding:19px}
+}
+@media(max-width:850px){
+  .workspace{grid-template-columns:1fr}
+  .entry-links{grid-template-columns:1fr}
+}
+@media(max-width:700px){
+  .layout{padding:19px 15px 78px}
+  .topbar{height:64px;padding-inline:15px}
+  .top-note{display:none}
+  .topbar .brand{font-size:18px;gap:8px}
+  .brand-icon{width:34px;height:34px}
+  .shortcut-install{min-height:36px;padding:6px 9px;font-size:10px}
+  .stage-auth .layout{padding-top:25px}
+  .stage-auth .account-panel{padding:19px}
+  .stage-auth .intro h1{font-size:31px}
+  .stage-choose .layout,.stage-calc .layout{padding-top:13px}
+  .view-quicknav{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:12px}
+  .view-quicknav::-webkit-scrollbar{display:none}
+  .view-quicknav a,.view-quicknav button{white-space:nowrap;min-height:38px;padding:8px 13px}
+  .calc-nav{border-radius:13px;margin:0 0 13px;width:100%;padding:11px 12px}
+  .calc-nav strong{font-size:12px}
+  .day-panel{padding:18px}
+  .controls{padding:18px}
+  .chart-panel{padding:18px}
+  .chart-wrap,.chart-wrap svg{height:296px}
+  .chart-head h2{font-size:21px}
+  .chart-unit{font-size:10px}
+  .disclosure-section>.disclosure-head{min-height:60px;padding:15px}
+  .disclosure-title{font-size:14px}
+  .disclosure-body{padding:15px}
+  .threshold-panel .disclosure-body{padding:15px}
+  .notice-compact{padding:10px 12px}
+  .notice-compact details[open]{margin-left:0}
+  .entry-link{min-height:60px}
+}
+@media(max-width:380px){
+  .disclosure-hint{font-size:10px}
+  .topbar .brand small{font-size:8px}
+  .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(prefers-reduced-motion:reduce){
+  .disclosure-section>.disclosure-head::after{transition:none}
+}
+
+/* Compact daily overview and on-demand drug evidence. */
+.drug-detail-disclosure{margin:12px 0 0}
+.drug-detail-disclosure #drugInfo{margin:0;border:0;border-top:1px solid #355363;border-radius:0 0 11px 11px;background:transparent;padding:14px}
+.drug-detail-disclosure .drug-safety{border-top-color:#385267}
+.meal-impact-disclosure{margin-top:14px}
+.meal-impact-disclosure #mealImpact{margin:0;border:0;border-top:1px solid #355363;border-radius:0 0 11px 11px;background:#132d30;padding:14px}
+.overview-disclosure{margin-top:14px;border:1px solid #2e4b61;background:#132839;border-radius:12px;padding:0}
+.overview-disclosure>summary{cursor:pointer;padding:12px 15px;list-style:none;color:#a9d8ed;font-size:12px;font-weight:700}
+.overview-disclosure>summary::-webkit-details-marker{display:none}
+.overview-disclosure>summary::after{content:"＋";float:right;font-size:17px;font-weight:400}
+.overview-disclosure[open]>summary::after{content:"−"}
+.overview-disclosure .day-charts{padding:0 12px 14px;margin-top:0}
+.overview-disclosure .day-chart-card{padding:15px}
+
+/* Dose-related safety warnings remain visible even when evidence is collapsed. */
+.drug-alert{margin:12px 0 0;padding:12px 13px;border-radius:10px;border:1px solid #b47744;background:#49321f;color:#ffe7cd;font-size:12px;line-height:1.6;font-weight:670}
+
+/* Precise target-time constraint: explicit opt-in and independent units. */
+.point-target-window .target-limit-toggle{display:flex;align-items:center;gap:.65rem;cursor:pointer;font-weight:600}
+.point-target-window .target-limit-toggle input{width:1.1rem;height:1.1rem;flex:none}
+.point-target-window .inverse-unit-input{display:flex;flex-wrap:wrap;gap:.65rem;align-items:center}
+.point-target-window .inverse-unit-input label{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap}
+.point-target-window .inverse-unit-input input{max-width:7rem;min-width:5rem}
+
+/* Adopted node review stays above the plan even after the scheduled time. */
+#adoptedPendingConfirmPanel.adopted-confirm-priority{display:block;border:1px solid #cb9148;border-left:4px solid #e3a44d;border-radius:12px;padding:13px 16px;margin-bottom:14px;background:color-mix(in srgb,#eab66b 9%,var(--surface,#1b2331));color:var(--text)}
+#adoptedPendingConfirmPanel[hidden]{display:none!important}
+.adopted-confirm-priority h3{font-size:1rem;margin:0 0 8px;color:var(--text)}
+.adopted-confirm-row{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;border-top:1px solid var(--line,#556577);padding-block:10px}
+.adopted-confirm-text{display:flex;flex-direction:column;gap:4px;min-width:140px;flex:1 1 185px}
+.adopted-confirm-text strong{color:var(--text);font-size:.92rem}
+.adopted-confirm-text small{color:var(--muted);font-size:.78rem}
+.adopted-confirm-actions{display:flex;flex-wrap:wrap;gap:8px}
+.adopted-confirm-actions button{min-height:35px}
+@media(prefers-color-scheme:light){#adoptedPendingConfirmPanel{background:#fff9f0!important;border-color:#bb8238!important;color:#18283e!important}.adopted-confirm-text :is(strong,small){color:#25384e!important}}

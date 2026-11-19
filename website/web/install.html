@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#090b0f">
+  <title>安装药时快捷指令</title>
+  <meta name="description" content="安装药时 iPhone 快捷指令并安全配置个人 API 密钥，查看记录与模型计算说明。">
+  <link rel="icon" type="image/png" href="/icon-192.png">
+  <link rel="stylesheet" href="/install.css?v=system-colors-20261118"><link rel="stylesheet" href="/support.css?v=system-colors-20261118">
+</head>
+<body class="support-install"><main id="installMain">
+  <a class="back" href="/">‹ 返回药时</a>
+  <h1>安装药时快捷指令</h1>
+  <p class="lead">在快捷指令里记录服药、查看曲线文字摘要，或选择两种反算模型；计算由药时网站 API 完成。首次安装后编辑一次用户名和个人 API 密钥，之后运行无需重复输入。</p>
+  <section class="card">
+    <strong>iPhone 安装步骤</strong>
+    <ol>
+      <li>先在<a href="/quick.html#keySettings">快捷面板的“个人 API 密钥”区域</a>登录并点“生成或更换”，复制新密钥。已有密钥无法再次显示；重新生成会使旧密钥失效。</li>
+      <li>用 iPhone 的 Safari 点击下方“下载快捷指令文件”。</li>
+      <li>在 Safari 下载列表或“文件”App 的“下载项”中打开 <code>yaoshi-text-v2.shortcut</code>，添加这条快捷指令。安装后可自行重命名。</li>
+      <li>在「快捷指令」App 中点新添加的指令右上角的“…”进入编辑。开头的注释下面有两个“文本”动作：第一个把占位文字改为网站用户名，第二个改为个人 API 密钥。点“完成”保存。</li>
+      <li>以后直接点这条指令运行，选择记录服药、查看曲线文字摘要或两种反算；无需再输入账号和密钥。各选择菜单可点“返回上级”。</li>
+    </ol>
+    <a class="button" href="/yaoshi-text-v2.shortcut" download="yaoshi-text-v2.shortcut">下载文字摘要与双反算版 ↓</a>
+    <p class="small">下载的是已签名快捷指令文件。如果浏览器直接显示“加载失败”，请从 Safari 的下载列表或“文件”App 打开下载的文件。</p>
+  </section>
+  <details class="card support-disclosure"><summary>填写的是个人 API 密钥</summary><div class="support-disclosure-body">
+    <p>请勿把网站登录密码写入快捷指令。若看到“用户名或访问密钥无效”，检查这两个文本动作是否已替换占位文字；重新生成密钥后，也要更新第二个文本动作。</p>
+  </div></details>
+  <details class="card support-disclosure"><summary>锁屏实时曲线与提醒</summary><div class="support-disclosure-body">
+    <p>本快捷指令按需查询并显示文字摘要。像示例图那样持续显示在锁屏的实时曲线，需要单独开发 iPhone App 和实时活动组件。模型浓度、达峰时间与反算结果均为估算，不能当作“起效”或“该补药”的医学判断。</p>
+  </div></details>
+  <p class="note">公开下载的文件不含用户名或密钥。个人密钥保存在你编辑后的快捷指令中；分享这条已配置的指令前，请先清除密钥。</p>
+  <a class="secondary" href="/quick.html#keySettings">前往快捷面板生成密钥 →</a>
+</main></body></html>

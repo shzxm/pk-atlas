@@ -1,0 +1,20 @@
+    <section class="panel account-panel" aria-label="账号同步">
+      <div class="account-copy"><strong id="accountName">药时账号</strong><span id="syncStatus" role="status" aria-live="polite" data-sync="pending">正在恢复登录…</span><small id="syncLastSaved" aria-live="off">正在核对云端状态</small></div>
+      <form id="authForm" class="auth-form" method="post">
+        <label class="auth-field" for="accountUser">用户名
+          <input id="accountUser" name="accountUser" type="text" autocomplete="username" minlength="3" maxlength="32" placeholder="字母、数字、下划线" required>
+        </label>
+        <label class="auth-field" for="accountPassword">密码
+          <input id="accountPassword" name="accountPassword" type="password" autocomplete="current-password" minlength="12" placeholder="密码至少 12 位" required>
+        </label>
+        <label class="session-remember" for="sessionRemember"><input id="sessionRemember" name="remember" type="checkbox" checked><span>在此个人设备保持登录<small>最多 90 天，连续 30 天未使用自动退出。不勾选时关闭浏览器即结束会话（恢复窗口可能保留），服务器闲置 24 小时或最长 7 天失效。</small></span></label>
+        <button class="secondary" type="submit" data-action="login">登录</button>
+        <button class="ghost" type="submit" data-action="register">注册</button>
+      </form><button id="authRetry" class="ghost" type="button" hidden>重试恢复登录</button>
+      <button id="transferLocal" class="secondary" type="button" hidden>将本机数据转到正式网站</button>
+      <details id="accountTools" class="account-tools" hidden><summary><span>账号操作</span><small>同步 · 备份 · 设置</small></summary><div id="accountActions" class="account-actions" hidden><button id="syncNow" class="secondary" type="button">立即同步</button><button id="syncExport" class="ghost" type="button">导出本机草稿</button><button id="saveLocalCloud" class="secondary" type="button">保存本地数据至云端</button><button id="importLocal" class="ghost" type="button" hidden>导入本机旧记录</button><button id="syncRetry" class="ghost" type="button" hidden>重试同步</button><details id="deviceSessionGuide" class="device-session-guide"><summary>管理已登录设备</summary><p class="hint">每次登录生成一份独立会话；设备名称仅供识别，不用它或 IP 地址作为登录凭证。</p><button id="deviceSessionsRefresh" class="ghost" type="button">刷新设备列表</button><button id="deviceSessionsRevokeOthers" class="record-danger" type="button" hidden>退出其他所有设备</button><p id="deviceSessionResult" class="hint" role="status" aria-live="polite" hidden></p><div id="deviceSessionsList" aria-live="polite"></div></details><a href="/data-center.html" class="ghost account-link">同步中心 · 数据导入与导出</a><a href="/notifications.html" class="ghost account-link">通知设置与诊断中心</a><a href="/quick.html" class="ghost account-link">快捷面板与 API 密钥</a><button id="logout" class="ghost" type="button">退出登录</button></div></details>
+    </section>
+    <nav class="entry-links" aria-label="手机快捷入口">
+      <a class="entry-link entry-link-primary" href="/install.html"><span>⌁</span><span><strong>安装药时原生快捷指令</strong><small>在快捷指令中输入参数，由网站 API 计算并返回结果</small></span><span aria-hidden="true">›</span></a>
+      <a class="entry-link" href="/quick.html"><span>↗</span><span><strong>打开快捷面板</strong><small>快速记录、查看曲线和反算</small></span><span aria-hidden="true">›</span></a>
+    </nav>

@@ -1,0 +1,107 @@
+/* System-owned appearance: preserve the existing dark palette completely.
+ * Light mode is a distinct high-contrast blue-white design, not a blanket
+ * inversion that would destroy chart series colors and warning semantics. */
+:root { color-scheme: light dark; }
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+    --bg: #f3f7fc;
+    --surface: #ffffff;
+    --surface-2: #f3f7fc;
+    --line: #cfdbeb;
+    --text: #182b43;
+    --muted: #556982;
+    --blue: #1765b4;
+    --amber: #955823;
+    --soft-blue: #e7f2ff;
+    --pk-blood: #a96a19;
+    --pk-equivalent: #087f69;
+    --pk-unfed: #667a91;
+    --pk-reference: #b41f70;
+    --pk-reference-equivalent: #597b0e;
+    --pk-preview-blood: #1664a7;
+    --pk-preview-equivalent: #77429f;
+    --pk-target: #bd5224;
+  }
+  html, body { background-color: var(--bg) !important; color: var(--text) !important; }
+  body { background-image: radial-gradient(circle at 85% 0%, #dce9f8, transparent 35%) !important; }
+  .panel, .controls, .chart-panel, .results > section, .account-panel, .day-panel,
+  .day-chart-card, .day-archive-card, .drug-info, .renal-panel, .push-panel,
+  .push-settings, .device-session-guide, .match-multi-disclosure,
+  .session-panel, .sync-panel, .modal-content, .dialog-content {
+    color: var(--text) !important;
+    background: var(--surface) !important;
+    border-color: var(--line) !important;
+    box-shadow: 0 8px 24px #29456012 !important;
+  }
+  :is(.day-course,.day-chart-stats > div,.day-record-summary span,
+       .drug-info .numbers span,.field-unit,.account-tools .account-actions,
+       .timeline-event,.inverse-step,.dose-list-item,.chart-wrap,#chartWrap,
+       .pill,.chip,.calc-nav,.offline-panel,.reference-card,.record-card) {
+    background: #f0f5fb !important;
+    border-color: #ccdaea !important;
+    color: var(--text) !important;
+  }
+  .day-summary {
+    background: linear-gradient(115deg, #dcebf9, #edf5ff) !important;
+    border-color: #a8c7e6 !important;
+  }
+  .day-summary :is(strong,span), .day-summary-drugs span,
+  .day-record-summary :is(strong,span), .day-chart-stats :is(strong,small),
+  .day-chart-card :is(h3,p), .push-panel :is(strong,p), .drug-info .numbers b,
+  .record :is(strong,small), .stage-loading #bootScreen,
+  .account-copy :is(strong,span), .chart-title, .chart-caption,
+  .day-head :is(h2,small), .field-label, .section-head h2,
+  :is(.controls,.results,.panel) :is(h1,h2,h3,h4,p,legend,summary) {
+    color: var(--text) !important;
+  }
+  :is(.muted,.hint,.top-note,.day-empty,.day-course small,.topbar small,
+       .field-label span,.record-list small,.chart-help,.chart-legend,
+       .account-copy small,.device-session small,.intro p,.day-chart-legend span,
+       .day-record-summary,.day-summary-review,.timeline-subtitle) {
+    color: var(--muted) !important;
+  }
+  input:not([type=range]):not([type=checkbox]), select, textarea {
+    color: #1b3049 !important;
+    background: #f7faff !important;
+    border: 1px solid #b7cce1 !important;
+    caret-color: #105daa;
+    accent-color: #1765b4;
+  }
+  input::placeholder, textarea::placeholder { color: #657991 !important; }
+  input[type=datetime-local]::-webkit-calendar-picker-indicator { filter: none !important; opacity: .8; }
+  button:not(.primary):not(.danger):not(.pill):not(.text-button),
+  .account-tools > summary, .day-course, .session-action, .shortcut-install {
+    color: #164a7d !important;
+    background: #e9f2fd !important;
+    border-color: #afc9e4 !important;
+  }
+  :is(button,a,input,select,textarea):focus-visible { outline-color: #1b6ab1 !important; }
+  button.primary, .primary, a.primary { background: #1765b4 !important; color: #fff !important; }
+  button.danger, .error { color: #9a2525 !important; }
+  .notice, .offline-app-banner {
+    color: #244c69 !important;
+    background: #edf4fc !important;
+    border-color: #b9d0e7 !important;
+  }
+  .notice :is(strong,span), .notice-symbol { color: #244c69 !important; }
+  .brand-icon { background: #d7eaff !important; color: #145d9b !important; }
+  .intro h1 em, .eyebrow, a:not(.primary), .text-button { color: #1765b4 !important; }
+  .topbar { border-color: #d2e1ef !important; }
+  .record { border-bottom-color: #d8e4f0 !important; }
+  .chart-panel svg text, .day-chart-card svg text { fill: #415872; }
+  .chart-panel svg line[stroke='#333942'],
+  .day-chart-card svg line[stroke='#333942'] { stroke: #d7e0ec; }
+  .stage-loading #bootScreen {
+    background: radial-gradient(ellipse at 50% 22%, #d8e9fa, transparent 75%) !important;
+  }
+  .boot-brand-mark { background: linear-gradient(145deg, #d9ebfc, #c5ebdb) !important;
+                     color: #145b74 !important; border-color: #a5cddd !important; }
+  .boot-screen :is(p,small) { color: #506a82 !important; }
+  .boot-track { background: #c9daeb !important; }
+  .boot-track-glow { background: #3380bf !important; }
+  .auth-form, .push-status, .session-remember, .inverse-limit-field,
+  .match-multi-disclosure :is(summary,label) { color: var(--text) !important; }
+  .match-multi-options label:has(input:checked) { background: #dcefe4 !important; }
+  .stage-auth input { background: #fff !important; }
+}
