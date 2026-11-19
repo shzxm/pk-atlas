@@ -137,3 +137,7 @@ The current math plan replaces the previous model's pending confirmation and pus
 ### Chart jump location fix (2026-11-19.3)
 
 The inverse result A/B and accepted-plan show-in-chart actions now change to the visible chart pane before scrolling, center the selected target time, and ignore superseded navigations. iOS v2.26 Build32 scrolls to the actual rendered plot instead of its caption.
+
+### Complete SwiftUI source mirror (2026-11-19.4)
+
+The `ios/` tree now contains the entire source set required for the v2.26 Build 32 public simulator build, including the inverse chart focus helper, its tests, and updated local chart renderer. The dedicated [PKAtlas](https://github.com/shzxm/PKAtlas/releases/tag/v2.26.0-build32) source release uses the same sanitized code. The production IPA is **not** attached here.

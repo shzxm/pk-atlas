@@ -78,6 +78,9 @@ struct PKWebsiteChartPayload: Encodable {
     let foodType: String?
     let mealMessages: [String]
     let serverVerified: Bool
+    // Incremented only for an explicit navigation action. Ordinary server
+    // checks and resizing must preserve the user's manual pan position.
+    var navigationToken: Int = 0
 }
 
 @MainActor
@@ -93,7 +96,8 @@ final class PKWebsiteChartSource: ObservableObject {
               matchedRecordIDs: Set<String>, referenceBlood: Double?,
               referenceEquivalent: Double?, target: PKWebsiteChartTarget?,
               variant: String?, catalogVersion: String, engineVersion: String,
-              scrollTo: Date? = nil) {
+              scrollTo: Date? = nil, windowStart: Date? = nil,
+              navigationToken: Int = 0) {
         generation += 1
         let number = generation
         job?.cancel()
@@ -102,7 +106,7 @@ final class PKWebsiteChartSource: ObservableObject {
         let account = NativeAppStore.shared
         let cloudVersion: Int? = account.accessState == .verified && !account.hasPendingChanges
             ? account.syncedStateVersion : nil
-        let startDate = PKWebsiteChartSpecification.start(of: day)
+        let startDate = windowStart ?? PKWebsiteChartSpecification.start(of: day)
         let count = PKWebsiteChartSpecification.count(scale: scale, viewport: viewport)
         job = Task {
             let worker = Task.detached(priority: .utility) {
@@ -158,7 +162,8 @@ final class PKWebsiteChartSource: ObservableObject {
                    planned: planned, matchedRecordIDs: matchedRecordIDs,
                    referenceBlood: referenceBlood, referenceEquivalent: referenceEquivalent,
                    target: target, variant: variant, scale: scale,
-                   scrollTo: scrollTo ?? .now, serverVerified: false)
+                   scrollTo: scrollTo ?? .now, serverVerified: false,
+                   navigationToken: navigationToken)
             modelOrigin = previewFailed
                 ? "已记录曲线可用，但情景预览计算失败，等待服务器校验。"
                 : "本地签名模型（后台校验 181 中）"
@@ -202,7 +207,8 @@ final class PKWebsiteChartSource: ObservableObject {
                                referenceBlood: referenceBlood,
                                referenceEquivalent: referenceEquivalent,
                                target: target, variant: variant, scale: scale,
-                               scrollTo: scrollTo ?? .now, serverVerified: false)
+                               scrollTo: scrollTo ?? .now, serverVerified: false,
+                               navigationToken: navigationToken)
                         modelOrigin = "已按需读取云端残留窗口 · 本机签名模型计算"
                     }
                 } catch {
@@ -221,7 +227,8 @@ final class PKWebsiteChartSource: ObservableObject {
                        referenceBlood: referenceBlood,
                        referenceEquivalent: referenceEquivalent,
                        target: target, variant: variant, scale: scale,
-                       scrollTo: scrollTo ?? .now, serverVerified: true)
+                       scrollTo: scrollTo ?? .now, serverVerified: true,
+                       navigationToken: navigationToken)
                 modelOrigin = "181 服务器 · 同版本签名模型"
             } catch {
                 guard number == generation else { return }
@@ -235,7 +242,7 @@ final class PKWebsiteChartSource: ObservableObject {
                         matchedRecordIDs: Set<String>, referenceBlood: Double?,
                         referenceEquivalent: Double?, target: PKWebsiteChartTarget?,
                         variant: String?, scale: Int, scrollTo: Date,
-                        serverVerified: Bool) {
+                        serverVerified: Bool, navigationToken: Int) {
         guard let first = actual.first, let last = actual.last,
               actual.allSatisfy({ $0.concentration.isFinite && $0.equivalent.isFinite && $0.unfed.isFinite }),
               (plannedSamples.isEmpty || plannedSamples.count == actual.count) else { return }
@@ -304,7 +311,7 @@ final class PKWebsiteChartSource: ObservableObject {
             foodType: types.isEmpty ? nil : types,
             mealMessages: renderedMeals.filter { !$0.matched }.map {
                 "用餐 \(Date(timeIntervalSince1970: $0.time / 1000).formatted(date: .abbreviated, time: .shortened)) 尚未匹配本药服用"
-            }, serverVerified: serverVerified)
+            }, serverVerified: serverVerified, navigationToken: navigationToken)
     }
 }
 
