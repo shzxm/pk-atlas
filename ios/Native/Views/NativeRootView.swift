@@ -297,46 +297,46 @@ struct TodayNativeView: View {
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                         if let review = store.adoptedReview {
-                            let unmatched = store.unmatchedAdoptedNodes()
-                            if let upcoming = unmatched.first {
+                            let active = store.selectedAdoptedDoses().sorted { $0.time < $1.time }
+                            if let upcoming = active.first {
                                 Text(upcoming.time,
                                      format: .dateTime.month().day().weekday().hour().minute())
                                     .font(.title2.bold()).monospacedDigit()
                                     .foregroundStyle(AtlasStyle.mint)
                                     .accessibilityIdentifier("native.today.next-node.time")
-                                Text(upcoming.overdue ?
-                                     "已过时但未匹配的原计划节点：\(upcoming.mg.formatted(.number.precision(.fractionLength(0...2)))) mg" :
-                                     "最早未匹配原计划节点：\(upcoming.mg.formatted(.number.precision(.fractionLength(0...2)))) mg")
+                                Text(upcoming.time < .now ?
+                                     "当前已采用节点已到时、尚未确认：\(upcoming.mg.formatted(.number.precision(.fractionLength(0...2)))) mg" :
+                                     "当前已采用的预计节点：\(upcoming.mg.formatted(.number.precision(.fractionLength(0...2)))) mg")
                                     .font(.callout).foregroundStyle(.secondary)
                             } else {
-                                Text("已采用方案全部节点都已匹配实际记录")
+                                Text("当前已采用方案没有待确认节点")
                                     .font(.subheadline.bold()).foregroundStyle(.mint)
                             }
-                            Text("已匹配 \(review.matchedNodeCount) 个 · 尚未匹配 \(unmatched.count) 个（含过去节点）")
+                            Text("当前已采用方案待确认 \(active.count) 个 · 旧版方案节点不重复检查")
                                 .font(.caption).foregroundStyle(.secondary)
-                            if unmatched.isEmpty {
-                                Label("当前不存在未匹配的原计划节点", systemImage: "checkmark.circle")
+                            if active.isEmpty {
+                                Label("当前没有未确认的已采用计划节点", systemImage: "checkmark.circle")
                                     .font(.caption).foregroundStyle(.mint)
                             } else {
-                                ForEach(unmatched) { node in
+                                ForEach(Array(active.enumerated()), id: \.offset) { index, node in
                                     Divider().opacity(0.22)
                                     HStack(spacing: 9) {
-                                        Image(systemName: node.overdue ? "clock.badge.exclamationmark" : "clock")
-                                            .foregroundStyle(node.overdue ? .orange : .cyan)
+                                        Image(systemName: node.time < .now ? "clock.badge.exclamationmark" : "clock")
+                                            .foregroundStyle(node.time < .now ? .orange : .cyan)
                                         VStack(alignment: .leading, spacing: 3) {
-                                            Text("节点 \(node.index + 1) · \(node.time.formatted(date: .abbreviated, time: .shortened))")
+                                            Text("当前节点 \(index + 1) · \(node.time.formatted(date: .abbreviated, time: .shortened))")
                                                 .font(.subheadline.bold())
-                                            Text(node.overdue ? "已过计划时间 · 尚无匹配实际记录" : "预计执行节点 · 尚无匹配实际记录")
+                                            Text(node.time < .now ? "已过预计时间 · 尚未确认" : "预计执行节点 · 尚未确认")
                                                 .font(.caption2).foregroundStyle(.secondary)
                                         }
                                         Spacer()
                                         Text("\(node.mg.formatted(.number.precision(.fractionLength(0...2)))) mg")
                                             .font(.subheadline.bold()).monospacedDigit()
                                     }
-                                    .accessibilityIdentifier("native.today.unmatched.node.\(node.index)")
+                                    .accessibilityIdentifier("native.today.active.node.\(index)")
                                 }
                             }
-                            Text("以上均为原数学方案的未匹配节点，不表示已经服用；即使时间已过也不隐藏，不会自动生成服用记录。")
+                            Text("这里只显示当前已采用的数学节点；已替换的旧方案仍保留数学历史，但不再产生确认或提醒。")
                                 .font(.caption2).foregroundStyle(.secondary)
                         } else {
                             ProgressView("正在按照网页版规则匹配所有原计划节点…")

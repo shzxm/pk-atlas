@@ -46,6 +46,29 @@ final class PKAdoptedWebsiteParityTests: XCTestCase {
         XCTAssertTrue(baseline.doses.isEmpty, "Future plan must remain separate from taken records")
     }
 
+    func testNewAdoptedAdjustmentRetiresPreviousOriginalConfirmations() {
+        let t = Date(timeIntervalSince1970: 1_800_000_000).timeIntervalSince1970 * 1000
+        let original: [PKJSON] = [
+            .object(["time": .number(t), "mg": .number(50)]),
+            .object(["time": .number(t + 3600000), "mg": .number(60)]),
+            .object(["time": .number(t + 7200000), "mg": .number(70)])
+        ]
+        var plan: [String: PKJSON] = ["doses": .array(original)]
+        XCTAssertEqual(PKAdoptedUnmatchedNode.remaining(plan: plan, review: nil).count, 3)
+        plan["adjustment"] = .object([
+            "adoptedAt": .number(t + 100),
+            "completedCount": .number(0),
+            "doses": .array([
+                .object(["time": .number(t + 100000), "mg": .number(35)]),
+                .object(["time": .number(t + 200000), "mg": .number(55)])
+            ])
+        ])
+        XCTAssertTrue(PKAdoptedUnmatchedNode.remaining(plan: plan, review: nil).isEmpty,
+                      "Adopting a replacement must retire all prior original yes/no reminders")
+        // Historic math is retained, never reclassified as actual ingestion.
+        XCTAssertEqual(plan["doses"]?.array?.count, 3)
+    }
+
     @MainActor
     func testOverdueUnconfirmedNodeSurvivesAndRemainsAnAdoptedHypothesis() async throws {
         let now = Date(timeIntervalSince1970: 1_800_000_000)

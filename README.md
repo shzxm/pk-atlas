@@ -1,6 +1,6 @@
 # 药时 · PK Atlas
 
-## 2026-11-19 current source publication
+## 2026-11-19 current source publication (supersession hotfix)
 
 - **Web:** the current timeline, residual calculation, native signed-model distribution interface, inverse A/B, adopted-plan confirmation, and network-first offline shell are in [`website/`](website/).
 - **iOS:** the current SwiftUI native source, adopted/future-dose flow and local mathematical model are in [`ios/`](ios/), with a separate public mirror at [PKAtlas](https://github.com/shzxm/PKAtlas).
@@ -129,3 +129,7 @@ xcodegen generate --spec project.yml
   Free 方案不能直接设置强制 Edge TTL 120 秒；规则采用遵守源站
   s-maxage=120 的模式，并对 /api/ 采用显式 Bypass。
   详见 website/config/cloudflare-cache-rules-yao.md 和 JSON 规则文件。
+
+### Superseded adopted-plan reminder fix (2026-11-19.2)
+
+The current math plan replaces the previous model's pending confirmation and push notifications. The prior mathematics remain available as historical data, not a second checklist. Matching native iOS source: v2.25 Build 31.

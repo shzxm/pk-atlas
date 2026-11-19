@@ -96,19 +96,23 @@ def jwt_token() -> str:
     return f"{header}.{payload}.{_b64(r.to_bytes(32,'big')+s.to_bytes(32,'big'))}"
 
 
-def schedule_change(user_id: int, version: int) -> None:
+def schedule_change(user_id: int, version: int, adopted_changed: bool = False) -> None:
     if not configured():
+        return
+    # The registry is populated only after an App has actually launched and
+    # enrolled with its OS token. With no enrolment, skip App notifications.
+    if count(user_id) == 0:
         return
     # Collapse rapid consecutive edits. Foreground app does read-back on wake.
     now = time.monotonic()
     with _lock:
-        if now - _last_schedule.get(user_id, 0) < 8:
+        if now - _last_schedule.get((user_id, adopted_changed), 0) < 8:
             return
-        _last_schedule[user_id] = now
-    _executor.submit(_send_change, user_id, version)
+        _last_schedule[(user_id, adopted_changed)] = now
+    _executor.submit(_send_change, user_id, version, adopted_changed)
 
 
-def _send_change(user_id: int, version: int) -> None:
+def _send_change(user_id: int, version: int, adopted_changed: bool = False) -> None:
     try:
         import httpx
         with connect() as con:
@@ -117,8 +121,14 @@ def _send_change(user_id: int, version: int) -> None:
         if not devices:
             return
         bearer = jwt_token()
-        payload = {"aps":{"content-available":1},
-                   "type":"pkatlas_state_changed","version":version}
+        aps = {"content-available":1}
+        if adopted_changed:
+            # Generic on-lock-screen alert, no drug/dose. Background-only
+            # messages cannot visibly notify a suspended native iOS App.
+            aps.update({"alert": {"title":"药时 · 已采用方案已更新",
+                                  "body":"云端已同步数学方案和计划，请打开核对。不是服药建议。"},
+                        "sound":"default"})
+        payload = {"aps":aps,"type":"pkatlas_state_changed","version":version}
         with httpx.Client(http2=True,timeout=9) as client:
             for device in devices:
                 host = "https://api.sandbox.push.apple.com" if device["environment"] == "sandbox" \
@@ -126,8 +136,8 @@ def _send_change(user_id: int, version: int) -> None:
                 response = client.post(f"{host}/3/device/{device['token']}",json=payload,headers={
                     "authorization":f"bearer {bearer}",
                     "apns-topic":"com.example.PKAtlas",
-                    "apns-push-type":"background",
-                    "apns-priority":"5",
+                    "apns-push-type":"alert" if adopted_changed else "background",
+                    "apns-priority":"10" if adopted_changed else "5",
                     "apns-collapse-id":f"pkatlas-state-{user_id}"
                 })
                 # Never log raw device tokens or personal medication details.

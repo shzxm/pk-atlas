@@ -1,5 +1,5 @@
 "use strict";
-const PK_MODEL_ENGINE_VERSION = "314ad1b1957b9c6d61250ef2cdc9538de61bd944ace8de660cf3fcb30abc3f03";
+const PK_MODEL_ENGINE_VERSION = "f277750fa247aaac77c6f5e7c851682a5ef10a357c23818e356adae6c48bc2fb";
 
 // Published Cmax values describe a specific studied formulation/population.
 // The Bateman curve and dose proportionality below are teaching assumptions.
@@ -2193,9 +2193,13 @@ function adoptedPendingReviewRows(plan,state,now=Date.now()){
   if(!plan||!Array.isArray(plan.doses))return [];
   const completed=new Set(state.completed.map(item=>item.nodeIndex));
   const rows=[];
-  for(const [index,dose] of plan.doses.entries()){
-    if(completed.has(index)||!Number.isFinite(dose.time)||!Number.isFinite(dose.mg))continue;
-    rows.push({index,time:dose.time,mg:dose.mg,kind:"adopted",drug:plan.drug});
+  // A newly accepted adjustment REPLACES the unconfirmed original plan.
+  // Do not keep its old nodes as a second confirmation/reminder set.
+  if(!Array.isArray(plan.adjustment?.doses)){
+    for(const [index,dose] of plan.doses.entries()){
+      if(completed.has(index)||!Number.isFinite(dose.time)||!Number.isFinite(dose.mg))continue;
+      rows.push({index,time:dose.time,mg:dose.mg,kind:"adopted",drug:plan.drug});
+    }
   }
   // Also keep adopted adjustment nodes in view. These are hypothetical
   // nodes and must never be silently converted to taken records.
@@ -2270,6 +2274,7 @@ function renderAdoptedPoint(plan){
   preview.textContent="显示当前多点匹配与预计节点曲线";
   preview.addEventListener("click",()=>previewAdoptedMatches(plan));
   out.append(preview);
+  if(!Array.isArray(plan.adjustment?.doses)){
   const list=document.createElement("ol");list.className="scenario-timeline";
   for(const [index,dose] of plan.doses.entries()){
     const matches=state.completed.filter(x=>x.nodeIndex===index);
@@ -2345,6 +2350,11 @@ function renderAdoptedPoint(plan){
     list.append(li);
   }
   out.append(list);
+  }else{
+    const retired=document.createElement("p");retired.className="scenario-intro";
+    retired.textContent=`前一版原方案的 ${plan.doses.length} 个节点已由当前已采用调整方案替换，不再生成旧节点的服用确认或提醒。旧数学参数仅保留作方案复核，真实服用记录不受影响。`;
+    out.append(retired);
+  }
   if(state.unmatched.length){const heading=document.createElement("strong");heading.className="scenario-replan-heading";heading.textContent="未关联的实际服用记录 · 原时间保留";out.append(heading);const unmatchedList=document.createElement("ol");unmatchedList.className="scenario-timeline";for(const row of [...state.unmatched].sort((a,b)=>a.time-b.time)){const li=document.createElement("li"),time=document.createElement("time"),amount=document.createElement("strong"),note=document.createElement("small");time.textContent=fullDate(row.time);amount.textContent=`${fmt(row.mg,3)} mg`;note.textContent="记录时间和剂量未改；反算按本药残留窗口读取，且这条记录未替换任何原计划节点。若属于某节点，可在上方手动关联。";li.append(time,amount,note);unmatchedList.append(li)}out.append(unmatchedList)}
   if(state.pending.length){const heading=document.createElement("strong");heading.className="scenario-replan-heading";heading.textContent=plan.adjustment?"当前已采用的调整节点 · 曲线显示":"当前已采用的原计划后续节点 · 曲线显示";out.append(heading);const pendingList=document.createElement("ol");pendingList.className="scenario-timeline";for(const dose of state.pending){const li=document.createElement("li"),time=document.createElement("time"),amount=document.createElement("strong");time.textContent=fullDate(dose.time);amount.textContent=`预计 ${fmt(dose.mg,3)} mg`;li.append(time,amount);pendingList.append(li)}out.append(pendingList)}
   if(state.replanned){const accepted=samePlanNodes(state.suggested,state.pending)&&!state.replanReason,heading=document.createElement("strong");heading.className="scenario-replan-heading";heading.textContent=accepted?"当前调整意见已采用 · 曲线已更新":"调整意见 · 尚未采用";out.append(heading);if(!accepted){const basis=document.createElement("p");basis.className="scenario-intro";basis.textContent=`依据已记录的实际时间与剂量，从 ${fullDate(state.replanFrom)} 起搜索剩余 ${state.remaining} 个节点。当前曲线仍显示已采用的后续节点。`;out.append(basis);const revised=document.createElement("ol");revised.className="scenario-timeline";for(const dose of state.suggested||[]){const li=document.createElement("li"),time=document.createElement("time"),amount=document.createElement("strong"),parts=document.createElement("small");time.textContent=fullDate(dose.time);amount.textContent=`建议模型节点 ${fmt(dose.mg,3)} mg`;parts.textContent=formatDoseContext(dose);li.append(time,amount,parts);revised.append(li)}if(state.suggested?.length)out.append(revised);else{const empty=document.createElement("p");empty.className="scenario-empty";empty.textContent=state.replanReason==="count"?"原方案节点已由记录用完，但目标时刻仍低于参考值。":state.replanReason==="time"?"按实际时间和间隔，目标时刻前已没有可用的后续节点。":state.replanReason?"当前约束与有限候选搜索下未找到调整节点。":"根据当前记录，无需保留后续假设节点。";out.append(empty)}if(!state.replanReason&&state.suggested){const proposal=document.createElement("p");proposal.className="scenario-status";proposal.textContent=`调整意见：预计剩余 ${state.suggested.length} 次 · 合计 ${fmt(state.suggestedMg,3)} mg · 目标时刻模型值约 ${fmt(state.suggestedAtTarget,3)} ${reference.unit}。实际服用记录不会因采用而改变。`;out.append(proposal);const accept=document.createElement("button");accept.type="button";accept.className="secondary adopt-adjustment";accept.textContent="采用调整意见";accept.onclick=()=>adoptPlanAdjustment(plan);out.append(accept)}}}
@@ -3343,7 +3353,7 @@ let appOfflineRestored=false;
 function initOfflineShell(){
   if(location.protocol!=="https:"||!("serviceWorker" in navigator))return;
   const install=()=>navigator.serviceWorker.register(
-    "/sw.js?v=devices-20261117a",{scope:"/"}
+    "/sw.js?v=adopted-replacement-20261119e",{scope:"/"}
   ).catch(()=>{/* A failed shell install must not block login or autosave. */});
   if(document.readyState==="complete")void install();
   else window.addEventListener("load",install,{once:true});

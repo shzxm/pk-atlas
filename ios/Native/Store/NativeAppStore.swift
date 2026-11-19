@@ -266,8 +266,10 @@ final class NativeAppStore: ObservableObject {
         inverse[selectedDrugID] = .object(memory)
         snapshot.settings["inverseMemory"] = .object(inverse)
         clearCurvePreview()
+        adoptedReviewGeneration += 1
+        adoptedReview = nil
         changed()
-        Task { await NativeReminderScheduler.shared.refresh() }
+        Task { await NativeReminderScheduler.shared.reconcileAfterAdoptedPlanChange() }
     }
 
     var doses: [PKDose] { snapshot.doses.sorted { $0.time > $1.time } }
@@ -675,8 +677,10 @@ final class NativeAppStore: ObservableObject {
         memory[selectedDrugID] = .object(drugMemory)
         snapshot.settings["inverseMemory"] = .object(memory)
         clearCurvePreview()
+        adoptedReviewGeneration += 1
+        adoptedReview = nil
         changed()
-        Task { await NativeReminderScheduler.shared.refresh() }
+        Task { await NativeReminderScheduler.shared.reconcileAfterAdoptedPlanChange() }
     }
 
     /// Edit/delete a *hypothetical adopted node*, never a taken dose.
@@ -786,8 +790,10 @@ final class NativeAppStore: ObservableObject {
         drugMemory.removeValue(forKey: "adoptedPointPlan")
         memory[selectedDrugID] = .object(drugMemory)
         snapshot.settings["inverseMemory"] = .object(memory)
+        adoptedReviewGeneration += 1
+        adoptedReview = nil
         changed()
-        Task { await NativeReminderScheduler.shared.refresh() }
+        Task { await NativeReminderScheduler.shared.reconcileAfterAdoptedPlanChange() }
     }
 
     func switchDrug(_ id: String) {
@@ -1142,6 +1148,10 @@ final class NativeAppStore: ObservableObject {
             let remote = try await PKCloudAPI.shared.state()
             if !hasPendingChanges {
                 let changedAdopted = adoptedPlanContents(snapshot) != adoptedPlanContents(remote.state)
+                if changedAdopted {
+                    adoptedReviewGeneration += 1
+                    adoptedReview = nil
+                }
                 snapshot = remote.state
                 base = remote.state
                 PKConfirmedHealthReconciler.reconcile(&snapshot, catalog: catalog)
@@ -1152,6 +1162,7 @@ final class NativeAppStore: ObservableObject {
                 syncStatus = "云端已同步"
                 scheduleAdoptedReview()
                 if changedAdopted {
+                    await NativeReminderScheduler.shared.reconcileAfterAdoptedPlanChange()
                     await NativeReminderScheduler.shared.announceRemoteAdoptedChange()
                 }
             }
@@ -1171,6 +1182,11 @@ final class NativeAppStore: ObservableObject {
             _ = try await PKCloudAPI.shared.putLastUploadSnapshot(
                 version: version, state: sent, operationId: operationId)
             let remote = try await PKCloudAPI.shared.state()
+            let adoptedWasReplaced = adoptedPlanContents(base) != adoptedPlanContents(remote.state)
+            if adoptedWasReplaced {
+                adoptedReviewGeneration += 1
+                adoptedReview = nil
+            }
             base = remote.state
             version = remote.version
             if snapshot == sent {
@@ -1192,7 +1208,11 @@ final class NativeAppStore: ObservableObject {
                     await self.sync()
                 }
             }
-            await NativeReminderScheduler.shared.refresh()
+            if adoptedWasReplaced {
+                await NativeReminderScheduler.shared.reconcileAfterAdoptedPlanChange()
+            } else {
+                await NativeReminderScheduler.shared.refresh()
+            }
         } catch let error as PKHTTPError where error.status == 409 || error.status == 426 {
             conflict = true
             syncStatus = "服务器仍为旧版同步协议；已停止自动上传，保留本机草稿"

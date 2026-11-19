@@ -24,6 +24,11 @@ struct PKAdoptedUnmatchedNode: Identifiable {
     var overdue: Bool { time < Date.now }
 
     static func remaining(plan: [String: PKJSON], review: PKAdoptedReview?) -> [Self] {
+        // A newly accepted adjustment supersedes the original plan's
+        // hypothetical nodes. Preserve the old math as metadata, but never
+        // request taken/not-taken confirmation for both generations.
+        if let adjusted = plan["adjustment"]?.object?["doses"],
+           case .array = adjusted { return [] }
         guard let raw = plan["doses"], case .array(let doses) = raw else { return [] }
         let matched = Set(review?.completed.map(\.nodeIndex) ?? [])
         return doses.enumerated().compactMap { index, element in

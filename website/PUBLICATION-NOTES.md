@@ -7,3 +7,7 @@ The signed mathematical engine and cloud deployment credentials are intentionall
 Not included: user state/database, device tokens, access cookies, `.env`, signing private keys, reverse-proxy production configuration, and runtime backups. Never check real account or medical information into Git.
 
 The deployed frontend uses a network-first Service Worker HTML shell, falling back to cached HTML only while offline, so a new index.html references the current versioned engine.
+
+## 2026-11-19 superseded adopted plan confirmation fix
+
+Only nodes belonging to the **current accepted adjustment** can generate pending yes/no confirmations or adopted-plan notifications. The replaced original plan remains as mathematical history, without a second actionable checklist. Native iOS v2.25 Build31 also clears stale queued OS model reminders on adoption and re-fetches the current canonical server notification set. Web Push adopted-change notifications now coalesce to the newest revision; the production IPA stays private.

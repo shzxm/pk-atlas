@@ -1,6 +1,6 @@
 # 药时 iOS App · PK Atlas
 
-> **Current public native source:** v2.24 Build 30, November 19, 2026. The old WebView-only prototype has been superseded by the `Native/` SwiftUI implementation. Generate the Xcode project with `xcodegen generate`, then build with your own bundle identifier and private signing configuration. Do not use example addresses as working production endpoints.
+> **Current public native source:** v2.25 Build 31, November 19, 2026. The old WebView-only prototype has been superseded by the `Native/` SwiftUI implementation. Generate the Xcode project with `xcodegen generate`, then build with your own bundle identifier and private signing configuration. Do not use example addresses as working production endpoints.
 
 
 这是在 Mac mini 上生成的真实 iOS 工程。开发目标为 **Xcode 27.2 (27B52) + iOS 27.2 SDK**，面向 iPhone Duo 内外屏、普通 iPhone 和 iPad。最低部署版本为 iOS 26.0。

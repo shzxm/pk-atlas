@@ -27,6 +27,36 @@ DEFAULT_PREFERENCES = {"auto": True,
 SCENARIO_LABELS = {"point-a": "目标时刻方案 A", "point-b": "目标时刻方案 B", "point-c": "目标时刻方案 C", "duration": "持续时长情景"}
 
 
+def initialize_adopted_changes(con: sqlite3.Connection) -> None:
+    # Revision-only queue; no medicine names or dose information is persisted.
+    con.execute("""CREATE TABLE IF NOT EXISTS web_push_adopted_changes (
+        user_id INTEGER NOT NULL,
+        version INTEGER NOT NULL,
+        created_at INTEGER NOT NULL,
+        PRIMARY KEY(user_id,version))""")
+
+
+def adopted_signature(state: dict) -> str:
+    """Semantic signature of active adopted plans, not account record edits."""
+    settings = state.get("settings") if isinstance(state, dict) else {}
+    memory = (settings or {}).get("inverseMemory") if isinstance(settings, dict) else {}
+    if not isinstance(memory, dict):
+        memory = {}
+    selected = {key: item["adoptedPointPlan"] for key, item in memory.items()
+                if isinstance(key, str) and isinstance(item, dict)
+                and isinstance(item.get("adoptedPointPlan"), dict)}
+    return hashlib.sha256(json.dumps(selected, sort_keys=True,
+        ensure_ascii=False, separators=(",", ":")).encode()).hexdigest()
+
+
+def queue_adopted_change(con: sqlite3.Connection, user_id: int, version: int) -> None:
+    # Only the newest adopted-model revision may remain pending. A replaced
+    # mathematical plan must never enqueue a second stale change banner.
+    con.execute("DELETE FROM web_push_adopted_changes WHERE user_id=?", (user_id,))
+    con.execute("INSERT INTO web_push_adopted_changes(user_id,version,created_at) VALUES(?,?,?)",
+                (user_id, version, int(time.time())))
+
+
 def prune_scenarios(con: sqlite3.Connection, now_s: int | None = None) -> int:
     """Keep scenarios created today or yesterday in the site's Asia/Shanghai timezone."""
     current = int(time.time() if now_s is None else now_s)
@@ -203,10 +233,24 @@ def adopted_plan_events(state: dict, start_ms: int, end_ms: int) -> list[dict]:
         # Explicit future entries accompany the adopted math plan, but do not
         # become taken records. Avoid a duplicate alert when an adopted node
         # already represents the same date/time/mass dose.
-        for item in settings.get("scheduledDoses") or []:
+        # Only saved future inputs explicitly used by this current adopted
+        # revision may generate adopted-plan notifications. Independent plans
+        # (including those saved under a superseded revision) are not part
+        # of the currently accepted mathematical scenario.
+        saved_schedules = {item.get("id"): item for item in settings.get("scheduledDoses") or []
+                           if isinstance(item, dict) and isinstance(item.get("id"), str)}
+        included = plan.get("includedScheduledDoses") or []
+        for snapshot in included if isinstance(included, list) else []:
+            if not isinstance(snapshot, dict) or snapshot.get("drug") != drug:
+                continue
+            record_id = snapshot.get("id")
+            item = saved_schedules.get(record_id)
             if not isinstance(item, dict) or item.get("drug") != drug:
                 continue
-            at, mg, record_id = item.get("time"), item.get("mg"), item.get("id")
+            at, mg = item.get("time"), item.get("mg")
+            # An edited or deleted plan no longer matches what was accepted.
+            if (at != snapshot.get("time") or mg != snapshot.get("mg")):
+                continue
             if (not isinstance(record_id,str) or not 1 <= len(record_id) <= 128 or
                 isinstance(at,bool) or not isinstance(at,(int,float)) or not math.isfinite(at) or
                 isinstance(mg,bool) or not isinstance(mg,(int,float)) or not math.isfinite(mg) or
@@ -424,6 +468,41 @@ def dispatch_due(db_path: str, now_ms: int | None = None) -> int:
                 events = timeline_events(state, prefs, now - 15 * 60000, now)
                 if prefs["auto"]:
                     events += adopted_plan_events(state, now - 15 * 60000, now)
+                # A browser may be closed when another device adopts a new
+                # mathematical model. Deliver only a generic change notice to
+                # explicit Web Push subscribers, without medicines or doses.
+                if prefs["auto"]:
+                    recent = con.execute("""SELECT version FROM web_push_adopted_changes
+                        WHERE user_id=? AND created_at>=? ORDER BY version DESC LIMIT 1""",
+                        (user_id, int(now / 1000) - 900)).fetchone()
+                    if recent:
+                        event_key = f"adopted-change:{user_id}:{recent['version']}"
+                        for subscription in subscriptions:
+                            if con.execute("SELECT 1 FROM push_deliveries WHERE endpoint_hash=? AND event_key=?",
+                                (subscription["endpoint_hash"],event_key)).fetchone():
+                                continue
+                            target = {"endpoint": subscription["endpoint"],
+                                      "keys": {"p256dh": subscription["p256dh"],
+                                               "auth": subscription["auth"]}}
+                            try:
+                                send(target, {"title": "药时 · 数学模型方案已同步",
+                                    "body": "另一设备更新了已采用的模型方案。打开药时查看最新曲线和提醒时间，非服药建议。",
+                                    "url": "/", "tag": hashlib.sha256(event_key.encode()).hexdigest()})
+                            except WebPushException as exc:
+                                status = getattr(getattr(exc, "response", None), "status_code", None)
+                                if status in (404, 410):
+                                    con.execute("DELETE FROM push_subscriptions WHERE endpoint_hash=?",
+                                                (subscription["endpoint_hash"],))
+                                else:
+                                    logging.warning("Adopted-plan Web Push rejected: HTTP %s", status)
+                                continue
+                            except Exception:
+                                logging.exception("Adopted-plan Web Push failed")
+                                continue
+                            con.execute("INSERT OR IGNORE INTO push_deliveries(endpoint_hash,event_key,sent_at) VALUES(?,?,?)",
+                                        (subscription["endpoint_hash"],event_key,int(time.time())))
+                            con.commit()
+                            sent += 1
                 for event in events:
                     for subscription in subscriptions:
                         done = con.execute("SELECT 1 FROM push_deliveries WHERE endpoint_hash=? AND event_key=?",
@@ -461,6 +540,7 @@ def dispatch_due(db_path: str, now_ms: int | None = None) -> int:
             except (ValueError, TypeError, KeyError, OverflowError):
                 logging.exception("Could not calculate model notifications")
         con.execute("DELETE FROM push_deliveries WHERE sent_at<?", (int(time.time()) - 30 * 86400,))
+        con.execute("DELETE FROM web_push_adopted_changes WHERE created_at<?", (int(time.time()) - 86400,))
     return sent
 
 

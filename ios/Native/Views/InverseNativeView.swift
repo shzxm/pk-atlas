@@ -1228,15 +1228,15 @@ private struct PKAdoptedPlanPanel: View {
                     Text("待执行 \(review.pending.count) 个")
                 }
                 .font(.subheadline.bold())
-                // The next original node is the earliest UNMATCHED one,
-                // including an overdue node. Never silently skip it by time.
-                if let next = store.unmatchedAdoptedNodes().first {
-                    Label("最早未匹配节点：\(next.time.formatted(date: .abbreviated, time: .shortened))",
-                          systemImage: next.overdue ? "clock.badge.exclamationmark" : "clock.badge")
+                // Show only the currently accepted generation, not a
+                // superseded base node when an adjustment has been adopted.
+                if let next = store.selectedAdoptedDoses().min(by: { $0.time < $1.time }) {
+                    Label("当前已采用节点：\(next.time.formatted(date: .abbreviated, time: .shortened))",
+                          systemImage: next.time < .now ? "clock.badge.exclamationmark" : "clock.badge")
                         .font(.subheadline)
-                        .foregroundStyle(next.overdue ? .orange : .mint)
-                    if next.overdue {
-                        Text("此节点已过原计划时间但尚未匹配，不会当作已服用或自动删除。")
+                        .foregroundStyle(next.time < .now ? .orange : .mint)
+                    if next.time < .now {
+                        Text("当前方案节点已过预计时间，仍须核对是否实际服用。")
                             .font(.caption2).foregroundStyle(.secondary)
                     }
                 }
@@ -1246,9 +1246,14 @@ private struct PKAdoptedPlanPanel: View {
                     Label("在曲线中显示已采用方案", systemImage: "chart.xyaxis.line")
                 }
                 .buttonStyle(.glassProminent)
-                ForEach(doses.indices, id: \.self) { index in
-                    Divider().opacity(0.3)
-                    nodeRow(doses[index], index: index, review: review)
+                if plan?["adjustment"]?.object?["doses"]?.array != nil {
+                    Text("原方案已由当前调整方案替换，旧节点不再产生服用确认或提醒。原数学记录保留供复核；此处只显示现行调整节点。")
+                        .font(.caption).foregroundStyle(.secondary)
+                } else {
+                    ForEach(doses.indices, id: \.self) { index in
+                        Divider().opacity(0.3)
+                        nodeRow(doses[index], index: index, review: review)
+                    }
                 }
                 if !review.unmatched.isEmpty {
                     Divider().opacity(0.3)

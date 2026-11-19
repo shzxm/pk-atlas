@@ -98,6 +98,19 @@ final class NativeReminderScheduler: NSObject, ObservableObject, UNUserNotificat
         }
     }
 
+    /// On a new adopted revision, discard *all* outstanding model events
+    /// before asking the server for its current canonical pending events.
+    /// Previously delivered alerts cannot be recalled from iOS, but the OS
+    /// queue must never retain old hypothetical nodes if a request fails.
+    func reconcileAfterAdoptedPlanChange() async {
+        let pending = await center.pendingNotificationRequests()
+        let oldIDs = pending.map(\.identifier).filter { $0.hasPrefix(identifierPrefix) }
+        if !oldIDs.isEmpty {
+            center.removePendingNotificationRequests(withIdentifiers: oldIDs)
+        }
+        await refresh()
+    }
+
     /// Visible foreground notification when a verified cloud pull detects
     /// another device's adopted-model change. APNs is responsible for closed
     /// apps; never pretend a locally scheduled notification can wake an App

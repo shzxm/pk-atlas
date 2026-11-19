@@ -20,7 +20,7 @@ let appOfflineRestored=false;
 function initOfflineShell(){
   if(location.protocol!=="https:"||!("serviceWorker" in navigator))return;
   const install=()=>navigator.serviceWorker.register(
-    "/sw.js?v=runtime-repair-20261119a",{scope:"/"}
+    "/sw.js?v=adopted-replacement-20261119e",{scope:"/"}
   ).catch(()=>{/* A failed shell install must not block login or autosave. */});
   if(document.readyState==="complete")void install();
   else window.addEventListener("load",install,{once:true});

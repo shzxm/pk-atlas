@@ -1,7 +1,11 @@
-# PKAtlas iOS source snapshot · v2.24 Build 30
+# PKAtlas iOS source snapshot · v2.25 Build 31
 
 This public source snapshot corresponds to the current native SwiftUI iOS feature set. Real deployment origins and identifiers have been replaced with `pk.example.com` and `com.example`. Private cloud credentials, account sessions, signing private keys, Apple provisioning, and unpublished machine logs are excluded.
 
 The actual unsigned IPA is distributed through a **private** GitHub release repository, not this public source tree, because the production app may embed organization-specific connectivity settings. Build and configure your own server, Apple bundle identifier, team, model signing key pair and runtime origin before use. No public repository contains user dose or medical records.
 
 The live 181 website has a newer network-first Service Worker revision. This iOS release bundles the signed engine version captured during Build 30, which remains compatible with signed model hot-update where configured.
+
+## November 19, 2026 · superseded adopted-plan hotfix
+
+When a new accepted adjustment replaces an old mathematical model, only the current revision may show actionable dose-confirmation nodes. Stale iOS local notification requests are cancelled and rebuilt from the verified cloud event set; previously entered actual dose records are never deleted.

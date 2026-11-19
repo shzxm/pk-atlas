@@ -84,11 +84,18 @@ def setup() -> None:
         con.execute("CREATE INDEX IF NOT EXISTS push_subscriptions_user ON push_subscriptions(user_id)")
         con.execute("CREATE TABLE IF NOT EXISTS push_deliveries (endpoint_hash TEXT NOT NULL, event_key TEXT NOT NULL, sent_at INTEGER NOT NULL, PRIMARY KEY(endpoint_hash,event_key))")
         con.execute("CREATE TABLE IF NOT EXISTS push_preferences (user_id INTEGER PRIMARY KEY REFERENCES users(id), body TEXT NOT NULL)")
-        push_service.initialize_adopted_changes(con)
         con.execute("CREATE TABLE IF NOT EXISTS push_scenarios (id TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id), kind TEXT NOT NULL, drug TEXT NOT NULL, doses TEXT NOT NULL, created_at INTEGER NOT NULL)")
         con.execute("CREATE INDEX IF NOT EXISTS push_scenarios_user ON push_scenarios(user_id)")
         state_store.initialize(con)
         last_upload.initialize(con)
+        push_service.initialize_adopted_changes(con)
+        # Explicitly volunteered medical *vocabulary*, never events or user ids.
+        # This is untrusted feedback for manual review, not a live matching rule.
+        con.execute("""CREATE TABLE IF NOT EXISTS medication_alias_feedback (
+            alias_key TEXT NOT NULL, name TEXT NOT NULL, language TEXT NOT NULL,
+            suggested_drug TEXT NOT NULL, submissions INTEGER NOT NULL DEFAULT 1,
+            first_seen INTEGER NOT NULL, last_seen INTEGER NOT NULL,
+            PRIMARY KEY(alias_key, language, suggested_drug))""")
     native_apns.setup()
 
 
@@ -110,7 +117,7 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt: str, *args: object) -> None:
         # Version checks are anonymous and intentionally leave NO per-request
         # origin log. This endpoint also has Nginx access_log disabled.
-        if urlsplit(self.path).path == "/api/native/version":
+        if urlsplit(self.path).path in ("/api/native/version", "/api/native/health-alias", "/api/native/records/window"):
             return
         # Never log credentials, request bodies, or cookies.
         print("%s %s" % (self.address_string(), fmt % args), flush=True)
@@ -333,8 +340,8 @@ class Handler(BaseHTTPRequestHandler):
                         record = existing
                         version = row["version"]
                     else:
-                        if len(state.get("records", [])) >= 10000:
-                            raise ValueError("记录已达到上限")
+                        if len(state.get("records", [])) >= 50000:
+                            raise ValueError("当前单账户记录已达 50,000 条存储保护上限；请归档后继续录入")
                         state.setdefault("records", []).append(record)
                         payload = json.dumps(state, ensure_ascii=False, separators=(",", ":"))
                         if len(payload.encode()) > MAX_BODY - 100:
@@ -461,6 +468,18 @@ class Handler(BaseHTTPRequestHandler):
             except (OSError, ValueError, TypeError, json.JSONDecodeError):
                 self.respond(503, {"error": "发行版本信息暂不可用"})
             return
+        if self.endpoint() == "/api/native/health-aliases":
+            # Reviewed manifest only. Pending feedback is stored separately and
+            # must never become a live matching rule without manual curation.
+            try:
+                with open("/opt/pk-atlas/health-medication-aliases.json", encoding="utf-8") as handle:
+                    manifest = json.load(handle)
+                if manifest.get("schemaVersion") != 1 or not isinstance(manifest.get("aliases"), dict):
+                    raise ValueError("invalid alias manifest")
+                self.respond(200, manifest)
+            except (OSError, ValueError, json.JSONDecodeError):
+                self.respond(503, {"error": "审核词库暂不可用，请使用内置词库"})
+            return
         if self.endpoint() == "/api/native/model":
             try:
                 self.respond(200, model_distribution.package())
@@ -535,6 +554,36 @@ class Handler(BaseHTTPRequestHandler):
                 "lastActiveAt":None if r["device_name"].startswith("旧会话（") else r["last_active_at"]*1000,
                 "expiresAt":min(r["expires_at"],r["absolute_expires_at"])*1000
             } for r in rows]})
+        elif self.endpoint() == "/api/native/records/window":
+            # On-demand, per-drug history slice; cannot enumerate other users.
+            query = parse_qs(urlsplit(self.path).query)
+            try:
+                drug = query.get("drug", [""])[0]
+                start = int(query.get("start", [""])[0])
+                end = int(query.get("end", [""])[0])
+                limit = int(query.get("limit", ["1000"])[0])
+                offset = int(query.get("offset", ["0"])[0])
+                if (drug not in api_v1.DRUGS or not 1000000000000<=start<end<=10000000000000
+                        or end-start>366*86400000 or not 1<=limit<=2000
+                        or not 0<=offset<=250000):
+                    raise ValueError("窗口范围或药物无效")
+            except (ValueError, IndexError, TypeError):
+                self.respond(400, {"error": "计算窗口参数无效"})
+                return
+            with db() as con:
+                state_row=con.execute("SELECT version FROM user_state WHERE user_id=?",
+                                      (user_id,)).fetchone()
+                records, more = state_store.calculation_window(
+                    con,user_id,drug,start,end,limit,offset)
+            # Return only mathematical inputs; omit free-text notes, sources,
+            # HealthKit IDs, course metadata and other private journal fields.
+            sanitized=[{"id":r.get("id"),"drug":drug,"time":r.get("time"),
+                        "mg":r.get("mg"),"unit":r.get("unit","mg")}
+                       for r in records]
+            self.respond(200,{"version":state_row["version"],"drug":drug,
+                "start":start,"end":end,"records":sanitized,
+                "nextOffset":offset+len(records) if more else None,
+                "complete":not more})
         elif self.endpoint() == "/api/state":
             with db() as con:
                 row = con.execute("SELECT version, body FROM user_state WHERE user_id=?", (user_id,)).fetchone()
@@ -647,6 +696,45 @@ class Handler(BaseHTTPRequestHandler):
             self.respond(401, {"error": "请先登录"})
             return
         user_id = session[0]
+        if path == "/api/native/health-alias":
+            # No patient/device identifier, raw dose/time, or source event ID.
+            # Never share these proposals with other users before curation.
+            if not rate_ok(f"health-alias:{user_id}", 30, 3600):
+                self.respond(429, {"error": "名称反馈过于频繁"})
+                return
+            payload = self.body()
+            if not payload or payload.get("explicitConsent") is not True:
+                self.respond(400, {"error": "需明确授权提交药物名称"})
+                return
+            raw = payload.get("name")
+            language = payload.get("language", "")
+            drug_id = payload.get("drugId", "")
+            if not isinstance(raw, str) or not (2 <= len(raw) <= 120) or any(x in raw.lower() for x in ('@', 'http', '://')):
+                self.respond(400, {"error": "药物名称格式无效"})
+                return
+            if not isinstance(language, str) or not re.fullmatch(r"[A-Za-z-]{2,16}", language):
+                self.respond(400, {"error": "语言标识无效"})
+                return
+            if not isinstance(drug_id, str) or (drug_id and drug_id not in api_v1.DRUGS):
+                self.respond(400, {"error": "药物代号不存在"})
+                return
+            # Strip possible dosage and free-text symbols from volunteered labels.
+            name = re.sub(r"\d+(?:[.,]\d+)?\s*(?:mg|mcg|µg|μg|ml|g|毫克|毫升|片|粒)?", " ", raw, flags=re.IGNORECASE)
+            name = re.sub(r"[^\w\s/\-]", " ", name, flags=re.UNICODE)
+            name = " ".join(name.lower().split())[:100]
+            if len(name) < 2 or name.startswith("未关联 apple 健康药物"):
+                self.respond(400, {"error": "缺少可维护的药物名称"})
+                return
+            alias_key = hashlib.sha256(name.encode()).hexdigest()
+            now = int(time.time())
+            with db() as con:
+                con.execute("""INSERT INTO medication_alias_feedback
+                  (alias_key,name,language,suggested_drug,submissions,first_seen,last_seen)
+                  VALUES(?,?,?,?,1,?,?) ON CONFLICT(alias_key,language,suggested_drug)
+                  DO UPDATE SET submissions=min(submissions+1,1000000),last_seen=excluded.last_seen""",
+                  (alias_key,name,language,drug_id,now,now))
+            self.respond(200, {"ok": True, "reviewRequired": True})
+            return
         if path == "/api/native/authorize":
             self.authorize_native(user_id)
             return
