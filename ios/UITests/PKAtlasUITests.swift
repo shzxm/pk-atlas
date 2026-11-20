@@ -62,6 +62,22 @@ final class PKAtlasUITests: XCTestCase {
         XCTAssertLessThan(left.frame.midX, right.frame.midX)
     }
 
+    func testManualFuturePreviewDoesNotRequireAdoptingAModel() throws {
+        let app = XCUIApplication()
+        app.launch()
+        let inverse = app.buttons["反算"]
+        XCTAssertTrue(inverse.waitForExistence(timeout: 30))
+        inverse.tap()
+        let preview = app.buttons["native.inverse.what-if.preview"]
+        let savePlan = app.buttons["native.inverse.what-if.save-plan"]
+        for _ in 0..<18 where !preview.isHittable { app.swipeUp() }
+        XCTAssertTrue(preview.waitForExistence(timeout: 16))
+        XCTAssertTrue(savePlan.exists)
+        XCTAssertTrue(app.datePickers["native.inverse.what-if.time"].exists)
+        // Preview and save are distinct user actions, neither is triggered
+        // simply by adopting an A/B mathematics result.
+    }
+
     func testInverseConstraintsShareTwoColumns() throws {
         let app = XCUIApplication()
         app.launch()

@@ -714,76 +714,47 @@ function previewAdoptedMatches(plan){
   $("chartWrap").scrollIntoView({behavior:"smooth",block:"center"});
 }
 function adoptedPendingReviewRows(plan,state,now=Date.now()){
-  if(!plan||!Array.isArray(plan.doses))return [];
-  const completed=new Set(state.completed.map(item=>item.nodeIndex));
-  const rows=[];
-  // A newly accepted adjustment REPLACES the unconfirmed original plan.
-  // Do not keep its old nodes as a second confirmation/reminder set.
-  if(!Array.isArray(plan.adjustment?.doses)){
-    for(const [index,dose] of plan.doses.entries()){
-      if(completed.has(index)||!Number.isFinite(dose.time)||!Number.isFinite(dose.mg))continue;
-      rows.push({index,time:dose.time,mg:dose.mg,kind:"adopted",drug:plan.drug});
-    }
-  }
-  // Also keep adopted adjustment nodes in view. These are hypothetical
-  // nodes and must never be silently converted to taken records.
-  if(plan.adjustment?.doses){
-    for(const dose of state.pending){
-      if(rows.some(existing=>Math.abs(existing.time-dose.time)<=60000&&
-          Math.abs(existing.mg-dose.mg)<.0001))continue;
-      const index=plan.adjustment.doses.findIndex(original=>
-        Math.abs(original.time-dose.time)<=60000&&Math.abs(original.mg-dose.mg)<.0001);
-      if(index<0)continue;
-      rows.push({index,time:dose.time,mg:dose.mg,kind:"adjusted",drug:plan.drug});
-    }
-  }
-  for(const dose of adoptedIncludedScheduledDoses(plan,records,rows)){
-    rows.push({...dose,index:-1,kind:"included"});
-  }
-  return rows.sort((a,b)=>Number(a.time>now)-Number(b.time>now)||a.time-b.time);
+  // Global confirmation inbox: a plan for another drug must not disappear
+  // merely because the user changed the calculator's selected drug.
+  return scheduledDoses.filter(d=>Number.isFinite(d.time)&&
+    Number.isFinite(d.mg)&&d.mg>0&&d.id)
+    .sort((a,b)=>Number(a.time>now)-Number(b.time>now)||a.time-b.time);
 }
 function renderAdoptedPendingConfirm(plan,now=Date.now()){
   const adoptedBox=$("adoptedPointPanel");if(!adoptedBox)return;
   let box=$("adoptedPendingConfirmPanel");
   if(!box){box=document.createElement("section");box.id="adoptedPendingConfirmPanel";
-    box.className="adopted-confirm-priority";box.setAttribute("aria-label","待确认服用的已采用数学节点");
+    box.className="adopted-confirm-priority";box.setAttribute("aria-label","已保存计划服用的确认");
     adoptedBox.parentElement.insertBefore(box,adoptedBox)}
-  if(!plan){box.hidden=true;box.replaceChildren();return}
-  const state=currentAdoptedEvaluation(plan),list=adoptedPendingReviewRows(plan,state,now);
-  box.hidden=!list.length;if(!list.length){box.replaceChildren();return}
-  box.replaceChildren();
-  const title=document.createElement("h3");title.textContent=`待确认服用 · ${list.length} 条数学计划节点`;
+  const list=adoptedPendingReviewRows(plan,null,now);
+  box.hidden=!list.length;box.replaceChildren();
+  if(!list.length)return;
+  const title=document.createElement("h3");title.textContent=`计划服用确认 · ${list.length} 条`;
   const intro=document.createElement("p");intro.className="hint";
-  intro.textContent="即使预计时间已经过去，只要没有确认实际服用，就持续显示在已采用方案上方。未确认节点仅属于数学假设，不会记为已服用。";
+  intro.textContent="这里只列出你明确保存的未来服用计划；仅计算或采用 A/B 方案不会生成确认任务。未到预计时间可以修改或删除，到时才能确认已服用；过期不会自动算作已服用。";
   box.append(title,intro);
-  for(const item of list){
+  for(const dose of list){
     const row=document.createElement("div");row.className="adopted-confirm-row";
     const detail=document.createElement("div");detail.className="adopted-confirm-text";
-    const name=document.createElement("strong");name.textContent=`${fullDate(item.time)} · ${fmt(item.mg,3)} mg`;
+    const name=document.createElement("strong");
+    const drugName=DRUGS.find(item=>item.id===dose.drug)?.name||dose.drug;
+    name.textContent=`${drugName} · ${fullDate(dose.time)} · ${fmt(dose.mg,3)} mg`;
     const status=document.createElement("small");
-    status.textContent=`${item.time<=now?"已到时 · 尚未确认":"尚未到时 · 预计节点"} · ${item.kind==="included"?"采用计算时已计入的未来计划":item.kind==="adjusted"?"已采用调整节点":"已采用原方案节点"}`;
+    status.textContent=dose.time<=now?"已到时 · 等待确认实际服用":"未来计划 · 尚未发生";
     detail.append(name,status);row.append(detail);
     const controls=document.createElement("div");controls.className="adopted-confirm-actions";
     const yes=document.createElement("button");yes.type="button";yes.className="secondary";
-    yes.textContent="是 · 确认已服用";yes.disabled=item.time>now;
-    yes.onclick=()=>{
-      const matchedPlan=scheduledDoses.find(d=>d.drug===plan.drug&&
-        (d.id===item.id||Math.abs(d.time-item.time)<=60000&&Math.abs(d.mg-item.mg)<.0001));
-      if(matchedPlan){confirmScheduledTaken(matchedPlan.id);return}
-      openAdoptedTakenEditor(plan,item,null);
+    yes.textContent="确认已服用";yes.disabled=dose.time>now;
+    yes.onclick=()=>confirmScheduledTaken(dose.id);
+    const edit=document.createElement("button");edit.type="button";edit.className="ghost";
+    edit.textContent="修改计划";edit.onclick=()=>editScheduledDose(dose.id);
+    const remove=document.createElement("button");remove.type="button";remove.className="ghost";
+    remove.textContent="删除计划";remove.onclick=()=>{
+      if(!confirm("删除这条计划未来服用？已服用的真实记录和已采用的数学模型不会被删除。"))return;
+      scheduledDoses=scheduledDoses.filter(x=>x.id!==dose.id);
+      if(editingScheduledId===dose.id)resetDoseEdit();persist();renderDrug();
     };
-    const no=document.createElement("button");no.type="button";no.className="ghost";
-    no.textContent="否 · 修改或删除";
-    no.onclick=()=>{
-      if(item.kind==="included"){
-        const stored=scheduledDoses.find(d=>d.id===item.id);
-        if(stored)editScheduledDose(stored.id);
-        else{alert("这条计划已参与采用时的计算快照，但原计划记录已被删除。请通过重新计算并采用新方案修正，避免默默改变历史方案。");}
-      }else if(item.kind==="adjusted"){
-        editAdoptedAdjustmentNode(plan,item.index);
-      }else editAdoptedNode(plan,item.index);
-    };
-    controls.append(yes,no);row.append(controls);box.append(row);
+    controls.append(yes,edit,remove);row.append(controls);box.append(row);
   }
 }
 function renderAdoptedPoint(plan){
@@ -793,7 +764,9 @@ function renderAdoptedPoint(plan){
   out.replaceChildren();out.classList.add("scenario-results");
   if(plan.initialModel){const caption=document.createElement("p");caption.className="scenario-caution";
     caption.textContent="已采用方案包含明确的起始模型假设：仅用于假设预测，不是已服用记录，不生成该假设的服药提醒；新的实际记录将取代该假设以避免重复估算。";out.append(caption)}
-  const intro=document.createElement("p");intro.className="scenario-intro";intro.textContent=`${targetWindow.enabled?`目标时刻限定 ${fmt(threshold,3)} ±${fmt(targetWindow.value,3)} ${unit} · `:"目标时刻至少高于参考线 · "}已采用方案 ${plan.variant||"A"}${plan.variant==="C"?"（历史方案）":""} · ${fullDate(plan.adoptedAt)} · 原方案 ${plan.doses.length} 个节点 · 目标 ${fullDate(plan.target)} · ${reference.name}参考线 ${fmt(plan.threshold,3)} ${reference.unit}${plan.cycleMin?` · 周期最低 ${fmt(plan.cycleMin,3)} ${cycleFloorUnit(plan.cycleMode)}`:""}${plan.peakMin?` · 覆盖段峰值最低 ${fmt(plan.peakMin,3)} ${cycleFloorUnit(plan.peakMode)}`:""}。后续模型节点提醒将跟随当前已采用方案和调整意见自动同步到云端；仅在设备已授权推送时送达。当前复核按本药数值残留窗口截取历史记录（不是生理清除或用药建议）。实际服用记录的时间与剂量保持原样；自动重算只生成调整意见，点击采用后才替换后续预计节点。`;out.append(intro);
+  const adoptedLimitEnabled=plan.targetLimitEnabled===true||plan.targetLimitEnabled==="1";
+  const adoptedTolerance=Number(plan.mode==="equivalent"?plan.targetLimitEquivalent:plan.targetLimitBlood);
+  const intro=document.createElement("p");intro.className="scenario-intro";intro.textContent=`${adoptedLimitEnabled&&Number.isFinite(adoptedTolerance)&&adoptedTolerance>0?`目标时刻限定 ${fmt(plan.threshold,3)} ±${fmt(adoptedTolerance,3)} ${reference.unit} · `:"目标时刻至少高于参考线 · "}已采用方案 ${plan.variant||"A"}${plan.variant==="C"?"（历史方案）":""} · ${fullDate(plan.adoptedAt)} · 原方案 ${plan.doses.length} 个节点 · 目标 ${fullDate(plan.target)} · ${reference.name}参考线 ${fmt(plan.threshold,3)} ${reference.unit}${plan.cycleMin?` · 周期最低 ${fmt(plan.cycleMin,3)} ${cycleFloorUnit(plan.cycleMode)}`:""}${plan.peakMin?` · 覆盖段峰值最低 ${fmt(plan.peakMin,3)} ${cycleFloorUnit(plan.peakMode)}`:""}。采用模型只会更新数学方案和原有模型通知，不会自动生成“服用确认”；上方确认板块只读取明确保存的未来服用计划。当前复核按本药数值残留窗口截取历史记录（不是生理清除或用药建议）。实际服用记录的时间与剂量保持原样；自动重算只生成调整意见，点击采用后才替换后续预计节点。`;out.append(intro);
   const metrics=document.createElement("div");metrics.className="scenario-metrics";
   for(const [label,value] of [["原方案总量",`${fmt(state.plannedMg,3)} mg`],["已记录匹配",`${state.matchedNodeCount} 个计划节点 · ${state.completed.length} 条实际记录 · ${fmt(state.completedMg,3)} mg`],["已采用后续节点",`${state.pending.length} 次 · ${fmt(state.pendingMg,3)} mg`],["已采用方案目标值",`${fmt(plan.mode==="equivalent"?state.equivalentAtTarget:state.bloodAtTarget,3)} ${reference.unit}`]]){const item=document.createElement("div"),small=document.createElement("small"),strong=document.createElement("strong");small.textContent=label;strong.textContent=value;item.append(small,strong);metrics.append(item)}out.append(metrics);
   const preview=document.createElement("button");preview.type="button";preview.className="secondary";
@@ -816,15 +789,14 @@ function renderAdoptedPoint(plan){
       item.textContent=(matched.manual?"手动":"自动")+"匹配 · "+fullDate(matched.record.time)+" · "+fmt(matched.record.mg,3)+" mg";
       li.append(item);
     }
-    const actions=document.createElement("fieldset"),legend=document.createElement("legend");
-    actions.className="adopted-taken-actions";legend.textContent="是否服用（仅在确认发生后登记实际记录）";actions.append(legend);
-    const taken=document.createElement("button");taken.type="button";taken.className="secondary";
-    taken.textContent="是 · 核对已服用";
-    taken.onclick=()=>openAdoptedTakenEditor(plan,dose,matches[0]||null);
-    const notTaken=document.createElement("button");notTaken.type="button";notTaken.className="ghost";
-    notTaken.textContent="否 · 修改或删除";
-    notTaken.onclick=()=>openAdoptedNotTakenEditor(plan,index,dose,matches[0]||null);
-    actions.append(taken,notTaken);li.append(actions);
+    const actions=document.createElement("div");actions.className="adopted-taken-actions";
+    const edit=document.createElement("button");edit.type="button";edit.className="ghost";
+    const stored=scheduledDoses.find(x=>x.drug===plan.drug&&
+      Math.abs(x.time-dose.time)<=60000&&Math.abs(x.mg-dose.mg)<.0001);
+    edit.textContent=stored?"修改关联的未来计划":matches.length?"查看实际匹配记录":"修改数学假设节点";
+    edit.onclick=()=>stored?editScheduledDose(stored.id):
+      matches.length?editRecord(matches[0].record.id):editAdoptedNode(plan,index);
+    actions.append(edit);li.append(actions);
     const advanced=document.createElement("details"),advancedTitle=document.createElement("summary");
     advanced.className="adopted-advanced-match";advancedTitle.textContent="高级：关联既有实际记录";
     advanced.append(advancedTitle);

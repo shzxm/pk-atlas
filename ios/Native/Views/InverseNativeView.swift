@@ -54,6 +54,14 @@ struct InverseNativeView: View {
     @State private var calculatedIncludedScheduledDoses: [PKDose] = []
     @State private var calculatedInitialModelDose: PKDose? = nil
     @State private var showAdoptedOnly = false
+    // Manual what-if is an ephemeral dashed preview. Only an explicit save
+    // through DoseEditorNativeView creates a future scheduledDoses record.
+    @State private var manualFutureTime = Date.now.addingTimeInterval(3600)
+    @State private var manualFutureAmount = ""
+    @State private var manualFuturePreview: PKDose?
+    @State private var manualFutureDraft: PKDose?
+    @State private var manualFutureStatus = ""
+
 
     @State private var showingExplanation = false
     @State private var showingStrengthEditor = false
@@ -351,10 +359,11 @@ struct InverseNativeView: View {
         // Accepted A/B uses the stored adoption snapshot; a newly calculated
         // candidate uses only its own solver inputs. Confirmed actual entries
         // enter the solid baseline through store.model, not this dashed list.
-        let baseScenarios = evaluated == nil && adopted != nil
+        let baseScenarios = (evaluated == nil && adopted != nil
             ? store.adoptedForecastDoses(drugID: drug.id)
             : doses + (evaluated == nil ? [] : calculatedIncludedScheduledDoses) +
-                (evaluated == nil ? [] : calculatedInitialModelDose.map { [$0] } ?? [])
+                (evaluated == nil ? [] : calculatedInitialModelDose.map { [$0] } ?? [])) +
+                (manualFuturePreview.map { [$0] } ?? [])
         let actual = store.doses.filter { $0.drug == drug.id }
         var allScenarios: [PKDose] = []
         for dose in baseScenarios where dose.drug == drug.id {
@@ -597,6 +606,74 @@ struct InverseNativeView: View {
         }
     }
 
+    private var manualFuturePanel: some View {
+        GlassPanel {
+            Label("手动假设未来服用", systemImage: "calendar.badge.clock")
+                .font(.headline)
+            Text("修改时间或剂量只影响临时虚线预览；不会创建计划，更不会记录为已服用。只有主动保存为未来计划，才会进入服用确认板块。")
+                .font(.caption).foregroundStyle(.secondary)
+            DatePicker("假设时间", selection: $manualFutureTime,
+                       displayedComponents: [.date, .hourAndMinute])
+                .accessibilityIdentifier("native.inverse.what-if.time")
+            PKCompactField(title: "假设剂量", hint: "输入正数",
+                value: $manualFutureAmount, unit: "mg", tint: .purple,
+                identifier: "native.inverse.what-if.amount")
+            HStack(spacing: 10) {
+                Button("只预览虚线") {
+                    guard let drug, drug.canCalculate,
+                        let mg = Double(manualFutureAmount.replacingOccurrences(of: ",", with: ".")),
+                        mg.isFinite, mg > 0, mg < 100_000,
+                        manualFutureTime > Date.now else {
+                        manualFutureStatus = "请填写未来时刻和有效正数剂量；当前输入不会生成计划。"
+                        return
+                    }
+                    manualFuturePreview = PKDose(drug: drug.id, mg: mg, time: manualFutureTime)
+                    manualFutureStatus = "虚线预览已更新，没有写入计划或实际服用。"
+                    refreshPreview()
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("native.inverse.what-if.preview")
+                Button("保存为未来计划") {
+                    guard let drug, drug.canCalculate,
+                        let mg = Double(manualFutureAmount.replacingOccurrences(of: ",", with: ".")),
+                        mg.isFinite, mg > 0, mg < 100_000,
+                        manualFutureTime > Date.now else {
+                        manualFutureStatus = "请先选择未来时间并填写有效正数剂量。"
+                        return
+                    }
+                    if store.plannedDoses(for: drug.id).contains(where: {
+                        abs($0.time.timeIntervalSince(manualFutureTime)) <= 60
+                    }) {
+                        manualFutureStatus = "这一时间附近已有同药计划，请在上方确认板块修改它，不要重复保存。"
+                    } else {
+                        manualFutureDraft = PKDose(drug: drug.id, mg: mg, time: manualFutureTime)
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("native.inverse.what-if.save-plan")
+            }
+            Button("清空手动假设") {
+                manualFuturePreview = nil
+                manualFutureAmount = ""
+                manualFutureStatus = "已清空手动虚线预览，原有计划和真实服用未被修改。"
+                refreshPreview()
+            }
+            .buttonStyle(.borderless)
+            if !manualFutureStatus.isEmpty {
+                Text(manualFutureStatus).font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .onChange(of: manualFutureTime) { _, _ in
+            if manualFuturePreview != nil { manualFuturePreview = nil; refreshPreview() }
+        }
+        .onChange(of: manualFutureAmount) { _, _ in
+            if manualFuturePreview != nil { manualFuturePreview = nil; refreshPreview() }
+        }
+        .sheet(item: $manualFutureDraft) { dose in
+            DoseEditorNativeView(template: dose)
+        }
+    }
+
     var body: some View {
         ScrollViewReader { scrollProxy in
         ScrollView {
@@ -604,8 +681,12 @@ struct InverseNativeView: View {
                 ModelNotice()
                 DrugNativePicker()
                 inversePreview.id("inverse.chart.top")
+                // Confirmation only exists for explicit, still-unconfirmed
+                // future plans. An adopted A/B scheme alone never creates it.
+                if !store.scheduledDoses.isEmpty {
+                    PKPlannedIntakeConfirmationView()
+                }
                 if store.adoptedPlanObject() != nil {
-                    PKAdoptedAwaitingConfirmationView()
                     PKAdoptedPlanPanel()
                 }
                 Picker("反算模式", selection: $page) {
@@ -794,6 +875,7 @@ struct InverseNativeView: View {
                                           variant: nil)
                         }
                     }
+                    manualFuturePanel
                     Button {
                         showingExplanation = true
                     } label: {
@@ -856,6 +938,9 @@ struct InverseNativeView: View {
         .onChange(of: inversePrecision) { _, _ in refreshPreview() }
         .onChange(of: inverseWidth) { _, _ in refreshPreview() }
         .onChange(of: store.selectedDrugID) { _, _ in
+            manualFuturePreview = nil
+            manualFutureAmount = ""
+            manualFutureStatus = ""
             if !isJumpUITestFixture { result = nil }
             restoreInverseDraft(); loadReference(); refreshPreview()
         }
@@ -1096,114 +1181,53 @@ struct InverseNativeView: View {
     }
 }
 
-/// Top-priority review of every unconfirmed adopted point, including an
-/// overdue 14:00 point at 14:01 or tomorrow. Planned time is not proof of
-/// administration. This panel updates its clock while the screen stays open.
-private struct PKAdoptedAwaitingConfirmationView: View {
-    private struct Pending: Identifiable {
-        let id: String
-        let kind: String
-        let index: Int
-        let dose: PKDose
-    }
+/// Intake confirmation is sourced EXCLUSIVELY from explicit scheduledDoses.
+/// Accepting a hypothetical A/B scheme does not create a real intake plan,
+/// confirmation task or actual-dose record. Future plans stay available for
+/// editing; overdue plans remain until the user confirms or deletes them.
+private struct PKPlannedIntakeConfirmationView: View {
     @EnvironmentObject private var store: NativeAppStore
-    @State private var editingOriginal: Pending?
-    @State private var editingAdjustment: Pending?
-    @State private var editingStoredPlan: PKDose?
-    @State private var preparingActual: PKDose?
+    @State private var editingPlan: PKDose?
+    @State private var deletingPlan: PKDose?
     @State private var confirmingPlan: PKDose?
     @State private var notice = ""
 
-    private func same(_ a: PKDose, _ b: PKDose) -> Bool {
-        a.drug == b.drug && (a.id == b.id ||
-            (abs(a.time.timeIntervalSince(b.time)) <= 60 && abs(a.mg - b.mg) < 0.0001))
-    }
-    private func pendingItems(now: Date) -> [Pending] {
-        guard let plan = store.adoptedPlanObject() else { return [] }
-        let drug = store.selectedDrugID
-        var items = store.unmatchedAdoptedNodes().map { item in
-            Pending(id: "original-\(item.index)", kind: "original", index: item.index,
-                dose: PKDose(drug: drug, mg: item.mg, time: item.time))
-        }
-        if let raw = plan["adjustment"]?.object?["doses"]?.array {
-            let rows = raw.enumerated().compactMap { index, value -> Pending? in
-                guard let dose = value.object,
-                      let time = dose["time"]?.number, time.isFinite,
-                      let mg = dose["mg"]?.number, mg.isFinite, mg > 0 else { return nil }
-                let node = PKDose(drug: drug, mg: mg,
-                                  time: Date(timeIntervalSince1970: time / 1000))
-                // The signed review already removes adjusted entries that
-                // are completed by a nearby actual record (up to 2h apart).
-                // Do not reconstruct the entire adjustment array in the
-                // priority panel after the review has confirmed its nodes.
-                if let review = store.adoptedReview,
-                   !review.pending.contains(where: {
-                       abs($0.time - time) <= 60000 && abs($0.mg - mg) < 0.0001
-                   }) { return nil }
-                guard !items.contains(where: { same($0.dose, node) }),
-                      !store.doses.contains(where: { same($0, node) }) else { return nil }
-                return Pending(id: "adjusted-\(index)", kind: "adjusted",
-                               index: index, dose: node)
-            }
-            items.append(contentsOf: rows)
-        }
-        for planDose in store.adoptedIncludedScheduledDoses(drugID: drug) {
-            guard !items.contains(where: { same($0.dose, planDose) }) else { continue }
-            items.append(Pending(id: "included-\(planDose.id)", kind: "included",
-                                 index: -1, dose: planDose))
-        }
-        return items.sorted { a, b in
-            let aFuture = a.dose.time > now, bFuture = b.dose.time > now
-            return aFuture == bFuture ? a.dose.time < b.dose.time : !aFuture
+    private var pendingPlans: [PKDose] {
+        // Global inbox: plans for other medications remain visible even when
+        // the user selects a different drug for inverse calculations.
+        store.scheduledDoses.sorted { a, b in
+            let now = Date.now
+            let aFuture = a.time > now, bFuture = b.time > now
+            return aFuture == bFuture ? a.time < b.time : !aFuture
         }
     }
-    private func confirm(_ item: Pending) {
-        if let saved = store.plannedDoses(for: item.dose.drug)
-            .first(where: { same($0, item.dose) }) {
-            confirmingPlan = saved
-        } else {
-            preparingActual = item.dose
-        }
-    }
-    private func edit(_ item: Pending) {
-        switch item.kind {
-        case "original": editingOriginal = item
-        case "adjusted": editingAdjustment = item
-        case "included":
-            if let saved = store.plannedDoses(for: item.dose.drug)
-                .first(where: { same($0, item.dose) }) {
-                editingStoredPlan = saved
-            } else {
-                notice = "该计划参与了采用时的计算，但原始计划已不存在。需要重新计算并采用新方案，避免静默修改既有计算依据。"
-            }
-        default: break
-        }
-    }
+
     var body: some View {
         TimelineView(.periodic(from: .now, by: 60)) { timeline in
-            let pending = pendingItems(now: timeline.date)
-            if !pending.isEmpty {
+            if !pendingPlans.isEmpty {
                 GlassPanel {
-                    Label("待确认服用 · \(pending.count) 条", systemImage: "clock.badge.exclamationmark")
+                    Label("计划服用确认 · \(pendingPlans.count) 条", systemImage: "clock.badge.exclamationmark")
                         .font(.headline).foregroundStyle(.orange)
-                    Text("预计时间过去也不会自动消失或算作已服用。这里始终显示在已采用方案上方。采用时已计入的计划显示在虚线中，独立计划须实际确认后才进入已服用实线。")
+                    Text("只显示你明确保存的未来服用计划。采用 A/B 数学模型不会创建服用确认。未到时间可以修改、删除；到时才能确认，过期不会自动算作实际服用。")
                         .font(.caption).foregroundStyle(.secondary)
-                    ForEach(pending) { item in
+                    ForEach(pendingPlans) { dose in
                         Divider().opacity(0.25)
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text("\(item.dose.time.formatted(date: .abbreviated, time: .shortened)) · \(item.dose.mg.formatted()) mg")
+                        VStack(alignment: .leading, spacing: 7) {
+                            Text("\(store.catalog.drugs.first(where: { $0.id == dose.drug })?.name ?? dose.drug) · \(dose.time.formatted(date: .abbreviated, time: .shortened)) · \(dose.mg.formatted()) mg")
                                 .font(.subheadline.bold())
-                            Text("\(item.dose.time <= timeline.date ? "时间已过 · 尚未确认" : "未来节点 · 待到时确认") · \(item.kind == "included" ? "采用时已计入的计划" : item.kind == "adjusted" ? "已采用调整节点" : "已采用原方案节点")")
+                            Text(dose.time <= timeline.date ? "已到时 · 尚未确认实际服用" : "未来计划 · 尚未发生")
                                 .font(.caption2).foregroundStyle(.orange)
-                            HStack(spacing: 10) {
-                                Button("是 · 确认已服用") { confirm(item) }
-                                    .disabled(item.dose.time > timeline.date)
+                            HStack(spacing: 9) {
+                                Button("确认已服用") { confirmingPlan = dose }
+                                    .disabled(dose.time > timeline.date)
                                     .buttonStyle(.borderedProminent)
-                                Button("否 · 修改或删除") { edit(item) }
+                                Button("修改") { editingPlan = dose }
+                                    .buttonStyle(.bordered)
+                                Button("删除", role: .destructive) { deletingPlan = dose }
                                     .buttonStyle(.bordered)
                             }
                         }
-                        .accessibilityIdentifier("native.adopted.pending.\(item.id)")
+                        .accessibilityIdentifier("native.planned.pending.\(dose.id)")
                     }
                     if !notice.isEmpty {
                         Text(notice).font(.caption).foregroundStyle(.orange)
@@ -1212,29 +1236,36 @@ private struct PKAdoptedAwaitingConfirmationView: View {
                 .accessibilityIdentifier("native.inverse.pending.confirmation")
             }
         }
-        .sheet(item: $editingOriginal) { item in
-            DoseEditorNativeView(template: item.dose, adoptedNodeIndex: item.index)
-        }
-        .sheet(item: $editingAdjustment) { item in
-            DoseEditorNativeView(template: item.dose, adoptedAdjustmentIndex: item.index)
-        }
-        .sheet(item: $editingStoredPlan) { dose in
+        .sheet(item: $editingPlan) { dose in
             DoseEditorNativeView(scheduledExisting: dose)
         }
-        .sheet(item: $preparingActual) { dose in
-            DoseEditorNativeView(template: dose)
-        }
-        .confirmationDialog("确认这条计划实际已经服用？", isPresented: Binding(
-            get: { confirmingPlan != nil },
-            set: { if !$0 { confirmingPlan = nil } }
+        .confirmationDialog("确认实际已经服用了这条计划？", isPresented: Binding(
+            get: { confirmingPlan != nil }, set: { if !$0 { confirmingPlan = nil } }
         )) {
-            Button("确认并转为实际服用") {
-                if let dose = confirmingPlan { _ = store.confirmPlannedDose(dose.id) }
+            Button("确认并转为实际服用记录") {
+                if let dose = confirmingPlan, dose.time <= .now {
+                    if let duplicate = PKDoseEntryGuard.possibleDuplicate(dose, in: store.doses) {
+                        notice = "已存在时间相近的实际服用 \(duplicate.mg.formatted()) mg；请先核对，未新增记录。"
+                    } else if !store.confirmPlannedDose(dose.id) {
+                        notice = "计划已在另一设备修改或确认，请刷新并重新核对。"
+                    } else { notice = "" }
+                }
                 confirmingPlan = nil
             }
             Button("取消", role: .cancel) { confirmingPlan = nil }
         } message: {
-            Text("只有确实服用后才确认。计划节点本身只是数学假设，不是处方。")
+            Text("确认将按当前计划的药物、时间和剂量保存为实际记录。若真实服用时间或剂量不同，请先修改这条计划；系统会检查是否存在重复记录。")
+        }
+        .confirmationDialog("删除这条未来服用计划？", isPresented: Binding(
+            get: { deletingPlan != nil }, set: { if !$0 { deletingPlan = nil } }
+        )) {
+            Button("删除计划", role: .destructive) {
+                if let dose = deletingPlan { store.removePlannedDose(dose.id) }
+                deletingPlan = nil
+            }
+            Button("取消", role: .cancel) { deletingPlan = nil }
+        } message: {
+            Text("只删除已保存的未来计划，不会更改实际服用记录或已采用数学模型。")
         }
     }
 }
@@ -1306,9 +1337,9 @@ private struct PKAdoptedPlanPanel: View {
         return VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("计划节点 \(index + 1) · \(date(plannedAt))")
+                    Text("模型假设节点 \(index + 1) · \(date(plannedAt))")
                         .font(.subheadline.bold())
-                    Text("计划 \(amount(plannedMg)) mg · \(matches.isEmpty ? "尚未匹配实际记录" : "已关联 \(matches.count) 条实际记录")")
+                    Text("数学预测 \(amount(plannedMg)) mg · \(matches.isEmpty ? "尚未关联实际服用" : "已关联 \(matches.count) 条实际记录")")
                         .font(.caption).foregroundStyle(matches.isEmpty ? .orange : .mint)
                 }
                 Spacer()
@@ -1318,37 +1349,37 @@ private struct PKAdoptedPlanPanel: View {
                 Text("\(match.manual == true ? "手动" : "自动")匹配：\(date(match.record.time)) · \(amount(match.record.mg)) mg")
                     .font(.caption).foregroundStyle(.secondary)
             }
-            Menu {
-                Button("是 · 核对或填写实际服用") {
-                    if let matched = matches.first,
-                       let actual = store.doses.first(where: { $0.id == matched.record.id }) {
-                        editingActualRecord = actual
-                    } else {
-                        preparingTakenRecord = PKDose(drug: store.selectedDrugID,
-                            mg: plannedMg, time: Date(timeIntervalSince1970: plannedAt / 1000))
-                    }
+            // A mathematical adopted node is not a confirmation task.
+            // Only the separately saved scheduledDoses enter the panel above.
+            if let scheduled = store.plannedDoses(for: store.selectedDrugID).first(where: {
+                abs($0.time.timeIntervalSince1970 * 1000 - plannedAt) <= 60_000 &&
+                abs($0.mg - plannedMg) < 0.0001
+            }) {
+                Button {
+                    editingScheduledPlan = scheduled
+                } label: {
+                    Label("编辑关联的未来计划", systemImage: "calendar.badge.clock")
                 }
-                Button("否 · 修改或删除该条记录") {
-                    if let matched = matches.first,
-                       let actual = store.doses.first(where: { $0.id == matched.record.id }) {
-                        // An existing actual record is never silently erased.
-                        // Open its editor, where the user can correct/delete it.
-                        editingActualRecord = actual
-                    } else if let scheduled = store.plannedDoses(for: store.selectedDrugID)
-                        .first(where: { abs($0.time.timeIntervalSince1970 * 1000 - plannedAt) <= 60000 && abs($0.mg - plannedMg) < 0.0001 }) {
-                        editingScheduledPlan = scheduled
-                    } else {
-                        editingAdoptedNode = AdoptedNodeEdit(index: index,
-                            template: PKDose(drug: store.selectedDrugID, mg: plannedMg,
-                                time: Date(timeIntervalSince1970: plannedAt / 1000)))
-                    }
+                .buttonStyle(.bordered)
+            } else if let matched = matches.first,
+                      let actual = store.doses.first(where: { $0.id == matched.record.id }) {
+                Button {
+                    editingActualRecord = actual
+                } label: {
+                    Label("查看关联的真实记录", systemImage: "checkmark.circle")
                 }
-            } label: {
-                Label("是否服用 · \(matches.isEmpty ? "待核对" : "已有记录")",
-                      systemImage: matches.isEmpty ? "questionmark.circle" : "checkmark.circle")
+                .buttonStyle(.bordered)
+            } else {
+                Button {
+                    editingAdoptedNode = AdoptedNodeEdit(index: index,
+                        template: PKDose(drug: store.selectedDrugID, mg: plannedMg,
+                            time: Date(timeIntervalSince1970: plannedAt / 1000)))
+                } label: {
+                    Label("修改数学假设节点", systemImage: "pencil")
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("native.adopted.math.edit.\(index)")
             }
-            .buttonStyle(.bordered)
-            .accessibilityIdentifier("native.adopted.taken.\(index)")
             DisclosureGroup("高级：关联实际服用记录") {
             Picker("匹配方式", selection: Binding(
                 get: { matchMode(index) },
@@ -1399,7 +1430,7 @@ private struct PKAdoptedPlanPanel: View {
                 HStack {
                     Text("已匹配 \(review.matchedNodeCount) / \(doses.count) 个节点")
                     Spacer()
-                    Text("待执行 \(review.pending.count) 个")
+                    Text("未匹配的数学节点 \(review.pending.count) 个")
                 }
                 .font(.subheadline.bold())
                 // Show only the currently accepted generation, not a
@@ -1410,7 +1441,7 @@ private struct PKAdoptedPlanPanel: View {
                         .font(.subheadline)
                         .foregroundStyle(next.time < .now ? .orange : .mint)
                     if next.time < .now {
-                        Text("当前方案节点已过预计时间，仍须核对是否实际服用。")
+                        Text("数学节点已过预计时间，仍不自动生成服用确认；只有另外保存的计划未来服用才需要确认。")
                             .font(.caption2).foregroundStyle(.secondary)
                     }
                 }
@@ -1421,7 +1452,7 @@ private struct PKAdoptedPlanPanel: View {
                 }
                 .buttonStyle(.glassProminent)
                 if plan?["adjustment"]?.object?["doses"]?.array != nil {
-                    Text("原方案已由当前调整方案替换，旧节点不再产生服用确认或提醒。原数学记录保留供复核；此处只显示现行调整节点。")
+                    Text("原数学情景已被新情景替换，旧节点不会进入服用确认。只有你明确保存为未来计划的记录，才会出现在上方的确认板块。")
                         .font(.caption).foregroundStyle(.secondary)
                 } else {
                     ForEach(doses.indices, id: \.self) { index in

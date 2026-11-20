@@ -316,6 +316,29 @@ function init(){
   });
   $("pointPreview").addEventListener("click",()=>showInverseScenarioOnChart(pointScenario));
   $("pointMinimumPreview").addEventListener("click",()=>showInverseScenarioOnChart(minimumPointScenario));
+  $("scenarioSaveAsPlan").addEventListener("click",()=>{
+    const scenario=getScenario(),status=$("scenarioPlanStatus");
+    if(!scenario||scenario.invalid||!Number.isFinite(scenario.mg)||scenario.mg<=0||scenario.mg>=100000||
+       !Number.isFinite(scenario.time)||scenario.time<=Date.now()){
+      status.textContent="请先填写有效的未来时间和正数剂量（mg）；过去时间不能作为未来计划保存。";
+      return;
+    }
+    const existing=scheduledDoses.find(d=>d.drug===current&&Math.abs(d.time-scenario.time)<=60000);
+    if(existing){status.textContent="同药同一时间附近已有计划，请直接编辑已有计划，避免重复。";
+      editScheduledDose(existing.id);return}
+    const drugName=chosen().name;
+    if(!confirm(`将 ${fullDate(scenario.time)} · ${drugName} ${fmt(scenario.mg,3)} mg 明确保存为“计划未来服用”？\n只有保存计划才会进入服用确认；不是实际服用。`))return;
+    scheduledDoses.push({id:uid(),drug:current,mg:scenario.mg,time:scenario.time,unit:"mg",kind:"planned"});
+    $("scenarioTime").value="";$("scenarioDose").value="";
+    appliedPointScenario=null;
+    persist();renderDrug();
+    status.textContent="已保存未来计划；可在上方服用确认或计划列表里修改、删除。未到时间不能确认实际服用。";
+  });
+  $("scenarioClearPreview").addEventListener("click",()=>{
+    $("scenarioTime").value="";$("scenarioDose").value="";
+    appliedPointScenario=null;$("scenarioPlanStatus").textContent="已清空手动假设，没有保存或删除任何真实服用与未来计划。";
+    render();
+  });
   for(const id of ["scenarioTime","scenarioDose","scenarioUnit"])$(id).addEventListener("input",()=>{appliedPointScenario=null;render()});
   $("timeScrubber").addEventListener("input",e=>updateProbe(e.target.value));
   $("chartScale").addEventListener("change",drawChart);

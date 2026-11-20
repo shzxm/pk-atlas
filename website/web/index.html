@@ -18,9 +18,9 @@
   <meta name="pk-math-worker-version" content="server-math-20261117b">
   <link rel="stylesheet" href="./styles.css?v=adopted-pending-20261119c">
   <script defer src="/api-client.js?v=autosync-20261115"></script>
-  <script defer src="./app.js?v=web-start-initial-20261120e"></script>
+  <script defer src="./app.js?v=web-plans-only-20261120g"></script>
   <script defer src="/model-sync.js?v=server-catalog-20261117c"></script>
-  <script defer src="./push.js?v=web-start-initial-20261120e"></script>
+  <script defer src="./push.js?v=web-plans-only-20261120g"></script>
 </head>
 <body class="stage-loading">
   <a class="skip-link" href="#mainContent">跳到主要内容</a>
@@ -207,7 +207,11 @@
           <div class="scenario-fields"><label for="targetStart">希望维持开始于<input id="targetStart" type="datetime-local" name="targetStart"></label><label for="holdHours">连续维持时长<input id="holdHours" type="number" min="0.25" max="24" step="0.25" inputmode="decimal" value="3" placeholder="例如 3 小时" name="holdHours"></label><label for="inverseCount">假设服用次数（留空由模型选择）<input id="inverseCount" type="number" min="1" max="8" step="1" inputmode="numeric" placeholder="留空自动；或输入 1、2…8" name="inverseCount"></label></div>
           <div id="inverseResult" class="crossing-result" aria-live="polite">保存当前药物的规格并填写参考浓度后，查看整单位模型情景。</div>
           <div class="inverse-actions"><button id="inverseManageStrengths" class="ghost" type="button">管理当前药物规格</button><button id="inversePreview" class="ghost" type="button" hidden>在曲线中查看情景</button></div>
-          <p class="hint">系统最多比较 8 次、每节点最多 8—20 个完整单位的有界候选；自动模式按总剂量最少、同剂量下模型峰值较低排序。未找到候选只表示此搜索范围无解。结果不是处方，也不能保证真实血药浓度。</p></div><div class="scenario-fields"><label>手动假设下次服用时间<input id="scenarioTime" type="datetime-local" name="scenarioTime"></label><label>手动假设单次剂量<div class="dose-input-row"><input id="scenarioDose" type="number" min="0.001" step="any" inputmode="decimal" placeholder="自行输入" name="scenarioDose"><select id="scenarioUnit" aria-label="假设剂量单位" name="scenarioUnit"><option value="mg">mg</option><option value="g">g</option></select></div></label></div><div id="scenarioResult" class="crossing-result" aria-live="polite">输入假设时间与剂量后，显示模型达峰、达到参考线与维持时间。</div><p class="hint">手动情景只计算当前药物、当前记录与这一条假设剂量。吸收需要时间，不能保证全程高于参考线；实际用药应依据处方和医师／药师指导。</p></div></details>
+          <p class="hint">系统最多比较 8 次、每节点最多 8—20 个完整单位的有界候选；自动模式按总剂量最少、同剂量下模型峰值较低排序。未找到候选只表示此搜索范围无解。结果不是处方，也不能保证真实血药浓度。</p></div><div class="scenario-fields"><label>手动假设下次服用时间<input id="scenarioTime" type="datetime-local" name="scenarioTime"></label><label>手动假设单次剂量<div class="dose-input-row"><input id="scenarioDose" type="number" min="0.001" step="any" inputmode="decimal" placeholder="自行输入" name="scenarioDose"><select id="scenarioUnit" aria-label="假设剂量单位" name="scenarioUnit"><option value="mg">mg</option><option value="g">g</option></select></div></label></div><div class="inverse-actions" aria-label="手动未来服用假设操作">
+          <button id="scenarioSaveAsPlan" class="secondary" type="button">明确保存为未来服用计划</button>
+          <button id="scenarioClearPreview" class="ghost" type="button">清空本次假设</button>
+          <span id="scenarioPlanStatus" class="hint" role="status" aria-live="polite">修改时间和剂量只改变虚线预览；仅点击保存并确认后，才会加入未来计划及服用确认。</span>
+          </div><div id="scenarioResult" class="crossing-result" aria-live="polite">输入假设时间与剂量后，显示模型达峰、达到参考线与维持时间。</div><p class="hint">手动情景只计算当前药物、当前记录与这一条假设剂量。吸收需要时间，不能保证全程高于参考线；实际用药应依据处方和医师／药师指导。</p></div></details>
         <details class="panel reading disclosure-section" id="readingGuide" data-pref="readingGuide"><summary class="disclosure-head"><span class="disclosure-title">如何理解模型结果</span><span class="disclosure-hint">点击展开</span></summary><div class="disclosure-body"><div id="insight"></div><div class="reading-grid"><div><b>浓度 ≠ 药效</b><p>达峰时间指血液中测得的浓度峰值，不等于起效时间或治疗目标。</p></div><div><b>个体差异</b><p>剂型、食物、肝肾功能、相互作用等都可能改变真实曲线。</p></div></div></div></details>
       </section>
     </div>
