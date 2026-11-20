@@ -27,6 +27,7 @@ struct InverseNativeView: View {
     @State private var minimumPeakText = ""
     @State private var peakMode = "equivalent"
     @State private var cycleMinimumText = ""
+    @State private var initialModelValueText = ""
     @State private var cycleMode = "blood"
     @State private var totalMaximumText = ""
     @State private var targetLimitEnabled = false
@@ -51,6 +52,7 @@ struct InverseNativeView: View {
     @State private var solutionMessage = ""
     @State private var previewVariant = "A"
     @State private var calculatedIncludedScheduledDoses: [PKDose] = []
+    @State private var calculatedInitialModelDose: PKDose? = nil
     @State private var showAdoptedOnly = false
 
     @State private var showingExplanation = false
@@ -72,6 +74,26 @@ struct InverseNativeView: View {
     private var drug: PKDrug? { store.selectedDrug }
     private var threshold: Double? {
         guard let value = Double(thresholdText.replacingOccurrences(of: ",", with: ".")),
+              value.isFinite, value > 0, value <= 1_000_000 else { return nil }
+        return value
+    }
+    // A saved STARTING model input is only required when no modeled actual
+    // starting event exists and current modeled level is below the reference.
+    // This is not an actual-dose record and never enters HealthKit or alerts.
+    private var initialModelNeeded: Bool {
+        guard page == "point", let drug, drug.canCalculate, let threshold else { return false }
+        let now = Date.now
+        let earliest = PKResidualWindow.start(drug: drug, model: store.model,
+                                               earliestSample: now)
+        let actual = store.model.doses.contains { $0.drug == drug.id &&
+            $0.time <= now && $0.time >= earliest }
+        let observed = unitMode == "equivalent"
+            ? store.model.equivalent(drug, at: now)
+            : store.model.concentration(drug, at: now)
+        return !actual && observed.isFinite && observed < threshold - 0.000001
+    }
+    private var validInitialModelValue: Double? {
+        guard let value = Double(initialModelValueText.replacingOccurrences(of: ",", with: ".")),
               value.isFinite, value > 0, value <= 1_000_000 else { return nil }
         return value
     }
@@ -126,6 +148,8 @@ struct InverseNativeView: View {
          "pointCount": countText, "pointPeakMin": minimumPeakText,
          "pointPeakMode": peakMode, "pointCycleMin": cycleMinimumText,
          "pointCycleMode": cycleMode,
+         "pointInitialValue": initialModelValueText,
+         "pointInitialMode": unitMode,
          "targetStart": Self.localDateString(durationStart),
          "holdHours": String(durationHours), "inverseCount": countText]
     }
@@ -152,6 +176,8 @@ struct InverseNativeView: View {
         peakMode = values["pointPeakMode"] == "blood" ? "blood" : "equivalent"
         cycleMinimumText = values["pointCycleMin"] ?? ""
         cycleMode = values["pointCycleMode"] == "equivalent" ? "equivalent" : "blood"
+        initialModelValueText = values["pointInitialMode"] == unitMode
+            ? (values["pointInitialValue"] ?? "") : ""
         durationHours = min(24, max(0.5, Double(values["holdHours"] ?? "") ?? 4))
         targetLimitEnabled = values["pointTargetLimitEnabled"] == "1"
         targetLimitBlood = values["pointTargetLimitBlood"] ?? "0.5"
@@ -195,6 +221,10 @@ struct InverseNativeView: View {
                 activeTolerance!.isFinite && activeTolerance! > 0 &&
                 activeTolerance! <= 1_000_000) else {
             solutionMessage = "剂量上限及最低值约束必须为空，或在 0～1,000,000 范围内。"; return
+        }
+        if initialModelNeeded && validInitialModelValue == nil {
+            solutionMessage = "当前没有起始实际服用且模型低于参考线。请先按参考值明确设置起始模型假设，或手动输入正数起始模型值。它不是已服用记录。"
+            return
         }
         let now = Date.now
         if page == "point" {
@@ -251,6 +281,8 @@ struct InverseNativeView: View {
             totalCap: totalCap,
             targetWindow: PKInverseTargetWindow(enabled: targetLimitEnabled,
                 value: activeTolerance ?? 0),
+            initialBaseline: initialModelNeeded ? PKInverseInitialBaseline(
+                mode: unitMode, value: validInitialModelValue ?? 0) : nil,
             catalog: store.catalog
         )
         scheduleInverseDraft()
@@ -265,6 +297,10 @@ struct InverseNativeView: View {
                 // Capture exactly what the completed solver saw. Do not
                 // query mutable plan storage again when Adopt is tapped.
                 calculatedIncludedScheduledDoses = page == "point" ? alreadyPlanned : []
+                calculatedInitialModelDose = output.initialHypothesis.map { item in
+                    PKDose(id: "pk-model-initial-assumption", drug: drug.id, mg: item.mg,
+                           time: Date(timeIntervalSince1970: item.time / 1000))
+                }
                 previewVariant = "A"
                 refreshPreview(output)
                 if let reason = output.result?.reason {
@@ -277,6 +313,7 @@ struct InverseNativeView: View {
                 }
             } catch {
                 result = nil
+                calculatedInitialModelDose = nil
                 solutionMessage = "计算未完成：" + error.localizedDescription
             }
             solving = false
@@ -316,7 +353,8 @@ struct InverseNativeView: View {
         // enter the solid baseline through store.model, not this dashed list.
         let baseScenarios = evaluated == nil && adopted != nil
             ? store.adoptedForecastDoses(drugID: drug.id)
-            : doses + (evaluated == nil ? [] : calculatedIncludedScheduledDoses)
+            : doses + (evaluated == nil ? [] : calculatedIncludedScheduledDoses) +
+                (evaluated == nil ? [] : calculatedInitialModelDose.map { [$0] } ?? [])
         let actual = store.doses.filter { $0.drug == drug.id }
         var allScenarios: [PKDose] = []
         for dose in baseScenarios where dose.drug == drug.id {
@@ -421,6 +459,10 @@ struct InverseNativeView: View {
                 let includedCount = result != nil
                     ? calculatedIncludedScheduledDoses.count
                     : store.adoptedIncludedScheduledDoses(drugID: drug.id).count
+                if calculatedInitialModelDose != nil && result != nil {
+                    Label("虚线包含当前起始模型值的数学假设，不表示实际服用或血药实测，不生成服药通知；真实服用出现后应以实际记录重新核算。", systemImage: "waveform.path")
+                        .font(.caption).foregroundStyle(.orange)
+                }
                 if includedCount > 0 {
                     Label("本次反算或已采用方案明确计入 \(includedCount) 条未来计划；未计入的独立计划不会加入已采用曲线，确认实际服用后才加入实线。", systemImage: "calendar.badge.clock")
                         .font(.caption).foregroundStyle(.orange)
@@ -638,12 +680,33 @@ struct InverseNativeView: View {
                                 }
                                 .labelsHidden()
                             }
+                            if initialModelNeeded {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Label("起始模型值 · 明确假设", systemImage: "scope")
+                                        .font(.headline)
+                                    PKCompactField(title: "起始模型值", hint: "必须明确填写",
+                                        value: $initialModelValueText,
+                                        unit: unitMode == "blood" ? "mg/L" : "mg（等效）",
+                                        tint: .cyan, identifier: "native.inverse.initial-model")
+                                    Button("按当前参考值假设起始已达标") {
+                                        if let threshold {
+                                            initialModelValueText = threshold.formatted(
+                                                .number.precision(.fractionLength(0...6)))
+                                            scheduleInverseDraft()
+                                        }
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .accessibilityIdentifier("native.inverse.initial.use-reference")
+                                    Text("没有起始实际服用且当前模型低于参考值时必须填写。该数值是数学初始条件，不是已服用、实测血药或服药提醒。周期最低值从规划形成连续覆盖后检查。")
+                                        .font(.footnote).foregroundStyle(.secondary)
+                                }
+                            }
                             Divider()
                             LazyVGrid(columns: [GridItem(.flexible(minimum: 0), spacing: 10),
                                                 GridItem(.flexible(minimum: 0), spacing: 10)],
                                       alignment: .leading, spacing: 12) {
                                 VStack(alignment: .leading, spacing: 7) {
-                                    PKCompactField(title: "周期最低值下限", hint: "不设置",
+                                    PKCompactField(title: "规划覆盖段最低值", hint: "不设置",
                                         value: $cycleMinimumText,
                                         unit: cycleMode == "blood" ? "mg/L" : "mg", tint: .cyan,
                                         identifier: "native.inverse.cycle-min", emphasis: true, compact: true)
@@ -665,7 +728,7 @@ struct InverseNativeView: View {
                                     .pickerStyle(.segmented)
                                 }
                             }
-                            Text("各约束独立校验；累计上限统计的是新增假设节点的总 mg，而非等效剂量。")
+                            Text("周期最低值从模型规划的连续覆盖段起点至目标时刻检查，不再要求当前未建立覆盖的一瞬间已经达标。累计上限只计新增假设服药节点，起始模型假设不是实际剂量。")
                                 .font(.footnote).foregroundStyle(.secondary)
                         } else {
                             DatePicker("维持窗口开始", selection: $durationStart,
@@ -799,7 +862,11 @@ struct InverseNativeView: View {
         .onChange(of: draftSignature) { _, _ in
             scheduleInverseDraft()
         }
-        .onChange(of: unitMode) { _, _ in
+        .onChange(of: unitMode) { previous, next in
+            if previous != next {
+                initialModelValueText = "" // mg/L and mg are not interchangeable
+                calculatedInitialModelDose = nil
+            }
             if !isJumpUITestFixture { result = nil }
             refreshPreview()
             loadReference()
@@ -870,7 +937,9 @@ struct InverseNativeView: View {
                                    count: countText, peakMin: peakFloor,
                                    peakMode: peakMode, cycleMin: cycleFloor,
                                    cycleMode: cycleMode, totalMax: totalCap,
-                                   includedScheduledDoses: calculatedIncludedScheduledDoses)
+                                   includedScheduledDoses: calculatedIncludedScheduledDoses,
+                                   initialHypothesis: calculatedInitialModelDose,
+                                   initialValue: validInitialModelValue)
             }
         } message: {
             Text("仅保存数学情景，不会新增真实服用记录。需由专业人士核对，不构成服药建议。")
@@ -893,7 +962,7 @@ struct InverseNativeView: View {
                         Text("\(doses.count) 个节点").foregroundStyle(.secondary)
                     }
                     if let min = candidate.minLevel {
-                        Text("窗口最低模型值：\(min.formatted(.number.precision(.fractionLength(3)))) \(unitMode == "blood" ? "mg/L" : "mg")")
+                        Text("覆盖段最低模型值：\(min.formatted(.number.precision(.fractionLength(3)))) \(unitMode == "blood" ? "mg/L" : "mg")")
                             .font(.subheadline)
                     }
                     if let peak = candidate.peak {
@@ -955,10 +1024,12 @@ struct InverseNativeView: View {
     private func failureText(_ reason: String) -> String {
         switch reason {
         case "specs": return "该药物尚未保存药盒规格，请先添加完整单位。"
+        case "initialBaselineRequired": return "请先填写起始模型值，或明确采用当前参考值作为起始数学假设。"
+        case "initialBaselineInvalid": return "起始模型值须为有效正数且使用与参考线一致的单位。"
         case "cap": return "单次上限小于可组合的最小药盒规格。"
         case "fixedNoSolution": return "在固定次数和时间窗口内未找到数学候选。"
         case "peakNoSolution": return "覆盖段模型峰值条件无法满足。"
-        case "cycleAlreadyBelow": return "当前模型值已经低于周期最低要求，口服吸收无法立即消除缺口。"
+        case "cycleAlreadyBelow": return "旧版本曾把最低值错算成当前瞬间的要求；请重新计算以使用连续覆盖段。"
         case "cycleNoSolution": return "周期最低值约束在此搜索范围内无解。"
         case "totalNoSolution": return "累计新增剂量上限与其他约束无法同时满足。"
         case "targetWindowUnreached": return "在已有规格及有限搜索中未找到目标时刻落入设定 ± 偏差范围的候选；不代表数学上绝对无解。"

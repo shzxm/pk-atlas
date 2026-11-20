@@ -95,7 +95,7 @@
     if(!supported()){status("此浏览器暂不支持 Web Push。iPhone 需要 iOS 16.4 或更新版本。",true);return}
     $("pushEnable").disabled=false;
     try{
-      await navigator.serviceWorker.register("/sw.js?v=web-ui-20261120b",{scope:"/"});
+      await navigator.serviceWorker.register("/sw.js?v=web-start-initial-20261120e",{scope:"/"});
       const subscription=await existing();
       const server=subscription?await request("/api/push/status","POST",{endpoint:subscription.endpoint}):{enabled:false,details:false};
       $("pushEnable").hidden=server.enabled;
@@ -113,7 +113,7 @@
     try{
       const permission=await Notification.requestPermission();
       if(permission!=="granted")throw new Error("未获得通知权限；可到系统设置中重新开启")
-      const registration=await navigator.serviceWorker.register("/sw.js?v=web-ui-20261120b",{scope:"/"});
+      const registration=await navigator.serviceWorker.register("/sw.js?v=web-start-initial-20261120e",{scope:"/"});
       const config=await request("/api/push/config");
       let subscription=await registration.pushManager.getSubscription();
       if(!subscription)subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:bytes(config.publicKey)});

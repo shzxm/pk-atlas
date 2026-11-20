@@ -49,8 +49,8 @@ targets:
           - CFBundleURLName: org.pkatlas.app.open
             CFBundleURLSchemes: [pkatlas]
         CFBundleName: PKAtlas
-        CFBundleShortVersionString: "2.27"
-        CFBundleVersion: "33"
+        CFBundleShortVersionString: "2.28"
+        CFBundleVersion: "34"
         LSRequiresIPhoneOS: true
         UIApplicationSupportsDocumentBrowser: false
         UIApplicationSceneManifest:
@@ -89,8 +89,8 @@ targets:
         CODE_SIGNING_ALLOWED: YES
         ENABLE_APP_SANDBOX: YES
         ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: YES
-        MARKETING_VERSION: "2.27"
-        CURRENT_PROJECT_VERSION: "33"
+        MARKETING_VERSION: "2.28"
+        CURRENT_PROJECT_VERSION: "34"
         SDKROOT: iphoneos
     scheme:
       testTargets:

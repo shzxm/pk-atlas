@@ -3,10 +3,10 @@
 // The inverse search is CPU intensive. Run the same model code off the UI thread.
 self.localStorage={getItem:()=>null,setItem:()=>{}};
 self.PKApi={};
-importScripts("./app.js?v=web-ui-20261120b");
+importScripts("./app.js?v=web-start-initial-20261120e");
 
 self.onmessage=event=>{
-  const {id,kind="point",drugId,rows,plan,meals,renalState,threshold,target,cap,now,fixedCount,mode,peakFloor,start,hours,countText,cycleFloor,peakRequirement,totalCap:rawTotalCap,targetWindow}=event.data;
+  const {id,kind="point",drugId,rows:givenRows,plan,meals,renalState,threshold,target,cap,now,fixedCount,mode,peakFloor,start,hours,countText,cycleFloor,peakRequirement,totalCap:rawTotalCap,targetWindow,initialBaseline}=event.data;
   try{
     const remote=event.data.modelCatalog;
     if(remote){
@@ -25,6 +25,26 @@ self.onmessage=event=>{
     mealMatchCache.clear();MODEL_PARAMS.clear();EQUIVALENT_PEAK_CACHE.clear();
     const drug=DRUGS.find(item=>item.id===drugId);
     if(!drug||drug.recordOnly)throw new Error("不支持当前药物的反算");
+    if(!Array.isArray(givenRows))throw new Error("服用记录输入格式无效");
+    let rows=givenRows,initialHypothesis=null;
+    if(kind==="point"){
+      const hasStart=rows.some(item=>!item.planningOnly&&item.drug===drugId&&
+        Number.isFinite(item.time)&&item.time<=now&&item.time>=now-residualWindowHours(drug)*3600000);
+      const currentlyAbove=modelValue(drug,now,rows,mode)>=threshold-1e-6;
+      if(!hasStart&&!currentlyAbove){
+        if(initialBaseline==null){
+          self.postMessage({id,result:{reason:"initialBaselineRequired"},minimum:null});return;
+        }
+        if(initialBaseline.mode!==mode||!Number.isFinite(initialBaseline.value)||initialBaseline.value<=0||initialBaseline.value>1000000){
+          self.postMessage({id,result:{reason:"initialBaselineInvalid"},minimum:null});return;
+        }
+        initialHypothesis=pkInitialHypothesis(drug,now,mode,initialBaseline.value);
+        if(!initialHypothesis){
+          self.postMessage({id,result:{reason:"initialBaselineInvalid"},minimum:null});return;
+        }
+        rows=[...givenRows,initialHypothesis];
+      }
+    }
     if(kind==="duration"){
       const result=solveInverse(drug,rows,threshold,start,hours,now,mode,countText);
       let display=null;
@@ -116,6 +136,6 @@ self.onmessage=event=>{
       else if(checkedB){result=checkedB;minimum=checkedB;}
       else {result={reason:"targetWindowUnreached"};minimum=null;}
     }
-    self.postMessage({id,result,minimum,comparison});
+    self.postMessage({id,result,minimum,comparison,initialHypothesis});
   }catch(error){self.postMessage({id,error:String(error?.message||error)})}
 };

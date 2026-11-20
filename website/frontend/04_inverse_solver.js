@@ -388,7 +388,11 @@ function pointConstraintMetrics(drug,rows,doses,now,coverageStart,target,cycle,p
     maximum=Math.max(maximum,end);
     return{minimum,maximum,minTime};
   };
-  const cycleBlood=sample(now,"blood"),cycleEquivalent=sample(now,"equivalent");
+  // The cycle floor belongs to the established modeled coverage, not
+  // the instant before a newly modeled oral dose could be absorbed.
+  // A candidate with no coverage is rejected by enforcePointConstraints.
+  const cycleStart=Number.isFinite(coverageStart)?Math.max(now,coverageStart):now;
+  const cycleBlood=sample(cycleStart,"blood"),cycleEquivalent=sample(cycleStart,"equivalent");
   const validCover=Number.isFinite(coverageStart)&&coverageStart<=target;
   const peakBlood=validCover?sample(coverageStart,"blood").maximum:null;
   const peakEquivalent=validCover?sample(coverageStart,"equivalent").maximum:null;
@@ -397,23 +401,22 @@ function pointConstraintMetrics(drug,rows,doses,now,coverageStart,target,cycle,p
     cycleObserved:(cycle.mode==="equivalent"?cycleEquivalent:cycleBlood).minimum,
     cycleMinTime:(cycle.mode==="equivalent"?cycleEquivalent:cycleBlood).minTime,
     peakObserved:peak.mode==="equivalent"?peakEquivalent:peakBlood,
-    cycleValid:!(cycle.value>0)||(cycle.mode==="equivalent"?cycleEquivalent:cycleBlood).minimum>=cycle.value-1e-6,
+    cycleValid:!(cycle.value>0)||(validCover&&(cycle.mode==="equivalent"?cycleEquivalent:cycleBlood).minimum>=cycle.value-1e-6),
     peakValid:!(peak.value>0)||(validCover&&(peak.mode==="equivalent"?peakEquivalent:peakBlood)>=peak.value-1e-6)};
 }
-function strengthenPointCycleFloor(drug,rows,doses,now,target,cap,floor,mode){
+function strengthenPointCycleFloor(drug,rows,doses,coverageStart,target,cap,floor,mode){
   if(!(floor>0))return doses;
-  // New oral dosing cannot alter the *current instant*. Never claim that a
-  // pre-existing deficit can be repaired retroactively.
-  if(modelValue(drug,now,rows,mode)<floor-1e-6)return null;
+  // Only strengthen the established future coverage. Past gaps remain
+  // visible in the actual curve and are never claimed to be repaired.
   const options=wholeDoseOptions(getStrengths(drug.id)).filter(x=>x.mg<=cap+1e-9);
   if(!options.length)return null;
   const step=5*60000,times=[];
-  for(let t=now;t<target;t+=step)times.push(t);
+  for(let t=coverageStart;t<target;t+=step)times.push(t);
   times.push(target);
   const result=doses.map(d=>({...d}));
   for(let iteration=0;iteration<48;iteration++){
     const combined=[...rows,...result];
-    let worst={time:now,value:Infinity};
+    let worst={time:coverageStart,value:Infinity};
     for(const time of times){
       const value=modelValue(drug,time,combined,mode);
       if(value<worst.value)worst={time,value};
@@ -450,8 +453,6 @@ function enforcePointConstraints(drug,rows,result,threshold,target,cap,now,mode,
     if(!checkedTotal(result.doses))return{reason:"totalNoSolution"};
     return{...result,...stats,totalPlanned:totalDose(result.doses),totalCap};
   }
-  if(base>0&&modelValue(drug,now,rows,cycle.mode)<base-1e-6)
-    return{reason:"cycleAlreadyBelow",cycleStart:modelValue(drug,now,rows,cycle.mode)};
   let doses=result.doses.map(d=>({...d}));
   const options=wholeDoseOptions(getStrengths(drug.id)).filter(x=>x.mg<=cap+1e-9);
   if(!doses.length&&(base>0||minimumPeak>0)){
@@ -475,7 +476,7 @@ function enforcePointConstraints(drug,rows,result,threshold,target,cap,now,mode,
     if(base>0){
       const checked=pointConstraintMetrics(drug,rows,doses,now,result.continuousFrom,target,cycle,peak);
       if(!checked.cycleValid){
-        const better=strengthenPointCycleFloor(drug,rows,doses,now,target,cap,base,cycle.mode);
+        const better=strengthenPointCycleFloor(drug,rows,doses,result.continuousFrom,target,cap,base,cycle.mode);
         if(!better)return{reason:"cycleNoSolution"};
         doses=better;
       }
@@ -616,7 +617,12 @@ function evaluateAdoptedPlan(plan,now=Date.now()){
   // treated as fixed future inputs in the adopted graph. Fresh unrelated
   // schedules await an actual-taken confirmation before entering the graph.
   const additionalPlans=adoptedIncludedScheduledDoses(plan,rows,pending);
-  const searchRows=[...rows,...additionalPlans];
+  const initial=plan.initialModel;
+  const replacedInitial=initial&&records.some(r=>r.drug===plan.drug&&r.time>=Number(initial.at)&&r.time<=now);
+  const initialPreview=initial&&!replacedInitial&&Number.isFinite(Number(initial.time))&&
+    Number.isFinite(Number(initial.mg))&&Number(initial.mg)>0?
+      [{drug:plan.drug,time:Number(initial.time),mg:Number(initial.mg),planningOnly:true}]:[];
+  const searchRows=[...rows,...additionalPlans,...initialPreview];
   let suggested=null,replanReason="";
   if(newRows.length||Object.keys(manual).length||foodChanged){
     suggested=[];
@@ -785,7 +791,9 @@ function renderAdoptedPoint(plan){
   panel.hidden=false;
   renderAdoptedPendingConfirm(plan);
   out.replaceChildren();out.classList.add("scenario-results");
-  const intro=document.createElement("p");intro.className="scenario-intro";intro.textContent=`${targetWindow.enabled?`目标时刻限定 ${fmt(threshold,3)} ±${fmt(targetWindow.value,3)} ${unit} · `:"目标时刻至少高于参考线 · "}已采用方案 ${plan.variant||"A"}${plan.variant==="C"?"（历史方案）":""} · ${fullDate(plan.adoptedAt)} · 原方案 ${plan.doses.length} 个节点 · 目标 ${fullDate(plan.target)} · ${reference.name}参考线 ${fmt(plan.threshold,3)} ${reference.unit}${plan.cycleMin?` · 周期最低 ${fmt(plan.cycleMin,3)} ${cycleFloorUnit(plan.cycleMode)}`:""}${plan.peakMin?` · 覆盖段峰值最低 ${fmt(plan.peakMin,3)} ${cycleFloorUnit(plan.peakMode)}`:""}。后续模型节点提醒将跟随当前已采用方案和调整意见自动同步到云端；仅在设备已授权推送时送达。当前复核只读取计算起点前后各 48 小时的同药记录，更早的残留不计。实际服用记录的时间与剂量保持原样；自动重算只生成调整意见，点击采用后才替换后续预计节点。`;out.append(intro);
+  if(plan.initialModel){const caption=document.createElement("p");caption.className="scenario-caution";
+    caption.textContent="已采用方案包含明确的起始模型假设：仅用于假设预测，不是已服用记录，不生成该假设的服药提醒；新的实际记录将取代该假设以避免重复估算。";out.append(caption)}
+  const intro=document.createElement("p");intro.className="scenario-intro";intro.textContent=`${targetWindow.enabled?`目标时刻限定 ${fmt(threshold,3)} ±${fmt(targetWindow.value,3)} ${unit} · `:"目标时刻至少高于参考线 · "}已采用方案 ${plan.variant||"A"}${plan.variant==="C"?"（历史方案）":""} · ${fullDate(plan.adoptedAt)} · 原方案 ${plan.doses.length} 个节点 · 目标 ${fullDate(plan.target)} · ${reference.name}参考线 ${fmt(plan.threshold,3)} ${reference.unit}${plan.cycleMin?` · 周期最低 ${fmt(plan.cycleMin,3)} ${cycleFloorUnit(plan.cycleMode)}`:""}${plan.peakMin?` · 覆盖段峰值最低 ${fmt(plan.peakMin,3)} ${cycleFloorUnit(plan.peakMode)}`:""}。后续模型节点提醒将跟随当前已采用方案和调整意见自动同步到云端；仅在设备已授权推送时送达。当前复核按本药数值残留窗口截取历史记录（不是生理清除或用药建议）。实际服用记录的时间与剂量保持原样；自动重算只生成调整意见，点击采用后才替换后续预计节点。`;out.append(intro);
   const metrics=document.createElement("div");metrics.className="scenario-metrics";
   for(const [label,value] of [["原方案总量",`${fmt(state.plannedMg,3)} mg`],["已记录匹配",`${state.matchedNodeCount} 个计划节点 · ${state.completed.length} 条实际记录 · ${fmt(state.completedMg,3)} mg`],["已采用后续节点",`${state.pending.length} 次 · ${fmt(state.pendingMg,3)} mg`],["已采用方案目标值",`${fmt(plan.mode==="equivalent"?state.equivalentAtTarget:state.bloodAtTarget,3)} ${reference.unit}`]]){const item=document.createElement("div"),small=document.createElement("small"),strong=document.createElement("strong");small.textContent=label;strong.textContent=value;item.append(small,strong);metrics.append(item)}out.append(metrics);
   const preview=document.createElement("button");preview.type="button";preview.className="secondary";
@@ -808,8 +816,20 @@ function renderAdoptedPoint(plan){
       item.textContent=(matched.manual?"手动":"自动")+"匹配 · "+fullDate(matched.record.time)+" · "+fmt(matched.record.mg,3)+" mg";
       li.append(item);
     }
+    const actions=document.createElement("fieldset"),legend=document.createElement("legend");
+    actions.className="adopted-taken-actions";legend.textContent="是否服用（仅在确认发生后登记实际记录）";actions.append(legend);
+    const taken=document.createElement("button");taken.type="button";taken.className="secondary";
+    taken.textContent="是 · 核对已服用";
+    taken.onclick=()=>openAdoptedTakenEditor(plan,dose,matches[0]||null);
+    const notTaken=document.createElement("button");notTaken.type="button";notTaken.className="ghost";
+    notTaken.textContent="否 · 修改或删除";
+    notTaken.onclick=()=>openAdoptedNotTakenEditor(plan,index,dose,matches[0]||null);
+    actions.append(taken,notTaken);li.append(actions);
+    const advanced=document.createElement("details"),advancedTitle=document.createElement("summary");
+    advanced.className="adopted-advanced-match";advancedTitle.textContent="高级：关联既有实际记录";
+    advanced.append(advancedTitle);
     const label=document.createElement("label"),select=document.createElement("select");
-    label.className="manual-match";label.textContent="匹配方式";
+    label.className="manual-match";label.textContent="关联方式";
     select.setAttribute("aria-label","第 "+(index+1)+" 个模型节点的匹配方式");
     for(const [v,title] of [["auto","自动匹配（最近记录）"],["manual","手动多选实际记录"],["none","不匹配此节点"]]){
       const option=document.createElement("option");option.value=v;option.textContent=title;select.append(option);
@@ -817,7 +837,7 @@ function renderAdoptedPoint(plan){
     const manual=plan.manualMatches||{},raw=manual[index];
     select.value=Object.hasOwn(manual,index)?raw===null?"none":"manual":"auto";
     select.addEventListener("change",()=>setManualPlanMatch(plan,index,select.value,state.candidates));
-    label.append(select);li.append(label);
+    label.append(select);advanced.append(label);
     if(select.value==="manual"){
       const details=document.createElement("details"),summary=document.createElement("summary"),options=document.createElement("div");
       details.className="match-multi-disclosure";options.className="match-multi-options";
@@ -850,8 +870,9 @@ function renderAdoptedPoint(plan){
       if(!shown.length){const empty=document.createElement("p");empty.className="hint";empty.textContent="目前没有可关联的新增实际服用记录。";options.append(empty)}
       const hint=document.createElement("p");hint.className="hint";
       hint.textContent="每节点最多关联 20 条；只建立关系，不复制记录，不重复计算实际服用量。";
-      details.append(options,hint);li.append(details);
+      details.append(options,hint);advanced.append(details);
     }
+    li.append(advanced);
     list.append(li);
   }
   out.append(list);
@@ -860,7 +881,7 @@ function renderAdoptedPoint(plan){
     retired.textContent=`前一版原方案的 ${plan.doses.length} 个节点已由当前已采用调整方案替换，不再生成旧节点的服用确认或提醒。旧数学参数仅保留作方案复核，真实服用记录不受影响。`;
     out.append(retired);
   }
-  if(state.unmatched.length){const heading=document.createElement("strong");heading.className="scenario-replan-heading";heading.textContent="未关联的实际服用记录 · 原时间保留";out.append(heading);const unmatchedList=document.createElement("ol");unmatchedList.className="scenario-timeline";for(const row of [...state.unmatched].sort((a,b)=>a.time-b.time)){const li=document.createElement("li"),time=document.createElement("time"),amount=document.createElement("strong"),note=document.createElement("small");time.textContent=fullDate(row.time);amount.textContent=`${fmt(row.mg,3)} mg`;note.textContent="记录时间和剂量未改；反算按 48 小时窗口读取，且这条记录未替换任何原计划节点。若属于某节点，可在上方手动关联。";li.append(time,amount,note);unmatchedList.append(li)}out.append(unmatchedList)}
+  if(state.unmatched.length){const heading=document.createElement("strong");heading.className="scenario-replan-heading";heading.textContent="未关联的实际服用记录 · 原时间保留";out.append(heading);const unmatchedList=document.createElement("ol");unmatchedList.className="scenario-timeline";for(const row of [...state.unmatched].sort((a,b)=>a.time-b.time)){const li=document.createElement("li"),time=document.createElement("time"),amount=document.createElement("strong"),note=document.createElement("small");time.textContent=fullDate(row.time);amount.textContent=`${fmt(row.mg,3)} mg`;note.textContent="记录时间和剂量未改；反算按本药残留窗口读取，且这条记录未替换任何原计划节点。若属于某节点，可在上方手动关联。";li.append(time,amount,note);unmatchedList.append(li)}out.append(unmatchedList)}
   if(state.pending.length){const heading=document.createElement("strong");heading.className="scenario-replan-heading";heading.textContent=plan.adjustment?"当前已采用的调整节点 · 曲线显示":"当前已采用的原计划后续节点 · 曲线显示";out.append(heading);const pendingList=document.createElement("ol");pendingList.className="scenario-timeline";for(const dose of state.pending){const li=document.createElement("li"),time=document.createElement("time"),amount=document.createElement("strong");time.textContent=fullDate(dose.time);amount.textContent=`预计 ${fmt(dose.mg,3)} mg`;li.append(time,amount);pendingList.append(li)}out.append(pendingList)}
   if(state.replanned){const accepted=samePlanNodes(state.suggested,state.pending)&&!state.replanReason,heading=document.createElement("strong");heading.className="scenario-replan-heading";heading.textContent=accepted?"当前调整意见已采用 · 曲线已更新":"调整意见 · 尚未采用";out.append(heading);if(!accepted){const basis=document.createElement("p");basis.className="scenario-intro";basis.textContent=`依据已记录的实际时间与剂量，从 ${fullDate(state.replanFrom)} 起搜索剩余 ${state.remaining} 个节点。当前曲线仍显示已采用的后续节点。`;out.append(basis);const revised=document.createElement("ol");revised.className="scenario-timeline";for(const dose of state.suggested||[]){const li=document.createElement("li"),time=document.createElement("time"),amount=document.createElement("strong"),parts=document.createElement("small");time.textContent=fullDate(dose.time);amount.textContent=`建议模型节点 ${fmt(dose.mg,3)} mg`;parts.textContent=formatDoseContext(dose);li.append(time,amount,parts);revised.append(li)}if(state.suggested?.length)out.append(revised);else{const empty=document.createElement("p");empty.className="scenario-empty";empty.textContent=state.replanReason==="count"?"原方案节点已由记录用完，但目标时刻仍低于参考值。":state.replanReason==="time"?"按实际时间和间隔，目标时刻前已没有可用的后续节点。":state.replanReason?"当前约束与有限候选搜索下未找到调整节点。":"根据当前记录，无需保留后续假设节点。";out.append(empty)}if(!state.replanReason&&state.suggested){const proposal=document.createElement("p");proposal.className="scenario-status";proposal.textContent=`调整意见：预计剩余 ${state.suggested.length} 次 · 合计 ${fmt(state.suggestedMg,3)} mg · 目标时刻模型值约 ${fmt(state.suggestedAtTarget,3)} ${reference.unit}。实际服用记录不会因采用而改变。`;out.append(proposal);const accept=document.createElement("button");accept.type="button";accept.className="secondary adopt-adjustment";accept.textContent="采用调整意见";accept.onclick=()=>adoptPlanAdjustment(plan);out.append(accept)}}}
   const status=document.createElement("p");status.className="scenario-status";status.textContent=`按当前记录核算于 ${fullDate(state.at)} · 目标时刻血药 ${fmt(state.bloodAtTarget,3)} mg/L · 剂量等效 ${fmt(state.equivalentAtTarget,1)} mg · ${state.continuousFrom===null?"目标前存在未覆盖缺口":state.allCovered?"采样均高于参考线":`从 ${fullDate(state.continuousFrom)} 起的采样高于参考线`}${plan.cycleMin?` · 周期最低 ${fmt(state.cycleObserved,3)} ${cycleFloorUnit(plan.cycleMode)}（${state.cycleValid?"满足":"未满足"}）`:""}${plan.peakMin?` · 覆盖段峰值 ${Number.isFinite(state.peakObserved)?fmt(state.peakObserved,3):"无覆盖段"} ${cycleFloorUnit(plan.peakMode)}（${state.peakValid?"满足":"未满足"}）`:""}`;out.append(status);
@@ -898,6 +919,8 @@ function solvePointInWorker(input,id){
 }
 async function renderPointInverse(){
   cancelPointInverse();clearTimeout(pointInputTimer);
+  $("pointInitialWrap").hidden=true;
+  $("pointInitialValue").required=false;
   const requestId=pointRequestId;
   if(chosen().recordOnly){$("pointResult").textContent="FTC/TAF 是双成分复方，现有单药血浆模型不能反算 PrEP 服用时间或剂量。请按处方核对。";$("adoptedPointPanel").hidden=true;$("pointPreview").hidden=true;$("pointMinimumPreview").hidden=true;return}
   if(referencePending){$("pointResult").textContent="参考值尚未确定。点击“确定并计算”后更新反算方案。";pointScenario=null;minimumPointScenario=null;$("pointPreview").hidden=true;$("pointMinimumPreview").hidden=true;return}
@@ -928,16 +951,28 @@ async function renderPointInverse(){
   if(countText&&(!Number.isInteger(fixedCount)||fixedCount<1||fixedCount>8)){out.textContent="假设服用次数请留空，或填写 1—8 的整数。";return}
   if(peakText&&(!Number.isFinite(peakFloor)||peakFloor<=0||peakFloor>1000000)){out.textContent=`覆盖段峰值最低值须为大于 0、至多 100 万的 ${modeUnit(peakMode)} 数值。`;return}
   if(cycleText&&(!Number.isFinite(cycleMin)||cycleMin<=0||cycleMin>1000000)){out.textContent=`周期最低值须为大于 0、至多 100 万的 ${modeUnit(cycleMode)} 数值。`;return}
-  const rows=inverseRecordRows(allRows().filter(r=>r.time<=now),now);
-  if(cycleMin>0&&modelValue(drug,now,rows,cycleMode)<cycleMin-1e-6){
-    out.textContent=`当前 ${modeUnit(cycleMode)} 模型值 ${fmt(modelValue(drug,now,rows,cycleMode),3)} 已低于设定的全周期最低 ${fmt(cycleMin,3)}；口服吸收不能立刻改变已发生的缺口，所以本约束无解。`;return
+  const activePlans=futurePreviewNodes(drug.id).filter(r=>r.time<=target);
+  const rows=[...inverseRecordRows(allRows().filter(r=>r.time<=now),now),...activePlans.map(r=>({...r,planningOnly:true}))];
+  const startingObserved=modelValue(drug,now,rows,mode);
+  const hasActualStart=rows.some(r=>r.drug===drug.id&&r.time<=now&&!r.planningOnly);
+  const initialRequired=!hasActualStart&&startingObserved<threshold-1e-6;
+  const startBox=$("pointInitialWrap"),startInput=$("pointInitialValue");
+  startBox.hidden=!initialRequired;
+  startInput.required=initialRequired;
+  $("pointInitialUnit").textContent=unit;
+  if(startInput.dataset.mode!==mode){startInput.value="";startInput.dataset.mode=mode}
+  const initialRaw=startInput.value.trim(),initialValue=Number(initialRaw);
+  if(initialRequired&&(!initialRaw||!Number.isFinite(initialValue)||initialValue<=0||initialValue>1000000)){
+    out.textContent=`当前没有起始真实服用记录，数学模型 ${fmt(startingObserved,3)} ${unit} 低于参考值。请明确采用「按参考值假设起始达标」或手动填入起始模型值。该假设不是实际服用。`;
+    return;
   }
-  out.textContent="正在后台计算两种单位的周期最低和覆盖段峰值约束，页面可继续操作…";
-  let result,minimum,comparison;
+  const initialBaseline=initialRequired?{mode,value:initialValue}:null;
+  out.textContent=`正在浏览器本地计算；已把 ${activePlans.length} 条未来计划作为固定数学情景，并只搜索新增假设节点。计划不计实际服用。`;
+  let result,minimum,comparison,initialHypothesis;
   try{
-    ({result,minimum,comparison}=await solvePointInWorker({drugId:drug.id,rows,plan:plans[drug.id]||{},meals:intakes,renalState:renal,threshold,target,cap,now,fixedCount,mode,peakFloor,cycleFloor,peakRequirement,totalCap,targetWindow},requestId));
+    ({result,minimum,comparison,initialHypothesis}=await solvePointInWorker({drugId:drug.id,rows,plan:plans[drug.id]||{},meals:intakes,renalState:renal,threshold,target,cap,now,fixedCount,mode,peakFloor,cycleFloor,peakRequirement,totalCap,targetWindow,initialBaseline},requestId));
   }catch(error){
-    if(requestId===pointRequestId)out.textContent=`后台计算未完成：${error.message}。请刷新页面后重试。`;
+    if(requestId===pointRequestId)out.textContent=`浏览器本地计算未完成：${error.message}。请刷新页面后重试。`;
     return;
   }
   if(requestId!==pointRequestId||current!==drug.id||!document.body.classList.contains("stage-calc"))return;
@@ -955,7 +990,9 @@ async function renderPointInverse(){
     out.textContent=`当前有界数学搜索未找到满足全部输入约束的候选${nodes}${observed}。算法尚未遍历所有新增节点组合，所以不能判断数学上无解。请调整节点数量、时间范围或输入约束；没有设置医学剂量上限，模型不对安全剂量作任何判断。`;
     return;
   }
-  if(result.reason==="cycleAlreadyBelow"){out.textContent=`本周期起点的模型值 ${fmt(result.cycleStart,3)} ${modeUnit(cycleMode)} 已低于周期最低要求 ${fmt(cycleMin,3)}，口服吸收无法立即补足；约束无解。`;return}
+  if(["initialBaselineRequired","initialBaselineInvalid"].includes(result.reason)){
+    out.textContent="请选择起始模型假设，或输入大于零且单位与当前参考值一致的初始模型值。";return;
+  }
   if(result.reason==="totalNoSolution"){out.textContent=`在当前药盒规格、节点次数及其余条件下，搜索不到累计新增剂量不超过 ${fmt(totalCap,3)} mg 的模型方案。不会输出超出限制的方案。`;return}
   if(["cycleNoSolution","peakNoSolution","constraintNoSolution"].includes(result.reason)){out.textContent="在已有完整规格、单次上限与搜索范围内，无法同时满足参考线、整个周期最低值和覆盖段峰值要求。请核对约束与单位；不会采用不满足条件的方案。";return}
   if(result.continuousFrom===null||result.continuousFrom>=target){out.textContent="仅计计算起点前后各 48 小时的记录，当前搜索范围内无法形成持续覆盖到目标时刻的区间。口服吸收无法立刻补足已有缺口；请勿据此自行调整用药。";return}
@@ -964,16 +1001,16 @@ async function renderPointInverse(){
   const calculatedPlans=activePlans.map(item=>({id:item.id,drug:item.drug,
     time:item.time,mg:item.mg,unit:item.unit||"mg"}));
   pointScenario={drug:current,target,threshold,mode,cycleFloor,peakRequirement,targetWindow,
-    includedScheduledDoses:calculatedPlans,...result};
+    initialHypothesis,initialBaseline,includedScheduledDoses:calculatedPlans,...result};
   if(minimum)minimumPointScenario={drug:current,target,threshold,mode,cycleFloor,peakRequirement,targetWindow,
-    includedScheduledDoses:calculatedPlans,...minimum};
+    initialHypothesis,initialBaseline,includedScheduledDoses:calculatedPlans,...minimum};
   const previewA=$("pointPreview"),previewB=$("pointMinimumPreview");
   previewA.hidden=!result.doses.length;previewB.hidden=!minimum?.doses.length;
   previewA.textContent="在曲线中查看方案 A";previewB.textContent="在曲线中查看方案 B";
   out.replaceChildren();out.classList.add("scenario-results");
   const label=capText?`单次假设上限 ${fmt(cap,3)} mg`:`未填写单次上限；候选仍受已存完整规格及每节点最多 8—20 单位的搜索边界限制`;
   const totalLabel=totalText?` · 当前至目标累计新增上限 ${fmt(totalCap,3)} mg`:"";
-  const intro=document.createElement("p");intro.className="scenario-intro";intro.textContent=`${drug.name} · 当前${reference.name}模型 ${fmt(result.baselineNow,3)} ${unit} · ${label}${totalLabel}${cycleMin>0?` · 全周期最低 ${fmt(cycleMin,3)} ${modeUnit(cycleMode)}`:""}${peakFloor>0?` · 覆盖段峰值最低 ${fmt(peakFloor,3)} ${modeUnit(peakMode)}`:""}。反算只读取计算起点前后各 48 小时的同药记录；更早的残留不计。各方案在同一覆盖区间比较，每 5 分钟采样验证。${futureMealNotice(drug,now,target)}`;out.append(intro);
+  const intro=document.createElement("p");intro.className="scenario-intro";intro.textContent=`已含 ${activePlans.length} 条固定计划（仅数学预测，非实际服用） · ${drug.name} · 当前${reference.name}模型 ${fmt(result.baselineNow,3)} ${unit} · ${label}${totalLabel}${cycleMin>0?` · 全周期最低 ${fmt(cycleMin,3)} ${modeUnit(cycleMode)}`:""}${peakFloor>0?` · 覆盖段峰值最低 ${fmt(peakFloor,3)} ${modeUnit(peakMode)}`:""}。反算按本药残留窗口截取历史记录；更早的数值残留不计。各方案在同一覆盖区间比较，每 5 分钟采样验证。${futureMealNotice(drug,now,target)}`;out.append(intro);
   out.append(scenarioCard({title:"方案 A · 自动补充节点",badge:fixedCount?`指定 ${fixedCount} 次`:"系统计算",result,threshold,target,description:fixedCount===2?"两次情景按 5 分钟步长比较第二个节点，并核对完整药盒单位。":"按照有限候选节点搜索得到的模型情景。",preview:previewA,adopt:()=>adoptPointScenario("A"),reference}));
   if(minimum){
     const aSwing=comparison?.a?.swing,bSwing=comparison?.newModel?.swing;
@@ -987,6 +1024,8 @@ async function renderPointInverse(){
       preview:previewB,adopt:()=>adoptPointScenario("B"),reference}));
   }
   if(comparison?.b){const info=document.createElement("p");info.className="scenario-caution";info.textContent=`同区间稳定性比较（1 分钟血药采样）：A 峰谷差 ${fmt(comparison.a.swing,3)} mg/L，最少剂量中间候选 ${fmt(comparison.b.swing,3)} mg/L${comparison.newModel?`，新平稳候选 ${fmt(comparison.newModel.swing,3)} mg/L`:"；未找到进一步改善的平稳候选"}。新约束均已重新验证。`;out.append(info)}
+  if(initialHypothesis){const tip=document.createElement("p");tip.className="scenario-caution";
+    tip.textContent=`本次假设起始模型值 ${fmt(initialBaseline.value,3)} ${unit}，仅在假设曲线中显示。它不是实测或已服用，绝不自动加入真实记录或服药通知；周期最低值从连续覆盖段检查。`;out.append(tip)}
   const note=document.createElement("p");note.className="scenario-caution";note.textContent=`${result.baselineNow<threshold?"当前已低于参考线，口服吸收前的缺口不能被补服消除。":""}${result.limited?"方案 A 已触及 12 节点搜索上限。":""}${!result.fallingAfter?"方案 A 在目标后仍可能上升。":""}${Math.max(result.mg,minimum?.mg||0)>drug.refDose*4?"模型剂量超过参考单次剂量四倍，线性外推尤其不可靠。":""}48 小时外残留已排除；清除较慢时结果可能偏低。所有时间与剂量只是数学情景，不是服药建议；参考线也不是已验证的治疗阈值。`;out.append(note);
 }
 function adoptPointScenario(variant){
@@ -994,7 +1033,9 @@ function adoptPointScenario(variant){
   if(!["A","B"].includes(variant))return;
   const selected=variant==="B"?minimumPointScenario:pointScenario;
   if(!selected||selected.drug!==current||!selected.doses?.length)return;
-  const now=Date.now(),plan={v:1,variant,drug:current,adoptedAt:now,target:selected.target,threshold:selected.threshold,mode:selected.mode,cap:$("pointMaxDose").value.trim(),totalMax:Number($("pointTotalMax").value)||0,count:$("pointCount").value.trim(),peakMin:Number($("pointPeakMin").value)||0,peakMode:$("pointPeakMode").value,cycleMin:Number($("pointCycleMin").value)||0,cycleMode:$("pointCycleMode").value,targetLimitEnabled:$("pointTargetLimitEnabled").checked,
+  const now=Date.now(),plan={v:1,variant,drug:current,adoptedAt:now,
+    initialModel:selected.initialHypothesis?{time:selected.initialHypothesis.time,mg:selected.initialHypothesis.mg,mode:selected.initialBaseline?.mode,value:selected.initialBaseline?.value,at:now,planningOnly:true}:null,
+    target:selected.target,threshold:selected.threshold,mode:selected.mode,cap:$("pointMaxDose").value.trim(),totalMax:Number($("pointTotalMax").value)||0,count:$("pointCount").value.trim(),peakMin:Number($("pointPeakMin").value)||0,peakMode:$("pointPeakMode").value,cycleMin:Number($("pointCycleMin").value)||0,cycleMode:$("pointCycleMode").value,targetLimitEnabled:$("pointTargetLimitEnabled").checked,
     targetTolerance:$("pointTargetLimitEnabled").checked?Number(selected.targetWindow?.value??0):0,baselineIds:records.filter(r=>r.drug===current).map(r=>r.id),doses:structuredClone(selected.doses),
     includedScheduledDoses:structuredClone(selected.includedScheduledDoses||[]),manualMatches:{},mealSignature:mealScenarioSignature(current,now,selected.target)};
   inverseMemory[current]={...(inverseMemory[current]||{}),adoptedPointPlan:plan};persist();appliedPointScenario=null;renderPointInverse();drawChart();

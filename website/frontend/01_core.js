@@ -20,7 +20,7 @@ const safeRecords=raw=>Array.isArray(raw)?raw.filter(r=>r&&(DRUGS.some(d=>d.id==
 const safeCourses=raw=>Array.isArray(raw)?raw.filter(c=>c&&typeof c.id==="string"&&DRUGS.some(d=>d.id===c.drug)&&Number.isFinite(c.start)&&Number.isFinite(c.days)&&c.days>=1&&c.days<=90).slice(-3000):[];
 const safeIntakes=raw=>Array.isArray(raw)?raw.filter(x=>x&&Number.isFinite(x.time)&&["meal","drink"].includes(x.kind)&&["none","water","coffee","tea","milk","juice","alcohol","other"].includes(x.drink||"none")).slice(-10000).map(x=>({id:String(x.id||uuid()),time:x.time,kind:x.kind,mealType:x.mealType==="highFat"?"highFat":"regular",drink:x.drink||"none",note:String(x.note||"").slice(0,100)})):[];
 const safeRenal=raw=>raw&&Number.isFinite(Number(raw.crcl))&&Number(raw.crcl)>=15&&Number(raw.crcl)<=150?{crcl:Number(raw.crcl),source:raw.source==="estimated"?"estimated":"entered"}:null;
-const INVERSE_FIELDS=["pointTarget","pointTargetLimitEnabled","pointTargetLimitBlood","pointTargetLimitEquivalent","pointMaxDose","pointTotalMax","pointCount","pointPeakMin","pointPeakMode","pointCycleMin","pointCycleMode","targetStart","holdHours","inverseCount"];
+const INVERSE_FIELDS=["pointTarget","pointTargetLimitEnabled","pointTargetLimitBlood","pointTargetLimitEquivalent","pointMaxDose","pointTotalMax","pointCount","pointPeakMin","pointPeakMode","pointCycleMin","pointCycleMode","pointInitialValue","targetStart","holdHours","inverseCount"];
 const safeInverseMemory=raw=>{
   const out={};if(!raw||typeof raw!=="object"||Array.isArray(raw))return out;
   for(const drug of DRUGS){const saved=raw[drug.id];if(!saved||typeof saved!=="object"||Array.isArray(saved))continue;

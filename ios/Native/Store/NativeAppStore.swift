@@ -561,7 +561,16 @@ final class NativeAppStore: ObservableObject {
     func adoptedForecastDoses(drugID: String? = nil) -> [PKDose] {
         let id = drugID ?? selectedDrugID
         let actual = snapshot.doses.filter { $0.drug == id }
-        let rows = selectedAdoptedDoses() + adoptedIncludedScheduledDoses(drugID: id)
+        var rows = selectedAdoptedDoses() + adoptedIncludedScheduledDoses(drugID: id)
+        if id == selectedDrugID, let initial = adoptedPlanObject()?["initialModel"]?.object,
+           let at = initial["at"]?.number,
+           let modeledTime = initial["time"]?.number,
+           let mg = initial["mg"]?.number,
+           mg.isFinite, mg > 0, modeledTime.isFinite,
+           !actual.contains(where: { $0.time.timeIntervalSince1970 * 1000 >= at }) {
+            rows.append(PKDose(id: "pk-model-initial-assumption", drug: id, mg: mg,
+                time: Date(timeIntervalSince1970: modeledTime / 1000)))
+        }
         var result: [PKDose] = []
         for node in rows where node.drug == id {
             let duplicate: (PKDose) -> Bool = { other in
@@ -640,7 +649,9 @@ final class NativeAppStore: ObservableObject {
                       mode: String, threshold: Double, target: Date,
                       cap: String, count: String, peakMin: Double,
                       peakMode: String, cycleMin: Double, cycleMode: String,
-                      totalMax: Double?, includedScheduledDoses: [PKDose] = []) {
+                      totalMax: Double?, includedScheduledDoses: [PKDose] = [],
+                      initialHypothesis: PKDose? = nil,
+                      initialValue: Double? = nil) {
         guard username != nil, ["A", "B"].contains(variant),
               let doses = candidate.doses, !doses.isEmpty else { return }
         var memory = snapshot.settings["inverseMemory"]?.object ?? [:]
@@ -671,6 +682,20 @@ final class NativeAppStore: ObservableObject {
             "cycleMode": .string(cycleMode),
             "totalMax": .number(totalMax ?? 0),
             "baselineIds": .array(baseline),
+            // Model-only initial state: never an actual intake or notification.
+            "initialModel": (initialHypothesis.flatMap { initial -> PKJSON? in
+                guard initial.mg.isFinite, initial.mg > 0,
+                      initial.time < .now,
+                      let initialValue, initialValue.isFinite, initialValue > 0 else { return nil }
+                return .object([
+                    "time": .number(initial.time.timeIntervalSince1970 * 1000),
+                    "mg": .number(initial.mg),
+                    "value": .number(initialValue),
+                    "mode": .string(mode),
+                    "at": .number(Date.now.timeIntervalSince1970 * 1000),
+                    "planningOnly": .bool(true)
+                ])
+            } ?? .null),
             "includedScheduledDoses": .array(includedScheduledDoses.filter {
                 $0.drug == selectedDrugID && $0.time <= target &&
                 $0.mg.isFinite && $0.mg > 0 && $0.mg < 100_000

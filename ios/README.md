@@ -1,97 +1,209 @@
-# 药时 iOS App · PK Atlas
+## 2.15（Build 21）· 系统日夜模式真机适配修正
 
-> **Current public native source:** v2.25 Build 31, November 19, 2026. The old WebView-only prototype has been superseded by the `Native/` SwiftUI implementation. Generate the Xcode project with `xcodegen generate`, then build with your own bundle identifier and private signing configuration. Do not use example addresses as working production endpoints.
+2.14 曾在 SwiftUI 中移除强制夜间模式，但工程级 `Info.plist` 仍包含 `UIUserInterfaceStyle=Dark`，导致发布包无法跟随系统。这版**同时移除工程配置和真实 Info.plist 的固定 Dark**，恢复系统 `unspecified` 行为。已增加独立 XCTest 检查包内不能再次出现固定主题，另外用实际 Duo 模拟器明暗两套截图进行验收。其余功能与 2.14 相同。
+
+## 2.14（Build 20）· 曲线分工、反算Duo、Apple健康审核、数据体检及随系统主题
+
+- 主曲线恢复原生 Swift Charts，默认窗口过去 3 小时＋未来 6 小时，5 分钟采样，单独单位模式、游标、前/后移动和定位现在。反算保留网站 SVG 曲线与精细度，修正 iPhone Duo 较窄屏下末尾说明显示，可内部上下滚动，并新增定位现在。
+- 反算候选 A/B 和已采用模型的“在曲线中显示”现在跳向 **反算页自己的图表**，不再跳到主曲线页；采用节点不按时间隐藏，优先显示所有未匹配节点中最早的一项，包括已过时节点，绝不假称已服。
+- 改用原生低突兀数字卡片展示血药参考值、等效参考值、单节点最大值、累计最大值、周期最低及覆盖段峰值最低；保留独立单位与空值语义。
+- Apple 健康在「我的」中有独立二级页面，可阅读、手动匹配药时药物名称、校正剂量/时间、逐条勾选并经确认导入。仅用户主动匹配及复核后把映射与事件调整写入现有云端快照；不自动将片数/mL换算为mg，不写回Apple健康。
+- 本机数据体检现在提供每项异常的具体检查列表。合法可编辑记录可直接进入历史编辑器，重复原始ID或损坏JSON仍仅可导出核对，不一键删除。
+- 顶栏全局加号现在弹出记录服药或记录用餐/饮品。App跟随系统日夜配色，夜间保留原暗色设计；网站主站/数据中心/帮助页面新增蓝白浅色设计，含浏览器原生输入适配。
+- 未变更服务器数学模型、签名公钥或上一次成功上传的全量覆盖策略。Apple健康真机授权及APNs后台推送仍需实机验收。
+
+## iOS 2.13（Build 19）｜真正面向日常的首轮成熟化迭代
+
+- **智能记录**：最近真实记录的药物与剂量可作为快捷表单模板；自动核对 5 分钟内的同药同剂量，提示重复但允许真实分次服用；未来时间不得直接记为已服；新建记录不再预填来自群体模型的参考剂量。
+- **历史时间足迹**：真实记录与饮食汇入日期分组时间线；近7天、近30天、全部与药物/搜索筛选；只对**同一药物**按天计算记录剂量，不混合不同药物。支持当前筛选 CSV 导出（UTF8、标准转义与公式注入防护）；原 JSON 导出不变。
+- **本机数据体检**：只读检查重复与异常、最新加密保存时间、待同步状态，提供用户主动复制的脱敏技术报告（不包含用药明细或隐私地址），便于未来修复故障。
+- **更新到 GitHub**：检测到服务器签名的新版本时提供固定 GitHub 私有 Release 页面，手动下载 ZIP 内原始 IPA 并自行签名；避免私有服务器下发任意网页跳转。
+- 本轮完成项与未完成的可靠性门槛见 `docs/MATURITY_PLAN.md`，不要将尚未在真实 iPhone 上验证的 Apple 健康、APNs 等能力当作已验收。
+
+## iOS 2.12（Build 18）｜网页 SVG 全曲线视觉/采样对齐
+
+- 对照 181 生产网站 `frontend/05_chart.js`、`frontend/03_model.js`、`frontend/06_ui.js`、`frontend/html/60-results.html`，将**主曲线与反算曲线**统一替换为同一份打包在 App 内的离线 SVG 绘图组件 `Resources/Chart/website-chart.html`。应用其它页面仍是原生 SwiftUI；图表采用 App 内嵌离线 WebKit SVG，不是远程网站页面或网页应用壳。
+- 对齐站点 RGB 色值（血药 `#ffca83`、等效 `#58e5c4`、未计饮食 `#b9c4d2`、血药参考 `#ff5da8`、等效参考 `#d7fc72`、方案蓝色 `#55aaff`、等效方案紫色 `#cb9cff`、目标橙色 `#ff9257`）、渐变填充、线宽和 `6 5`/`5 5`/`2 5`/`3 6` 等虚线类型。
+- 对齐网站 **所选日期起 48 小时**长画布、时间刻度、左右纵轴（mg/L / mg）、文字标注、服用实线和预计虚线、已匹配实测节点、用餐标记、目标时刻、双独立参考线、窗口峰值、下降交点、游标读数、餐后对照及图例。双参考输入仍按用户之前的明确需求常驻（网站自身目前采用单一确认值；这点是有意保留的 App 扩展，不会谎称网页当前也同时绘制两条）。
+- 精细度与网站一致：标准 55、精细 90、超精细 140 像素/小时；根据图宽自动使用 **288～600 个区间、289～601 个采样点**。App 与签名网站数学引擎使用同一采样时间戳规则（毫秒整数），联网后继续向181核对同版本结果，离线使用上次签名算法。主图和反算图共享同一精细度设置。
+- 实际 48 小时 SVG 宽图直接横向拖动，游标跟随滚动中心、滑块可独立调整时间，闲置后回归当前读数；可切换日期查看相邻两天。药物实际记录与 A/B 预计方案绝不互相冒充。
+- 离线图表内核有严格 `Content-Security-Policy` 禁止任何网络请求、无登录 Cookie、没有原生能力桥接；快速切换精细度取消过期计算，网站绘图语法以真实浏览器和 iPhone Duo 模拟器手势测试校验。
+- 网站/原生平台的字形抗锯齿、系统控件、不同屏幕尺寸仍可能存在像素级差异，不应仅凭静态测试声称在所有物理屏幕逐像素完全一致；本版本对齐**数据、采样、线条及 SVG 图层逻辑**，物理真机手感仍应验收。
+
+## iOS 2.11（Build 17）｜启动本地优先，登录/健康后台静默
+
+- 直接从本地已加密缓存恢复上次账号的数据、药物目录、曲线、反算和历史；今天/曲线/反算/历史/我的五个 Tab 立即可见，不再使用验证锁屏。会话校验与状态拉取放后台进行，常规会话核验设置 20 分钟间隔，以免每次回到前台都反复检查。
+- 登录验证失败、网络中断或 401 只影响云端操作，**不会清空本机记录、草稿或模型**。云端写入、设备管理与账户操作依然要求有效登录；会话失效时可从「我的」重新授权。显式退出登录仍可清理当前视图，但本机加密备份保留。
+- App 每次冷启动及重新进入前台，自动在后台读取 Apple 健康已获权限的药物和服药事件；短时间内二次激活有 25 秒去重，避免重复工作。首次访问仍需用户批准 iOS 系统弹窗，已尝试系统授权后常规启动不再重复请求；「我的」提供可选手动重新授权、选择新增药物。
+- 健康读取失败时不清除上一次已成功读取的结果。自动读取只更新药时的健康数据预览，不会未经人工核对自动导入服药记录，也不会写回 Apple 健康。
+- 用户自行重签必须保留 HealthKit entitlement，真实 iPhone 上的授权可用性仍需安装后验证。
+
+## iOS 2.10（Build 16）｜连续时间轴与 Apple 健康崩溃修复
+
+- 药代单曲线和反算情景曲线都支持直接左右拖动时间轴；默认显示当前前 8 小时后 16 小时。两种图使用同一套 24 小时可见窗口、72 小时滚动缓存，滑动到前后边缘自动增量重新计算，实际/等效/未计饮食/候选虚线及节点随时间同步移动。点按才修改游标，横滑不再被拖动游标事件吞掉。
+- 首页已采用方案改为**逐一列出所有没有匹配实际记录的节点**。不再仅显示下一未来节点；过期但尚未匹配的节点继续显示并清楚标记，不自动形成已服用记录。
+- 修复 iOS 27.3 beta 真实日志 2.4 Build7、2.8 Build13 同型 SIGABRT：崩溃栈为 `HKHealthStore requestAuthorization...` → `_throwIfAuthorizationDisallowedForSharing`。根据 Apple WWDC25 药物 API，仅申请 `HKUserAnnotatedMedicationType` 的 per-object read 权限，用户授权该药时即含对应服药事件；删除对 `HKMedicationDoseEvent` 单独错误授权流程。用极小的原生 Objective-C 异常桥把系统抛出的 `NSException` 转为 Swift 可显示错误，避免独立签名缺少 HealthKit 权限时强制终止。
+- Health 读取失败时清空上一次的展示结果，允许查看授权阶段；药物归档后仍保留匹配历史服药的能力。不会假称药物授权成功或自动写入健康。
+- 私有 IPA 保存在 iCloud Drive/Downloads，并通过 **Private** GitHub Release 分发。用户重新签名时必须保留 `com.apple.developer.healthkit` entitlement，否则功能无法取得授权，桥接会向用户报告失败。
+
+### 私人 IPA GitHub 自动发布约束
+
+- 常规执行 `./Scripts/build-unsigned.sh`：先验证云端模型/签名和完整 JavaScript 语法，编译、检验并写入 iCloud，随后强制运行 `publish-private-github.sh`。只有 `shzxm/example-private-releases` 仍是 **Private** 且 GitHub CLI 已授权时才允许上传。
+- 第一次需要在 Mac mini 上**由仓库所有者**完成 `gh auth login --web --scopes repo`；令牌仅由 `gh` 自身管理，不写入源码、IPA、命令参数或任何部署服务器。尚未授权时构建命令会明确报错，不会冒充 GitHub 发布成功；已经生成的 iCloud IPA 仍保留。
+- 验证或测试专用构建可显式使用 `PKATLAS_GITHUB_PUBLISH=0 ./Scripts/build-unsigned.sh`；正式交付不应关闭自动发布。
+- 每个 Build 使用独立 `v<版本>-build<构建号>` 私人 Release 标签，不覆盖之前的 IPA。构建文件名、bundle 版本、SHA-256、内置 JS 语法、GitHub 附件都必须通过校验。
+- 私人 App 的版本提示由 181 服务器 Ed25519 签名版本清单驱动，GitHub 私有 Release 存储安装包；用户需要 GitHub 授权才可读取私人附件。每次实际发布还须同步更新服务器签名清单，缺少服务器操作权限时不能声称其已更新。
+
+## iOS 2.9（Build 15）｜统一曲线、节点匹配与私密发行
+
+- 曲线统一为一张双纵轴图（血药浓度 mg/L 左轴，剂量等效 mg 右轴），实线表示实际记录曲线，虚线表示饮食对照和预计模型；双参考值始终各自独立显示。
+- 反算候选 A/B 提供“一键到曲线预览”；未计算时显示已采用方案的未匹配节点虚线。手动关联、自动关联、跳过匹配、手动多选、未关联实际记录与调整意见均直接调用和网站同一版签名 JavaScript 算法。
+- 今天首页右上角显示醒目的当前药物名称，并突出显示已采用计划的下个预计节点。**预计服用不是实际服用记录**。
+- 本机加密恢复历史和上次验证通过的算法；每次进入个人页面都必须先验证服务器会话，401 或网络中断时隐藏个人信息，密文不删除。
+- 登录会话使用随机安装 ID 的哈希去重，并显示客户端提供的设备名称、操作系统版本和网页登录/原生 App 登录途径；没有可靠安装编号的旧会话不凭 IP 或 UA 猜测属于同一设备。
+- 未签名 IPA 只发布到**私有 GitHub 仓库**以及本人 iCloud Downloads。公开开源仓库只接受彻底脱敏后的代码和构建，不能直接上传本人的私人 IPA。
+- 自动更新检查继续使用服务器 Ed25519 签名版本清单，下载发行文件的 SHA-256 和发行版本号需一致；GitHub 私有版本需登录该私有账号才能访问。
+- 所有数学计划只供模型分析，不会自动生成已服用记录，不代表临床剂量建议。
+
+## 2026-11-17 · iOS 2.8（Build 14）最后上传者优先
+
+- 所有有变更的服药、饮食、日记、药盒、反算目标时间、参考线和设置以 **服务器最后成功提交的完整快照** 为准，网页与 iOS 使用同一个 `last-upload-wins-v1` 协议。删除数据也是完整快照的一部分，不进行三方字段合并。
+- iOS 每次修改分配唯一上传编号，网络故障使用同一编号重试；后端保证重复请求不覆盖更晚版本。后端保留最近 20 个被覆盖的私有完整快照供管理员恢复。
+- 未配置或不兼容的服务器会阻止危险的旧式覆盖；必须先升级服务器，再安装该版 IPA。
+- 离线旧设备稍后成功上传将覆盖其他设备较新的完整数据，请确保需要保留的修改都先在当前使用的设备同步完毕。
+
+# 药时 PK Atlas Native · iOS 2.8
+
+SwiftUI + Charts + JavaScriptCore 本地计算模型。Xcode 27.2（27B52）/ iOS 27.2 SDK，最低运行目标 iOS 26.0，适配 iPhone Duo、普通 iPhone 和 iPad。原生主页面不使用 WKWebView，可自行签名，不需上架 App Store。
+
+## 2026-11-17 · iOS 2.6（Build 10）隐私保护的 App 版本检查
+
+- App 启动或回到前台时匿名检查 `https://pk.example.com/api/native/version`，成功检查后 6 小时内复用状态，网络失败约 10 分钟后允许重试。设置页可立即手动检查，也可关闭自动检查；只检查版本，不下载或安装 IPA。
+- 版本清单有 **Ed25519 数字签名**（公钥与签名药代引擎共用，私钥仍留 181 的 root-only 路径），包含版本、Build、更新说明、文件名及 IPA SHA-256。对版本比较使用数值分段比较，避免字符串 `2.10 < 2.9` 错误；签名不符或指向外部下载的宣告一律拒绝。
+- 独立的 `URLSessionConfiguration.ephemeral` 禁用 Cookie、凭据及缓存，不调用 PKCloudAPI（它需要身份会话），请求没有账号、设备 ID、健康/服药记录、APNs 令牌或网络地址参数；固定最小化 User-Agent，拒绝 HTTP 重定向及外站跳转。
+- 181 的 Nginx 443 和 18081 两层 `/api/native/version` 专用精确路由 `access_log off`，不转发客户端 IP、Cookie 或 Authorization；Python API 亦忽略该路由的访问日志。**这仅能保护来源 IP 不进入站点此接口的访问日志和上游程序，不能让网络接入方 Cloudflare 不知道连接的出口 IP。** 要对 Cloudflare 隐藏真实出口 IP，需设备自行使用 VPN/代理。
+- 安装包来自用户 Mac mini 编译并保存在 **iCloud 云盘 → 下载**；App 显示新版本及文件名，供用户自行使用其签名方式安装，不提供会让设备直连第三方或源站 IP 的下载链接。
+- 每次未来发布新的 IPA，必须在 Mac mini 验证文件和 SHA-256 后，于 181 以 root 调用 `scripts/publish_native_release.py --version <version> --build <N> --artifact <filename> --sha256 <64 hex> --notes <说明>`，否则版本清单不会自动猜测已发布的新 IPA。
+
+## 2026-11-17 · iOS 2.5（Build 9）反算与用药数据修复
+
+- 「目标时刻」及反算控件改为与网站相同的按药物 `settings.inverseMemory` 字段，自动保存、加密草稿及云端同步；切药、网页登录同步后从云端恢复目标日期时间。持续时长、药盒次数及其余约束随同保存。
+- 「目标时刻精度限定」默认关闭，不开启时目标时刻的模型值可以高于参考线。开启后按当前参考单位严格核查血药浓度 ±0.5 mg/L 或等效 ±50 mg（可手动改），并对已有节点做有限完整规格搜索；若未找到符合容差的候选会明确提示“有界搜索未找到”，不伪称数学无解。
+- 反算曲线可以直接拖动或用滑块选任一时间，显示该时刻已记和候选模型值；图示目标时刻、参考线和可选精度上下界。
+- 主曲线同时显示血药浓度和剂量等效两张共享时间轴图，纵轴各自独立；包含已记、未计饮食及已采用假设多条线，可拖动查看。
+- Apple 健康读取按 API 的 `requiresPerObjectAuthorization()` 分别请求对象授权，避免误将要求逐项授权的类型走标准 API；新增授权/查询阶段诊断记录，不包含具体用药信息。仅在有效 iPhone HealthKit 签名授权上可进行真实数据验证；需要用户导出的药时 `.ips` 日志确认闪退根因。
+- 签名热更新原生能力新增 `inverse.target-window.v1`。旧版 App 遇到该能力会提示安装新 IPA，不把不存在的桥接接口硬加载到旧版 App。
+
+## 2026-11-17 · iOS 2.4（Build 7）签名引擎热更新
+
+- 新增公开只读 `GET https://pk.example.com/api/native/engine`：签名包同时包含药物数据、药代模型代码、反算算法与原生能力声明。**App 不再仅更新模型参数**，可热更新现有求解接口内的算法修正。
+- 使用 **Ed25519** 数字签名和 SHA-256：Mac mini App 包内仅固定发布公钥，181 的私钥保存在 `/etc/pk-atlas/native-engine-ed25519.pem`（root 0600），不可进入 Git、网站目录或 iCloud 安装包。Apple 的 JSCore 环境不向动态算法提供文件、网络或任意 Swift 原生对象桥接。
+- 安装后启动及回到前台自动下载验证，检查签名、算法、版本、参数及 `requiredCapabilities`，再用 JSContext 检查 `concentration/totalEquivalent/solveInverse/solveContinuousPoint`。成功后原子写入 App Application Support；离线恢复本机最近签名验证的算法；失败保留之前成功版本。
+- **曲线、主页、Siri 模型查询和反算都使用同一份最新已签名的 JavaScript 引擎**，没有将 Swift 老公式当作新版算法显示。与网站同时更新的能力通过现有 native bridge v1 运行。
+- 网站后续如果发布 `requiredCapabilities` 当前 App 不认识的新求解方法或协议版本，停止加载，提醒用户安装新版 IPA；已缓存旧算法与历史服药记录都保留。
+- 发布计算公式变更必须使用服务器 `scripts/deploy.sh`（整体发布），以便计算代码、模型版本和签名包同时切换；只更新前端且未匹配服务器模型版本时不会冒险签名不一致的代码。
+- 这套直接下载执行 JavaScript 算法的机制设计用于用户自行签名安装。**不符合 Apple App Store Review Guidelines 2.5.2 关于下载执行改变功能代码的一般要求**；提交 App Store 前应改为数据规则热更新或远程服务器计算。
+
+## 2026-11-17 · 2.3 药代目录自动热更新
+
+- 启动和从后台恢复时自动经正式 HTTPS 获取 `/api/native/model` 公开只读目录（不依赖登录/APNs）。为了避免频繁请求，前台恢复最多每两分钟核对一次，可在「我的 → 药代模型」手动强制检查。
+- SHA-256 校验目录字节、限制下载大小、验证药物 ID/生理参数/饮食加权、禁止丢失原有药物，先原子保存到 Application Support，验证成功后才激活；离线时恢复最近有效缓存或内置目录，出错不覆盖缓存。
+- 模型更新同时驱动原生 Swift 曲线与反算 JavaScriptCore 的药物/饮食参数，反算代码始终来自应用签名资源，不执行网络脚本，更新后清除旧数值缓存并重新计算。
+- App 固定与发布时网页 `frontend/03_model.js`、`frontend/04_inverse_solver.js` 对应的 SHA-256 算法指纹。未来网站计算代码变更时，即使目录变化也不强行跨版本套用，状态提示需要 App 更新。HTML/CSS 功能、系统通知代码、原生布局不能借此在线修改。
+- 服务器目录由 `shared/catalog.json` 和现有 `scripts/build.py` 自动生成，网站上线时同源生成后端目录及公式指纹。
+- Apple 健康仅获授权读取和人工确认导入；APNs 仍可选，本地服药提醒优先，本机不依赖 APNs 取得药物目录。
+
+## 2026-11-17 · 2.2 功能修订
+
+- Apple 健康：读取经用户授权的药物及“已服药”事件（最多最近 120 天/500 条），只匹配唯一识别的药物名称和明确的质量单位 mg/g/µg。未知商品名、片数、容量和不能直接换算的单位全部待人工核对。用户点击确认后才导入药时，并通过事件 UUID 与已有记录去重/关联；**绝不向 Apple 健康写入服药事件**。
+- “打开 Apple 健康”使用系统健康 App 的非公开 URL scheme 尝试启动，仅作为快捷方式；Apple 未公开支持定位、预填“用药登记”表单的 URL。失败时引导手工打开健康 → 用药。
+- 后台同步新增 `BGAppRefreshTask` 尽力而为地检查网站状态并重新调度本地提醒，同时保留前台同步和可选 APNs。iOS 决定后台任务时机，强制退出和低电量等情况下可能完全不执行；不能把它宣称为实时远程推送替代品。
+- 曲线参考线明确切换血药浓度 `mg/L` 与剂量等效量 `mg`，按现有网页模型保存口径。
+- 反算页面首次打开就显示前 8h/后 16h 基线曲线，有计算候选时叠加 A/B 曲线；两种单位、累计新增 mg 上限、整周期最低值、覆盖段峰值最低要求已对齐网页算法。
+- iOS `Resources/Model/site-engine.js` 与生产网页 `app.js` 同版本；反算桥接基于生产 `inverse-worker.js`，方案 B 使用受约束的最小峰谷差搜索。采用方案时同步保存全部约束，保留模型节点与实际服药的区分。
+- 181 的网页登录页已改为严格 CSP 允许的同源外部 CSS/JS、移动优先界面；缺少 PKCE 参数不再返回无说明的 JSON，仍严格拒绝无效请求。服务端 90 个测试通过。
+
+**未实现完全同等功能的部分：**iOS 的已采用方案与实际记录的逐节点多选人工匹配、网站已采用方案的自动调整建议及其采纳、网页端独立手动情景输入等还未全部做成对应原生控制。iOS 不是网站所有逆算功能的完全复刻。模拟器无法验证真机健康读取、Health App 跳转及系统后台调度。
+
+## 此次 2.1 改动与状态
+
+1. 曲线默认围绕当前时刻显示前 8 小时、后 16 小时（24 小时窗口），每 5 分钟一个采样点。
+2. 异步后台计算并缓存曲线，滑块操作只取缓存结果；缓存重新计算会在记录、药物或时间窗口变动时启动。
+3. 参考线编辑后自动保存本地并触发云端同步；同时修复 settings、plans 和 courses 未参与增量同步的问题。另一设备与本机同时更改同一项会暂停覆盖。
+4. 输入表单提供系统键盘“完成”按钮，滚动可收起键盘。
+5. 浓度 mg/L 与等效 mg 的输入切换时清空本页临时参考值，不互相继承。已保存参考值遵循现有网站的 per-drug mode/value 结构。
+6. 曲线对应的时间点显示计入饮食浓度、剂量等效量、未计饮食浓度、参考线；已有采用方案时增加相关情景指标。
+7. 完整生产版网站的 A/B 反算搜索内核打包为 Resources/Model/site-engine.js，在本机 JavaScriptCore 后台执行，不发网络计算请求。支持持续时长、目标时刻、节点数、药盒整单位约束和 A/B 搜索、采用/取消数学情景。其输出仅为数学候选，不能作为用药建议。
+8. 全部原生页面统一通过导航工具栏“记录服用”入口打开表单。编辑内容自动保存并在登录有效时尝试云端增量同步，首页不再显示单独的同步工具栏按钮。
+9. 开启系统通知后立即同步云端待提醒列表，时间变化会重建相关通知。APNs 静默更新设备登记、独立设备表和服务端数据版本事件已实现，但服务器还没有 Apple APNs .p8 密钥和团队配置；配置前不会真的发出远程变更推送，后台送达也不能保证实时。
+10. 完全移除 DG-LAB 跳转和相关 App 联动。
+11. 反算目标时间/持续窗口选中已经过去的时间会向后顺延一天，保持原来的时分。
+12. Apple iOS 26+ HealthKit Medications 公开 SDK 仅支持第三方读取获授权药物信息，不提供可创建已服药事件的写入 API。实现 Apple 健康授权读取清单，不使用其他数据类型冒充已服药。
+13. 登录使用 pk.example.com 的 ASWebAuthenticationSession 网页授权，采用一次性 PKCE 授权码、状态校验与 HTTPS 换取会话。App 不再提供账号密码输入框，长期会话仅存 Keychain。服务器原有 users/sessions 数据库架构保持不变。
+
+## 重要限制
+
+- Apple 的 HealthKit 无第三方 Medication Dose Event 写入 API。不能直接将药时记录写成 Apple 健康中的“已服药”事件。
+- APNs 需要你自己开发者团队的 Push Notifications 能力及 APNs Auth Key（.p8）、Key ID、Team ID，服务器才能真正向设备发送远程变更。模拟器不等于真机推送验收。
+- 网站授权接口已部署并通过公开登录页面与 API 健康检查，但还未使用真实用户账号完成端到端回调与跨设备同步测试。旧网页版数据与本机草稿务必保留。
+- 当前 PK 模型使用文献群体数据估算，不能用于自行增药、补服、停药或调整间隔。即使反算数学搜索给出完整药盒单位候选，也不代表临床方案。
+- Duo 外屏原生 UI 经模拟器测试，展开内屏与折叠状态切换仍需签名真机或 Device Hub 单独验收。
+- 未签名真机 IPA 需要自己证书/Provisioning Profile。设置 Push Notifications、HealthKit、Background Modes > Remote notifications，并核对 Debug 使用 development APNs entitlement，Release 使用 production entitlement。发布/侧载时按签名分发类型配置正确的 APNs 环境。
+
+## 构建
+
+Mac mini 源码：~/Projects/PKAtlas-iOS
+
+~~~bash
+cd ~/Projects/PKAtlas-iOS
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+xcodegen generate --spec project.yml
+Scripts/build-unsigned.sh
+~~~
+
+未签名 IPA 自动输出到 **iCloud 云盘/Downloads**（`~/Library/Mobile Documents/com~apple~CloudDocs/Downloads/`），按 App 版本及 Build 命名以保留历史版本；iCloud 不可用时不会回退到本地目录。可设置 `PKATLAS_IPA_OUTPUT_DIR` 显式指定其他位置。
+
+测试：NativeTests/ 下的本地数学、网站反算、参考线合并、时钟顺延、加密和兼容性单元测试；UITests/ 下的 Duo 原生交互测试。服务器源码和授权单元测试在 181：/srv/agentdock/pharmakinetics/source，生产应用路径 /opt/pk-atlas。完整 iPhone Duo 自动化测试：9/9 项 native XCTest 与 4/4 项 UI 测试通过；这不替代实际签名真机测试。服务器授权与 APNs 源代码补丁见 References/native-backend-2.1.patch（服务器提交 195bee9）。详细验收结果在 BUILD-VERIFICATION.md。
+
+### 本地与服务器安全
+
+- 真实本机用药记录由 Keychain AES-GCM 密钥加密；旧记录扩展字段保留。
+- 网站授权申请在浏览器进行，授权回调仅有一次性 code/state，不包含长效 session token。
+- 服务器原有主 SQLite 数据库结构不改动，原生 APNs 单独使用受保护的 native-apns.sqlite3 设备表。
+- 网络不通时，仍可本机计算并保留草稿，重新联网时核对账号和版本，不会静默覆盖冲突记录。
+- 下载/导出原始记录仅在用户明确触发时发生。
+- 不把 Apple 账号、个人密钥或医疗数据复制进 Git 提交。
 
 
-这是在 Mac mini 上生成的真实 iOS 工程。开发目标为 **Xcode 27.2 (27B52) + iOS 27.2 SDK**，面向 iPhone Duo 内外屏、普通 iPhone 和 iPad。最低部署版本为 iOS 26.0。
+## 181 服务器曲线优先（v2.3 build 6）
 
-## 架构与功能范围
+App 从 181 发布的模型参数中自动获得药物、饮食与半衰期等数学目录；首次打开、重新进入前台和可获得的系统后台唤醒尝试刷新。曲线首先由签名 App 内置公式快速计算，随即请求 181 的无状态 HTTPS 数学采样接口。校验服务器模型版本、目录 SHA-256、采样点数量及数值合法后，整个曲线数据集切换到服务器值，视图注明来源。离线、超容量、版本不一致或网络异常时继续显示本地数学模型，不删除真实服用记录。
 
-这是 **SwiftUI 原生导航 + Liquid Glass + 持久 WKWebView 的混合 App**，不是对现有药代计算引擎的完整 Swift 重写。原生 UI 提供返回、今天、曲线、历史、我的、原生系统菜单、文件分享、本机提醒和状态指示。复杂药代曲线、剂量等效模型、反算、服用和饮食记录、账号会话、自动保存和云端同步继续运行在线站点：https://pk.example.com。
+反算 A/B 仍使用已签入 App 的有界计算引擎，不声称数学公式可在已安装 iOS App 中直接热替换。服务器只保存模型目录和算法源码，API 请求中的假设输入不被写进服用数据库；新公式要保持离线可用，仍须重新构建及签名 App。
 
-这避免了重新实现算法产生计算偏差，也意味着 Web 内容部分仍然是已有的暗色网页组件，不是每一个数据录入控件都换成 SwiftUI。项目没有修改数据库和服务器接口。
+构建时 Scripts/sync-model-from-181.py 必须从正式 181 HTTPS 拉取模型与版本化前端计算脚本，拒绝引擎不一致。构建输出为未签名 IPA，写入 iCloud 云盘下载目录，安装需要设备有效签名。
 
-### iPhone Duo 与 Liquid Glass
 
-- 使用 iOS 27.2 SDK 构建时，由系统适配 iPhone Duo 外屏、展开内屏和侧边垂直工具栏。
-- 使用 NavigationStack 原生 toolbar，并依靠系统的非对称 safe area 和 reserved region，**不把返回键写死在 Wi-Fi 图标下方某个像素坐标**。
-- 顶部同步状态使用 SwiftUI glassEffect，工具栏保持系统原生 Liquid Glass 材质。
-- 折叠和展开仅重新布局同一个 WebView，不销毁或重新创建登录会话。
-- 已在 iPhone Duo iOS 27.2（24B91016s）模拟器验证外屏：右侧原生返回/更多、纵向标签栏、网页登录与保持登录复选框布局正常。展开内屏和折叠姿态切换尚未单独验证。
+### Apple 健康确认用药参与数学模型（v2.21）
 
-### 隐私与安全
+Apple 健康使用只读 HealthKit，仅读取 `taken` 事件。用户在「我的 → Apple 健康」逐条核对药物、质量单位 mg 和实际时间后，勾选「确认计入模型」会在同一次本机数据事务中建立真实服用记录，主曲线、反算和网页版均使用现有 `records` 计算入口，不另设第二套剂量表。登录时照常同步并回读到 181；未登录时只留在加密本地快照。旧版只有 `healthEventReviews.selected=true` 但未导入的确认记录，在新版登录/刷新时按 event UUID 幂等修复。取消确认只删除由该 HealthKit 事件创建的节点，绝不删除关联的用户手动历史记录。未知药物、片数/粒数/mL 等未经人工确认的剂量均不得直接入模；数学浓度不是个人实测，也不是服药建议。分享药名供词库审核依旧要求另一次明确同意。
 
-- 仅允许内置主 WebView 加载精确 HTTPS 域名 pk.example.com，外部链接交给系统。
-- 只使用 WebKit 自己的持久 Cookie 存储，不将用户名、密码、API 密钥、服药数据写进工程或 Native UserDefaults。
-- 桥接只传输同步状态、导航页和记录发生变化这一事件，不接收药物明细。
-- 首次启动 App 需单独登录；Safari 与 WKWebView 不是同一个登录容器。
-- 离线记录依赖已有网站的 Service Worker 和经验证的浏览器草稿。云端同步需要网络，离线授权不能实时判断远端撤销。
-- 导出的记录通过 iOS 系统分享界面，由你自己决定是否保存；App 不自动上传到其他服务。
 
-### 通知限制
+### v2.26（Build 32）反算「在曲线中显示」跳转修正
 
-原有网页 Web Push **不能直接当作原生 App 的 APNs 推送**。新工程提供用户主动开启的本机提醒：
-- 原生 App 在有网络、登录有效时读取已有的 /api/push/pending 接口。
-- 把未来最多 7 天、最多 48 条模型提醒转为 UNUserNotificationCenter 本机通知。
-- 锁屏只显示通用提醒，不显示药名和剂量。
-- 每次启动、前台返回或本站通知记录发生变化时尝试核对。
-- **其他设备在本 App 被系统挂起后改变计划，不会立即刷新本机通知。** 真正的 APNs 远程推送需要额外的签名能力、APNs Key 和后端变更，目前尚未实现。
-- 模型提醒不是药物安全建议，不能依此自行改变用药剂量。
+- A/B 候选和已采用方案均跳转至反算页面内 **SVG 绘图区**，不是包含表单的整个卡片顶部。
+- A/B 以当前数学候选目标时刻定位；已采用方案读取已持久化的 `adoptedPointPlan.target`，不再使用当前时间或另一个草稿的目标值。传统旧方案缺目标值时定位至首个假设节点。
+- 手动点击后以选中时刻为中心生成 48 小时视窗，修复零点等日界线贴边和旧时间轴日期错位。
+- 仅用户明确点击跳转或「定位现在」才改变导航 token 并强制重居中；普通后台校验/屏幕调整保留用户手动横向浏览位置。
+- iPhone Duo 实际 UI 自动化验证 A/B 按钮落在曲线区域；WebKit 自动化验证二次点击会居中、无操作的刷新保留位置。
 
-## Mac mini 状态（2026-11-16）
 
-- 已核查系统为 macOS 27.3 arm64。
-- 已安装 Xcode 27.2 (27B52)，iOS 27.2 真机与模拟器 SDK 已验证；全局 xcode-select 仍指向 CommandLineTools，但打包脚本会自动使用 /Applications/Xcode.app/Contents/Developer。
-- 已安装 Homebrew XcodeGen 2.46.0，生成 PKAtlas.xcodeproj。
-- 已完成 Xcode 首次启动许可。Duo 运行时 24B91016s 已安装、Duo 模拟器启动成功。
-- 使用 iphoneos27.2 SDK 成功编译 Release 并生成 unsigned IPA；也已完成 iphonesimulator27.2 Debug 构建。系统目前无可用签名证书，须由你自行签名。
+## v2.28 Build 34 · 起始数学条件与最低值覆盖段
 
-## 你自行签名并安装
+- 在反算目标时刻模式下，如果同药没有有效残留期内的真实起始服用，且当前模型低于目标参考线，用户需明确设置**起始模型值**。可以点击“按当前参考值假设起始已达标”，也可以输入当前目标口径下的自定义值（mg/L 或 mg 等效）。
+- 起始模型值按照本药口服达峰模型校准为一个**仅用于数学运算的虚拟初始状态**。它不是实际服用、不是血药实测，不加入真实服用、Apple 健康、服药提醒或通知；反算图表仅以假设虚线展示。若后续出现实际服用，已采用模型的起始虚拟贡献停止叠加，以免重复估算。
+- 如果已记录有效起始服用，或者当前模型已经在参考线之上，则无需这个字段。切换血药/等效目标单位会清空旧初始值以免单位混用。
+- 周期最低值从模型建立**连续覆盖段的起点**检查，而不是强制从当前吸收尚未发生的一瞬间检查。仍然保留目标时刻、单节点上限、累计上限及其他显式约束，并报告有限搜索的真实失败原因。
+- 网页和原生 App 使用同一个有版本/签名核对的公式实现。起始模型草稿保存于当前药物的 inverseMemory 中，云端同步只保存用户输入和独立的已采用模型快照，不创建实际服药记录。
 
-1. Xcode 27.2（27B52）、iOS SDK 27.2 和 Duo 运行时已经安装在 Mac mini。
-2. 进入 ~/Projects/PKAtlas-iOS 并打开 PKAtlas.xcodeproj。
-3. 如终端仍指向旧的 CommandLineTools，可仅在终端设置 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer，不必全局修改系统路径。
-4. 运行 Scripts/validate-source.sh 和 Scripts/build-unsigned.sh，可在 dist 目录重新生成未签名 IPA。
-5. 在 Xcode 的 Signing & Capabilities 中设置你自己的 Team / Bundle ID / provisioning profile。可以使用个人开发证书、Ad Hoc 或合法企业分发方式，不要求上架 App Store。
-6. Duo 外屏已经通过模拟器验收；还应在 Device Hub 展开内屏、折叠切换、旋转和分屏模式，以及真机上进一步验收。
-7. 用 Xcode Product → Archive → Distribute App 生成你自己签名的安装包。
-8. 如果你更喜欢第三方签名工具，可在 Xcode 27.2 安装成功后运行 Scripts/build-unsigned.sh，生成未签名 IPA。它仍需要你的有效签名与设备授权才能安装。
-
-请不要把 Apple ID 密码、.p12 私钥、provisioning profile 或 APNs Key 上传到项目或聊天中。
-
-## 文件
-
-- project.yml / PKAtlas.xcodeproj：工程定义和可在 Xcode 打开的工程。
-- Sources/PKAtlasApp.swift：SwiftUI App 入口。
-- Sources/GlassRootView.swift：Liquid Glass 导航和 Duo 系统工具栏。
-- Sources/AtlasWebSession.swift：WebKit 安全、会话、JS 弹窗、外链、下载。
-- Sources/AtlasWebView.swift：单实例 WebView。
-- Sources/ReminderCoordinator.swift：可选的本机通知。
-- Resources/Assets.xcassets：应用图标和配色。
-- Resources/PrivacyInfo.xcprivacy：隐私清单。
-- Scripts/validate-source.sh：无 iOS SDK 时的静态检查。
-- Scripts/build-unsigned.sh：要求 Xcode 27.2 的真实设备编译脚本。
-- Scripts/build-simulator.sh：iOS 27.2 Simulator Debug 编译。
-- UITests/PKAtlasUITests.swift：Duo 和普通 iPhone 的原生导航、登录加载测试。
-- BUILD-VERIFICATION.md：实测构建与验收报告。
-
-## 验证状态
-
-- [x] 所有 Swift 文件的 swiftc -frontend -parse 语法解析。
-- [x] XcodeGen 创建真实 .xcodeproj，项目和 Info.plist 结构检查。
-- [x] 原生返回、网页导航、模态确认及下载的源码功能。
-- [x] iPhone Duo 系统布局模式与 Liquid Glass 源码实现。
-- [x] 本机通知和严格一方 HTTPS 域名处理。
-- [x] Xcode 27.2 的 iphoneos Release 和 iphonesimulator Debug 构建通过，未签名 IPA 生成成功。
-- [x] iPhone 18 Pro 3/3 原生 UI 自动化测试通过。
-- [x] iPhone Duo 4/4 UI 测试通过（含真实 HTTPS 登录页面加载）。
-- [x] iPhone Duo 外屏及右侧纵向工具栏实际截图验收。
-- [ ] Duo 展开内屏、折叠状态变化和分屏姿态验收。
-- [ ] 使用你自己的证书签名 IPA 并在真实设备上安装。
-- [ ] APNs 原生远程推送。
-
-**模型计算仅为估算参考，不是个体血药浓度实测、药效或医学用药指导。**
-
-## 2026-11-20 · v2.27 Build 33
-
-The Today screen opens the same dose editor as History. The optional standalone Swift chart tab is hidden by default; enable it in Settings (我的) to instantiate/render that tab, while inverse chart remains available. A next-day inverse target is horizontally located on today’s 48-hour timeline and only the selected inverse reference unit is drawn. Zero-taken-dose cases use the saved whole-unit strengths without requiring a prior recorded dose; infeasible constraints remain explicit. The production IPA stays in a separate private Release.
+任何计算输出都仅为数学模拟，不构成个体给药建议。

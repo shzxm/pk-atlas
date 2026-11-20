@@ -80,6 +80,21 @@ function referenceSetting(){
   return{mode,raw,value:raw?Number(raw):null,unit:mode==="equivalent"?"mg（等效）":"mg/L",name:mode==="equivalent"?"剂量等效量":"血药浓度"};
 }
 function modelValue(drug,time,rows,mode="blood"){return mode==="equivalent"?totalEquivalent(drug,time,rows):concentration(drug,time,rows)}
+// A starting model level is a VIRTUAL pre-existing state, not an actual
+// ingestion. Calibrate a peak-phase dose-equivalent solely to reproduce the
+// explicitly chosen baseline at `now`. Never insert this row in records.
+function pkInitialHypothesis(drug,now,mode,value){
+  if(!["blood","equivalent"].includes(mode)||!(Number.isFinite(now)&&Number.isFinite(value)&&value>0&&value<=1000000))
+    return null;
+  const peakHours=Number(drug.tmax);
+  if(!(peakHours>0&&Number.isFinite(peakHours)))return null;
+  const time=now-peakHours*3600000;
+  const response=doseModelValue(drug,1,time,now,mode);
+  if(!(response>1e-15&&Number.isFinite(response)))return null;
+  const mg=value/response;
+  if(!(mg>0&&Number.isFinite(mg)))return null;
+  return{id:"pk-model-initial-assumption",drug:drug.id,time,mg,source:"model-only-initial",planningOnly:true};
+}
 function doseModelValue(drug,mg,doseTime,time,mode="blood"){return mode==="equivalent"?doseEquivalent(drug,{time:doseTime,mg},time):singleConcentration(drug,mg,(time-doseTime)/3600000,doseTime)}
 // Mathematical truncation only: 44 modeled half-lives plus the longest
 // absorption/peak-search horizon. Not an elimination time or clinical interval.

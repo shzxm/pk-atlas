@@ -51,15 +51,21 @@ function drawChart(){
   const previous=chartView,previousScroll=wrap.scrollLeft,previousViewport=wrap.clientWidth;svg.replaceChildren();
   const mobile=window.innerWidth<560,H=mobile?300:390,L=mobile?42:59,R=mobile?54:65,T=25,B=mobile?83:94;
   const adopted=adoptedPlan();
-  const activeScenario=appliedPointScenario?.drug===current?appliedPointScenario:adopted?(()=>{const state=currentAdoptedEvaluation(adopted);return{drug:current,target:adopted.target,threshold:adopted.threshold,mode:adopted.mode,doses:state.pending,adoptedVariant:adopted.variant||"A"}})():null;
+  const activeScenario=appliedPointScenario?.drug===current?appliedPointScenario:adopted?(()=>{const state=currentAdoptedEvaluation(adopted);return{drug:current,target:adopted.target,threshold:adopted.threshold,mode:adopted.mode,doses:state.pending,initialHypothesis:adopted.initialModel,adoptedVariant:adopted.variant||"A"}})():null;
   const manual=activeScenario?null:getScenario(),multi=activeScenario?.doses||null;
   const scenario=multi?{time:multi[0]?.time??activeScenario.target,mg:0,doses:multi}:manual,scenarioTime=scenario&&!scenario.invalid?scenario.time:null;
   const separatePreview=scenario&&!scenario.invalid?(scenario.doses||[{time:scenario.time,mg:scenario.mg}]):[];
-  const previewRows=adopted
+  let previewRows=adopted
     ? [...separatePreview,...adoptedIncludedScheduledDoses(adopted,rows,separatePreview)]
-        .filter((item,index,array)=>!array.slice(0,index).some(other=>
-            Math.abs(other.time-item.time)<=60000&&Math.abs(other.mg-item.mg)<.0001))
-    : (typeof futurePreviewNodes==="function"?futurePreviewNodes(current,separatePreview):separatePreview);
+       .filter((item,index,array)=>!array.slice(0,index).some(other=>
+         Math.abs(other.time-item.time)<=60000&&Math.abs(other.mg-item.mg)<.0001))
+    : futurePreviewNodes(current,separatePreview);
+  const assumption=activeScenario?.initialHypothesis;
+  const assumedAt=Number(adopted?.initialModel?.at)||0;
+  const realAfterAssumption=!!adopted&&rows.some(r=>r.drug===current&&r.time>=assumedAt&&r.time<=Date.now());
+  if(assumption&&Number.isFinite(assumption.time)&&Number.isFinite(assumption.mg)&&
+     assumption.mg>0&&!realAfterAssumption)previewRows=[...previewRows,
+       {id:"pk-model-initial-assumption",drug:current,time:assumption.time,mg:assumption.mg,initialModel:true,planningOnly:true}];
   const now=Date.now(),start=dayStart(selectedDate),end=start+48*3600000;
   const scale=Number($("chartScale").value)||55;
   const W=Math.min(16000,Math.max(mobile?360:760,wrap.clientWidth||0,Math.ceil((end-start)/3600000*scale)+L+R));
@@ -68,8 +74,7 @@ function drawChart(){
   const count=Math.min(600,Math.max(288,Math.ceil(W/5))),points=[],modelRows=rows.filter(r=>r.time>=start-residualWindowHours(d)*3600000&&r.time<=end);
   const times=Array.from({length:count+1},(_,i)=>Math.round(start+(end-start)*i/count));
   const allMeals=intakes.filter(m=>m.kind==="meal"&&m.time>=start-3*86400000&&m.time<=end+86400000);
-  const validRemoteInputs=modelRows.length<=300&&previewRows.length<=30&&allMeals.length<=160&&
-    modelRows.every(r=>r.time>=start-180*86400000);
+
   const mathRequest={
     drugId:d.id,times,
     records:modelRows.map(r=>({drug:d.id,time:Math.round(r.time),mg:r.mg})),
@@ -77,18 +82,27 @@ function drawChart(){
     meals:allMeals.map(m=>({kind:"meal",time:Math.round(m.time),mealType:m.mealType==="highFat"?"highFat":"regular"})),
     renalCrCl:Number.isFinite(renal?.crcl)?renal.crcl:null
   };
-  const mathKey=pkServerCurveKey({model:typeof PKVerifiedWebCatalog!=="undefined"?PKVerifiedWebCatalog?.version:null,...mathRequest});
-  const authoritative=validRemoteInputs&&pkServerCurveCache?.key===mathKey?pkServerCurveCache.points:null;
-  if(validRemoteInputs&&!authoritative)pkServerCurveRequest(mathKey,mathRequest);
+  const mathKey=pkServerCurveKey({engine:PK_MODEL_ENGINE_VERSION,
+    model:typeof PKVerifiedWebCatalog!=="undefined"?PKVerifiedWebCatalog?.version:null,...mathRequest});
+  const authoritative=pkLocalCurveCache?.key===mathKey?pkLocalCurveCache.points:null;
+  if(!authoritative&&pkLocalCurveRequest(mathKey,mathRequest)){
+    // Never synchronously block the UI calculating hundreds of samples.
+    // The exact same local kernel runs in the Worker and triggers one paint.
+    chartView=null;
+    $("timeScrubber").disabled=true;
+    $("chartCaption").textContent=`正在浏览器本地计算 ${count+1} 个曲线采样点…`;
+    return;
+  }
   const previewFoodEffect=!!FOOD_INFO[d.id]?.fed&&previewRows.some(row=>mealForDose(row.time,d.id));
   for(let i=0;i<=count;i++){
     const t=times[i],remote=authoritative?.[i];
-    const eq=remote?.equivalentMg??totalEquivalent(d,t,modelRows);
+    const eq=remote?.eq??totalEquivalent(d,t,modelRows);
     points.push({t,
-      c:remote?.bloodMgL??concentration(d,t,modelRows),
-      unfed:remote?.unfedMgL??concentration(d,t,modelRows,false),
-      eq,eqPreview:previewRows.length?(remote?.plannedEquivalentMg??eq+totalEquivalent(d,t,previewRows)):null,
-      bloodPreview:previewRows.length?(remote?.plannedBloodMgL??null):null});
+      c:remote?.c??concentration(d,t,modelRows),
+      unfed:remote?.unfed??concentration(d,t,modelRows,false),
+      eq,eqPreview:previewRows.length?(remote?.eqPreview??eq+totalEquivalent(d,t,previewRows)):null,
+      bloodPreview:previewRows.length?(remote?.bloodPreview??null):null,
+      unfedBloodPreview:previewRows.length?(remote?.unfedBloodPreview??null):null});
   }
   const peak=points.reduce((a,b)=>b.c>a.c?b:a,{t:start,c:0});
   const unfedPeak=points.reduce((a,b)=>b.unfed>a.unfed?b:a,{t:start,unfed:0});
@@ -98,7 +112,7 @@ function drawChart(){
   const foodEffectPoint=recordedMealRows.length&&dayEffectPoints.length?dayEffectPoints.reduce((a,b)=>Math.abs(b.c-b.unfed)>Math.abs(a.c-a.unfed)?b:a):null;
   let scenarioPeak=0;
   const scenarioContribution=(t,includeFood=true)=>previewRows.reduce((sum,row)=>sum+singleConcentration(d,row.mg,(t-row.time)/3600000,row.time,includeFood),0);
-  if(scenario&&!scenario.invalid)for(const p of points)scenarioPeak=Math.max(scenarioPeak,p.c+scenarioContribution(p.t));
+  if(previewRows.length)for(const p of points)scenarioPeak=Math.max(scenarioPeak,p.bloodPreview??p.c+scenarioContribution(p.t));
   const maxY=Math.max(.001,peak.c*1.23,hasFoodEffect?unfedPeak.unfed*1.23:0,scenarioPeak*1.2,!referenceEquivalent&&threshold!==null&&Number.isFinite(threshold)&&threshold>0?threshold*1.13:0);
   const maxEq=Math.max(1,...points.map(p=>Math.max(p.eq,p.eqPreview||0)),referenceEquivalent&&threshold!==null&&Number.isFinite(threshold)&&threshold>0?threshold:0)*1.18;
   const x=t=>L+(t-start)/(end-start)*(W-L-R),y=c=>H-B-c/maxY*(H-T-B),yEq=amount=>H-B-amount/maxEq*(H-T-B);
@@ -141,10 +155,11 @@ function drawChart(){
     const slot=level<0?lastLabelX.indexOf(Math.min(...lastLabelX)):level;
     lastLabelX[slot]=xx;
     const label=svgEl("text",{x:Math.min(W-R-5,Math.max(L+5,xx+4)),y:H-B+36+slot*15,fill:color,"font-size":mobile?9:10});
-    label.textContent=`${dose.preview?"预计 ":dose.matched?"已匹配 ":""}${dateText(dose.time)} · ${fmt(dose.mg,3)} mg`;
+    label.textContent=dose.initialModel?`仅数学起点假设 · ${dateText(dose.time)} · 非服药记录`:
+      `${dose.preview?(scheduledDoses.some(d=>d.id===dose.id)?"计划 ":"情景 "):dose.matched?"已匹配 ":""}${dateText(dose.time)} · ${fmt(dose.mg,3)} mg`;
     svg.append(label);
   }
-  if(rows.length||scenario&&!scenario.invalid){
+  if(points.length){
     if(hasFoodEffect){const unfedPath=points.map((p,i)=>`${i?"L":"M"}${x(p.t).toFixed(2)} ${y(p.unfed).toFixed(2)}`).join(" ");svg.append(svgEl("path",{d:unfedPath,fill:"none",stroke:CHART_COLORS.unfed,"stroke-width":2,"stroke-dasharray":"6 5","stroke-linejoin":"round"}))}
     const path=points.map((p,i)=>`${i?"L":"M"}${x(p.t).toFixed(2)} ${y(p.c).toFixed(2)}`).join(" ");
     svg.append(svgEl("path",{d:`${path} L${x(end)} ${y(0)} L${x(start)} ${y(0)} Z`,fill:"url(#curveFill)"}));
@@ -153,10 +168,10 @@ function drawChart(){
     svg.append(svgEl("path",{d:equivalentPath,fill:"none",stroke:CHART_COLORS.equivalent,"stroke-width":2.5,"stroke-linejoin":"round","stroke-linecap":"round"}));
     if(foodEffectPoint&&Math.abs(foodEffectPoint.c-foodEffectPoint.unfed)>.001){const xx=x(foodEffectPoint.t);svg.append(svgEl("line",{x1:xx,y1:y(foodEffectPoint.c),x2:xx,y2:y(foodEffectPoint.unfed),stroke:"#f6cd83","stroke-width":2.5}));for(const value of [foodEffectPoint.c,foodEffectPoint.unfed])svg.append(svgEl("circle",{cx:xx,cy:y(value),r:4,fill:"#f6cd83",stroke:"#1b1c20","stroke-width":1.5}))}
     rows.filter(r=>r.time>=start&&r.time<=end).forEach(r=>svg.append(svgEl("circle",{cx:x(r.time),cy:y(0),r:3.5,fill:CHART_COLORS.blood})));
-    if(scenario&&!scenario.invalid){
+    if(previewRows.length){
       const preview=points.map((p,i)=>`${i?"L":"M"}${x(p.t).toFixed(2)} ${y(p.bloodPreview??p.c+scenarioContribution(p.t)).toFixed(2)}`).join(" ");
       svg.append(svgEl("path",{d:preview,fill:"none",stroke:CHART_COLORS.previewBlood,"stroke-width":2.2,"stroke-dasharray":"5 5","stroke-linejoin":"round"}));
-      if(previewFoodEffect){const withoutPreviewFood=points.map((p,i)=>`${i?"L":"M"}${x(p.t).toFixed(2)} ${y(p.c+scenarioContribution(p.t,false)).toFixed(2)}`).join(" ");svg.append(svgEl("path",{d:withoutPreviewFood,fill:"none",stroke:CHART_COLORS.unfed,"stroke-width":1.6,"stroke-dasharray":"2 5","stroke-linejoin":"round"}))}
+      if(previewFoodEffect){const withoutPreviewFood=points.map((p,i)=>`${i?"L":"M"}${x(p.t).toFixed(2)} ${y(p.unfedBloodPreview??p.c+scenarioContribution(p.t,false)).toFixed(2)}`).join(" ");svg.append(svgEl("path",{d:withoutPreviewFood,fill:"none",stroke:CHART_COLORS.unfed,"stroke-width":1.6,"stroke-dasharray":"2 5","stroke-linejoin":"round"}))}
       const eqPreviewPath=points.map((p,i)=>`${i?"L":"M"}${x(p.t).toFixed(2)} ${yEq(p.eqPreview).toFixed(2)}`).join(" ");
       svg.append(svgEl("path",{d:eqPreviewPath,fill:"none",stroke:CHART_COLORS.previewEquivalent,"stroke-width":2,"stroke-dasharray":"5 5","stroke-linejoin":"round"}));
       if(activeScenario&&activeScenario.target>=start&&activeScenario.target<=end){
@@ -195,8 +210,8 @@ function drawChart(){
   const mealTypes=FOOD_INFO[d.id]?.fed?[...new Set(modelRows.map(r=>mealForDose(r.time,d.id)?.mealType).filter(Boolean))].map(type=>type==="highFat"&&FOOD_INFO[d.id].fed.highFat?"高脂餐":"普通餐").join("、"):"";
   $("chartCaption").textContent=rows.length?`仅统计${d.name} · 历史共 ${rows.length} 次记录，同药物跨日残留已计入${activeScenario?.adoptedVariant?` · 已采用方案 ${activeScenario.adoptedVariant} 的剩余节点显示为虚线`:""}${mealTypes?` · 餐型：${mealTypes}`:""}${hasFoodEffect?` · 已计饮食峰值约 ${fmt(peak.c,3)} mg/L；未计饮食参考峰值约 ${fmt(unfedPeak.unfed,3)} mg/L`:""} · 当前窗口 ${dateText(start)}—${dateText(end)}`:scenario&&!scenario.invalid?`${d.name}暂无已记服用；蓝色虚线为假设血药浓度，紫色虚线为假设剂量等效量 · 当前窗口 ${dateText(start)}—${dateText(end)}`:`${d.name}暂无单次记录`;
   $("chartCaption").textContent+=authoritative?
-    " · 当前曲线由181服务器计算（同版本模型校验）":
-    " · 当前曲线为本地数学模型（等待181或离线）";
+    " · 当前曲线由本机浏览器 Web Worker 直接计算（无需服务器求值）":
+    " · 当前曲线由本机浏览器计算（Worker 兼容降级）";
   if(visibleMeals.length)$("chartCaption").textContent+=` · 绿色竖虚线＝已记录或计划用餐${foodEffectPoint?"；金色竖线＝当日餐后与空腹对照差异最大的位置":""}`;
   const mealStatus=$("chartMealStatus");mealStatus.replaceChildren();mealStatus.hidden=!recordedMealRows.length&&!previewRows.length&&!unmatchedVisibleMeals.length;
   for(const meal of unmatchedVisibleMeals){const note=document.createElement("p");note.textContent=unmatchedMealMessage(meal,d.id,rows);mealStatus.append(note)}
@@ -211,3 +226,33 @@ function drawChart(){
   renderCrossing(rows,points,peak,reference);
   $("insight").textContent=rows.length?`当前时间窗的简化模型峰值约 ${fmt(peak.c,peak.c<1?3:2)} mg/L。此前日期中相同药物的记录也参与本药曲线；其他药物各自计算，不合并浓度。浓度不等于疗效。`:"选择日期后新增服用记录，或输入假设剂量观察模型。";
 }
+/*
+ * Disclosure and navigation controller. This is view-only state:
+ * it never mutates medical records, model inputs, or cloud data.
+ */
+const VIEW_PREF_KEY = "pk-atlas-disclosures-v2";
+function readDisclosurePreferences(){
+  try{
+    const value=JSON.parse(localStorage.getItem(VIEW_PREF_KEY)||"{}");
+    return value&&typeof value==="object"&&!Array.isArray(value)?value:{};
+  }catch{return {}}
+}
+function openDisclosure(id,focus=false){
+  const target=$(id);
+  if(!target||target.tagName!=="DETAILS")return false;
+  target.open=true;
+  try{
+    const preferences=readDisclosurePreferences();
+    preferences[id]=true;
+    localStorage.setItem(VIEW_PREF_KEY,JSON.stringify(preferences));
+  }catch{}
+  requestAnimationFrame(()=>{
+    target.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"instant":"smooth",block:"start"});
+    if(focus)target.querySelector(":scope > summary")?.focus({preventScroll:true});
+  });
+  return true;
+}
+/**
+ * Only presents values from the chart's probe. Does not calculate drug doses
+ * or change cloud state.
+ */

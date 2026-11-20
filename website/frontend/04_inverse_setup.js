@@ -9,12 +9,14 @@ function restoreInverseInputs(){
   const point=new Date(saved.pointTarget||"").getTime();
   pointTargetTouched=Number.isFinite(point)&&point>now+60000&&point<=now+24*3600000;
   $("pointTarget").value=pointTargetTouched?localInput(point):defaultPointTarget();
+  $("pointInitialValue").dataset.mode=referenceSetting().mode;
+  $("pointInitialValue").value=saved.pointInitialMode===referenceSetting().mode?(saved.pointInitialValue||""):"";
   const start=new Date(saved.targetStart||"").getTime();
   targetStartTouched=Number.isFinite(start)&&start>now+60000;
   $("targetStart").value=targetStartTouched?saved.targetStart:localInput(now+2*3600000);
 }
 function rememberInverseInputs(){
-  inverseMemory[current]={...Object.fromEntries(INVERSE_FIELDS.map(id=>[id,(id==="pointTargetLimitEnabled"?($(id).checked?"1":"0"):id==="pointTarget"&&!pointTargetTouched||id==="targetStart"&&!targetStartTouched?"":$(id).value).slice(0,32)])),...(inverseMemory[current]?.adoptedPointPlan?{adoptedPointPlan:inverseMemory[current].adoptedPointPlan}:{})};
+  inverseMemory[current]={...Object.fromEntries(INVERSE_FIELDS.map(id=>[id,(id==="pointTargetLimitEnabled"?($(id).checked?"1":"0"):id==="pointTarget"&&!pointTargetTouched||id==="targetStart"&&!targetStartTouched?"":$(id).value).slice(0,32)])),pointInitialMode:referenceSetting().mode,...(inverseMemory[current]?.adoptedPointPlan?{adoptedPointPlan:inverseMemory[current].adoptedPointPlan}:{})};
   setStored("pk-atlas-inverse-by-drug-v1",JSON.stringify(inverseMemory));
   clearTimeout(inverseSaveTimer);inverseSaveTimer=setTimeout(persist,500);
 }

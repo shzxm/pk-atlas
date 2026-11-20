@@ -100,11 +100,29 @@ final class PKNativeInverseTests: XCTestCase {
             cycleFloor: PKInverseLimit(value: 0, mode: "blood"),
             peakRequirement: PKInverseLimit(value: 0, mode: "equivalent"),
             totalCap: nil, targetWindow: PKInverseTargetWindow(enabled: false, value: 0))
-        let output = try await PKNativeInverseSolver.solve(input)
+        let missing = try await PKNativeInverseSolver.solve(input)
+        XCTAssertEqual(missing.result?.reason, "initialBaselineRequired",
+                       "No actual start and below-reference model requires an explicit hypothesis")
+        var withStart = input
+        withStart.initialBaseline = PKInverseInitialBaseline(mode: "blood", value: 0.01)
+        withStart.cycleFloor = PKInverseLimit(value: 0.009, mode: "blood")
+        let output = try await PKNativeInverseSolver.solve(withStart)
         XCTAssertNil(output.error)
-        XCTAssertNil(output.result?.reason, "No actual doses must not block inverse calculation")
+        XCTAssertNil(output.result?.reason, "Explicit initial state should enable planned coverage")
         XCTAssertNotNil(output.result?.doses)
         XCTAssertNotNil(output.minimum?.doses)
+        XCTAssertGreaterThan(output.initialHypothesis?.mg ?? 0, 0)
+        XCTAssertGreaterThanOrEqual(output.result?.cycleObserved ?? 0, 0.009 - 0.000001)
+        var custom = withStart
+        custom.initialBaseline = PKInverseInitialBaseline(mode: "blood", value: 0.015)
+        let customResult = try await PKNativeInverseSolver.solve(custom)
+        XCTAssertNil(customResult.result?.reason)
+        XCTAssertGreaterThan(customResult.initialHypothesis?.mg ?? 0,
+                             output.initialHypothesis?.mg ?? 0)
+        var invalid = withStart
+        invalid.initialBaseline = PKInverseInitialBaseline(mode: "equivalent", value: 50)
+        let rejected = try await PKNativeInverseSolver.solve(invalid)
+        XCTAssertEqual(rejected.result?.reason, "initialBaselineInvalid")
     }
 
     func testWebsiteInverseEngineLoadsAndIdentifiesMissingDrugStrengths() async throws {
@@ -118,7 +136,7 @@ final class PKNativeInverseTests: XCTestCase {
             start: now + 3_600_000, hours: 2, countText: "",
             cycleFloor: PKInverseLimit(value: 0, mode: "blood"),
             peakRequirement: PKInverseLimit(value: 0, mode: "equivalent"),
-            totalCap: nil
+            totalCap: nil, initialBaseline: PKInverseInitialBaseline(mode: "blood", value: 0.6)
         )
         let output = try await PKNativeInverseSolver.solve(input)
         XCTAssertNotNil(output.result)

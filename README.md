@@ -145,3 +145,7 @@ The `ios/` tree now contains the entire source set required for the v2.26 Build 
 ### 2026-11-20 · Today editing and local-first chart/inverse
 
 Live website bundle `website/web/app.js` v`web-ui-20261120b` and the two browser workers are included. Taken doses shown on the Today dashboard have the same edit/delete flow as History. A next-day target stays on the 48-hour axis starting today. Existing inverse references retain the current selected target mode only. Browser mathematical sampling is local Web Worker work, not an HTTP request to the server. The matching SwiftUI native source is v2.27 Build33 under `ios/`; production unsigned IPA remains private.
+
+### 2026-11-20 · Explicit initial model assumption and planned-coverage floor
+
+Website bundle `web-start-initial-20261120e` and native App v2.28 Build34 share one math engine. When current modeled level is below the reference and no actual starting intake exists, inverse calculation requires an explicit initial modeled value: the user can select the reference as a hypothetical starting level, or enter a positive custom value in the selected unit. The model-only baseline is never an actual intake or measured concentration and is plotted only as a hypothetical curve; accepted plans store it separately and suppress the assumption after actual new intakes. The cycle-floor check runs from continuous modeled coverage to target, not from the instant before absorption. The public source contains no account data, credentials or production IPA.

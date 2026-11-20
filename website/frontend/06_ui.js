@@ -241,6 +241,19 @@ function init(){
       rememberInverseInputs();appliedPointScenario=null;schedulePointInverse();
     });
   }
+  $("pointInitialUseReference").addEventListener("click",()=>{
+    const ref=referenceSetting();if(!(ref.value>0))return;
+    $("pointInitialValue").value=String(ref.value);
+    $("pointInitialValue").dataset.mode=ref.mode;
+    rememberInverseInputs();appliedPointScenario=null;schedulePointInverse();
+  });
+  const initialField=$("pointInitialValue");
+  const syncInitialValidity=()=>initialField.setAttribute("aria-invalid",
+    String(initialField.matches(":user-invalid")));
+  initialField.addEventListener("blur",syncInitialValidity);
+  initialField.addEventListener("input",()=>{
+    syncInitialValidity();rememberInverseInputs();appliedPointScenario=null;schedulePointInverse();
+  });
   for(const id of ["pointPeakMin","pointPeakMode","pointCycleMin","pointCycleMode"]){
     $(id).addEventListener(id.endsWith("Mode")?"change":"input",()=>{rememberInverseInputs();appliedPointScenario=null;schedulePointInverse()});
   }

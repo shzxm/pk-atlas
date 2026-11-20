@@ -8,6 +8,11 @@ struct PKInverseLimit: Encodable, Sendable {
     let value: Double
     let mode: String
 }
+struct PKInverseInitialBaseline: Encodable, Sendable {
+    var mode: String
+    var value: Double
+}
+
 struct PKInverseTargetWindow: Encodable, Sendable {
     let enabled: Bool
     let value: Double
@@ -35,6 +40,7 @@ struct PKInverseInput: Encodable, @unchecked Sendable {
     var peakRequirement: PKInverseLimit
     var totalCap: Double?
     var targetWindow: PKInverseTargetWindow? = nil
+    var initialBaseline: PKInverseInitialBaseline? = nil
     // Data-only model overrides; the bundled solver remains the only code.
     var catalog: PKCatalog? = nil
 }
@@ -69,6 +75,7 @@ struct PKInverseCandidate: Decodable {
 struct PKInverseOutput: Decodable, @unchecked Sendable {
     var result: PKInverseCandidate?
     var minimum: PKInverseCandidate?
+    var initialHypothesis: PKInverseDose?
     var display: PKInverseCandidate?
     var error: String?
 }
@@ -91,7 +98,7 @@ enum PKNativeInverseSolver {
     // including dual units, cumulative cap and verified flattest B candidate.
     private static let entrypoint = #"""
     function __pkatlasNativeSolve(serializedInput) {
-      const {id,kind="point",drugId,rows,plan,meals,renalState,threshold,target,cap,now,fixedCount,mode,peakFloor,start,hours,countText,cycleFloor,peakRequirement,totalCap:rawTotalCap,targetWindow}=JSON.parse(serializedInput);
+      const {id,kind="point",drugId,rows:givenRows,plan,meals,renalState,threshold,target,cap,now,fixedCount,mode,peakFloor,start,hours,countText,cycleFloor,peakRequirement,totalCap:rawTotalCap,targetWindow,initialBaseline}=JSON.parse(serializedInput);
       try{
         current=drugId;
         plans={[drugId]:plan||{}};
@@ -100,6 +107,23 @@ enum PKNativeInverseSolver {
         mealMatchCache.clear();MODEL_PARAMS.clear();EQUIVALENT_PEAK_CACHE.clear();
         const drug=DRUGS.find(item=>item.id===drugId);
         if(!drug||drug.recordOnly)throw new Error("不支持当前药物的反算");
+        if(!Array.isArray(givenRows))throw new Error("服用记录输入格式无效");
+        let rows=givenRows,initialHypothesis=null;
+        if(kind==="point"){
+          const hasStart=rows.some(item=>!item.planningOnly&&item.drug===drugId&&
+            Number.isFinite(item.time)&&item.time<=now&&item.time>=now-residualWindowHours(drug)*3600000);
+          const currentlyAbove=modelValue(drug,now,rows,mode)>=threshold-1e-6;
+          if(!hasStart&&!currentlyAbove){
+            if(initialBaseline==null)
+              return JSON.stringify({result:{reason:"initialBaselineRequired"},minimum:null});
+            if(initialBaseline.mode!==mode||!Number.isFinite(initialBaseline.value)||initialBaseline.value<=0||initialBaseline.value>1000000)
+              return JSON.stringify({result:{reason:"initialBaselineInvalid"},minimum:null});
+            initialHypothesis=pkInitialHypothesis(drug,now,mode,initialBaseline.value);
+            if(!initialHypothesis)
+              return JSON.stringify({result:{reason:"initialBaselineInvalid"},minimum:null});
+            rows=[...givenRows,initialHypothesis];
+          }
+        }
         if(kind==="duration"){
           const result=solveInverse(drug,rows,threshold,start,hours,now,mode,countText);
           let display=null;
@@ -173,7 +197,7 @@ enum PKNativeInverseSolver {
           else if(checkedB){result=checkedB;minimum=checkedB;}
           else{result={reason:"targetWindowUnreached"};minimum=null;}
         }
-        return JSON.stringify({result,minimum,comparison});
+        return JSON.stringify({result,minimum,comparison,initialHypothesis});
       }catch(error){return JSON.stringify({error:String(error?.message||error)})}
     }
     """#
