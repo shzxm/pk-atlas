@@ -3,17 +3,18 @@
  * All /api/ traffic bypasses this worker: never cache credentials, session
  * responses, private state, medication records, or notification subscriptions.
  */
-const SHELL_CACHE="pk-atlas-public-shell-v20261119-inverse-chart-navigation-2";
+const SHELL_CACHE="pk-atlas-public-shell-v20261120-ui-five-fixes-2";
 const CACHE_PREFIX="pk-atlas-public-shell-";
 const SHELL_ASSETS=[
   "/","/index.html",
   "/styles.css?v=adopted-pending-20261119c",
   "/api-client.js?v=autosync-20261115",
-  "/app.js?v=inverse-chart-navigation-20261119g",
+  "/app.js?v=web-ui-20261120b",
   "/model-sync.js?v=server-catalog-20261117c",
   // Versioned inverse worker is now deployed with matching model code.
-  "/inverse-worker.js?v=server-math-20261117b",
-  "/push.js?v=inverse-chart-navigation-20261119g",
+  "/inverse-worker.js?v=web-ui-20261120b",
+  "/chart-worker.js?v=web-ui-20261120b",
+  "/push.js?v=web-ui-20261120b",
   "/manifest.webmanifest","/icon-192.png","/icon-512.png",
   "/quick.html","/quick.js?v=mwg-20261115","/quick.css",
   "/notifications.html","/push-diagnostics.js?v=20261117a",
@@ -25,7 +26,7 @@ const assets=new Set(SHELL_ASSETS.map(path=>new URL(path,self.location.origin).h
 // Safe public build files may receive new version query strings before the
 // Service Worker is redeployed. Cache these exact code paths only, never
 // user state or any arbitrary same-origin request.
-const versionedPublicCode=new Set(["/app.js","/styles.css","/inverse-worker.js"]);
+const versionedPublicCode=new Set(["/app.js","/styles.css","/inverse-worker.js","/chart-worker.js"]);
 self.addEventListener("install",event=>{
   event.waitUntil((async()=>{
     const cache=await caches.open(SHELL_CACHE);

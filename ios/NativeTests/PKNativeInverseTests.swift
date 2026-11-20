@@ -83,6 +83,30 @@ final class PKNativeInverseTests: XCTestCase {
         XCTAssertEqual(restricted.result?.reason, "targetWindowUnreached")
     }
 
+    func testEmptyActualHistoryCanStillCalculateUsingSavedStrengths() async throws {
+        // Regression: zero ACTUAL doses is not equivalent to no mathematical
+        // baseline. The inverse engine must still accept the verified saved
+        // whole-unit strengths and return an ordinary candidate, rather than
+        // requiring a dose to have already been taken today.
+        let now = 1_800_000_000_000.0
+        let input = PKInverseInput(
+            kind: "point", drugId: "amoxicillin", rows: [],
+            plan: .object(["strengths": .array([.object(["mg": .number(100)])])]),
+            meals: [], renalState: .null,
+            threshold: 0.01, target: now + 6 * 3_600_000,
+            cap: 1_000, now: now, fixedCount: nil,
+            mode: "blood", peakFloor: 0,
+            start: now + 3_600_000, hours: 2, countText: "",
+            cycleFloor: PKInverseLimit(value: 0, mode: "blood"),
+            peakRequirement: PKInverseLimit(value: 0, mode: "equivalent"),
+            totalCap: nil, targetWindow: PKInverseTargetWindow(enabled: false, value: 0))
+        let output = try await PKNativeInverseSolver.solve(input)
+        XCTAssertNil(output.error)
+        XCTAssertNil(output.result?.reason, "No actual doses must not block inverse calculation")
+        XCTAssertNotNil(output.result?.doses)
+        XCTAssertNotNil(output.minimum?.doses)
+    }
+
     func testWebsiteInverseEngineLoadsAndIdentifiesMissingDrugStrengths() async throws {
         let now = 1_700_000_000_000.0
         let input = PKInverseInput(

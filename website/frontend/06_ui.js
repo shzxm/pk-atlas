@@ -257,11 +257,20 @@ function init(){
     // record date is historical. Ensure the 48-hour chart window contains
     // the target before looking for its horizontal pixel position.
     const wantedTarget=Number(scenario.target);
-    if(Number.isFinite(wantedTarget) &&
-       (wantedTarget<dayStart(selectedDate) || wantedTarget>=dayStart(selectedDate)+48*3600000)){
-      selectedDate=dateKey(wantedTarget-12*3600000);
-      selectedDateFollowsToday=selectedDate===dateKey(Date.now());
-      $("viewDate").value=selectedDate;
+    if(Number.isFinite(wantedTarget)){
+      const currentDay=dateKey(Date.now());
+      const todayStart=dayStart(currentDay);
+      // The 48h window beginning TODAY contains tomorrow's target: keep
+      // the today chart, then pan horizontally to tomorrow's target time.
+      const desiredDate=wantedTarget>=todayStart&&wantedTarget<todayStart+48*3600000
+        ? currentDay
+        : (wantedTarget>=dayStart(selectedDate)&&wantedTarget<dayStart(selectedDate)+48*3600000
+            ? selectedDate:dateKey(wantedTarget-12*3600000));
+      if(desiredDate!==selectedDate){
+        selectedDate=desiredDate;
+        selectedDateFollowsToday=desiredDate===currentDay;
+        $("viewDate").value=desiredDate;
+      }
     }
     appliedPointScenario={...scenario};
     $("scenarioTime").value="";$("scenarioDose").value="";

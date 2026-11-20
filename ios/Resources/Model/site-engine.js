@@ -1,5 +1,5 @@
 "use strict";
-const PK_MODEL_ENGINE_VERSION = "f277750fa247aaac77c6f5e7c851682a5ef10a357c23818e356adae6c48bc2fb";
+const PK_MODEL_ENGINE_VERSION = "9ebb60e4f96061ef2b0fa404522357eb6c1e437e807737506b8a17110fdc30e8";
 
 // Published Cmax values describe a specific studied formulation/population.
 // The Bateman curve and dose proportionality below are teaching assumptions.
@@ -2368,10 +2368,12 @@ function adoptPlanAdjustment(plan){
   plan.adjustment={doses:structuredClone(state.suggested),completedCount:state.matchedNodeCount,adoptedAt:Date.now()};
   appliedPointScenario=null;persist();renderPointInverse();drawChart();
 }
-let pointWorker=null,pointRequestId=0,pointInputTimer=null;
+let pointWorker=null,pointRequestId=0,pointInputTimer=null,pointWorkerBusy=false;
 function cancelPointInverse(){
   pointRequestId++;
-  if(pointWorker){pointWorker.terminate();pointWorker=null}
+  // Keep a completed Worker alive so every edit does not re-download/parse
+  // the entire local engine. Terminate only a running, outdated search.
+  if(pointWorkerBusy&&pointWorker){pointWorker.terminate();pointWorker=null;pointWorkerBusy=false}
 }
 function schedulePointInverse(){
   cancelPointInverse();clearTimeout(pointInputTimer);
@@ -2382,10 +2384,17 @@ function schedulePointInverse(){
 }
 function solvePointInWorker(input,id){
   return new Promise((resolve,reject)=>{
-    const worker=new Worker("./inverse-worker.js?v=server-math-20261117b");
-    pointWorker=worker;
-    worker.onmessage=event=>{if(event.data.id!==id)return;if(pointWorker===worker)pointWorker=null;worker.terminate();if(event.data.error)reject(new Error(event.data.error));else resolve(event.data)};
-    worker.onerror=event=>{if(pointWorker===worker)pointWorker=null;worker.terminate();reject(new Error(event.message||"后台计算未能完成"))};
+    const worker=pointWorker||new Worker("./inverse-worker.js?v=web-ui-20261120b");
+    pointWorker=worker;pointWorkerBusy=true;
+    worker.onmessage=event=>{
+      if(event.data.id!==id||pointWorker!==worker)return;
+      pointWorkerBusy=false;
+      if(event.data.error)reject(new Error(event.data.error));else resolve(event.data);
+    };
+    worker.onerror=event=>{
+      if(pointWorker===worker){pointWorker=null;pointWorkerBusy=false}
+      worker.terminate();reject(new Error(event.message||"浏览器本地计算未能完成"));
+    };
     worker.postMessage({id,...input,modelCatalog:typeof PKVerifiedWebCatalog!=="undefined"&&PKVerifiedWebCatalog?
       {catalog:PKVerifiedWebCatalog.catalog,engineVersion:PKVerifiedWebCatalog.engineVersion,
        version:PKVerifiedWebCatalog.version}:null});
@@ -2428,12 +2437,12 @@ async function renderPointInverse(){
   if(cycleMin>0&&modelValue(drug,now,rows,cycleMode)<cycleMin-1e-6){
     out.textContent=`当前 ${modeUnit(cycleMode)} 模型值 ${fmt(modelValue(drug,now,rows,cycleMode),3)} 已低于设定的全周期最低 ${fmt(cycleMin,3)}；口服吸收不能立刻改变已发生的缺口，所以本约束无解。`;return
   }
-  out.textContent=`正在后台计算；已把 ${activePlans.length} 条未来计划作为固定数学情景，并只搜索新增假设节点。计划不计实际服用。`;
+  out.textContent=`正在浏览器本地计算；已把 ${activePlans.length} 条未来计划作为固定数学情景，并只搜索新增假设节点。计划不计实际服用。`;
   let result,minimum,comparison;
   try{
     ({result,minimum,comparison}=await solvePointInWorker({drugId:drug.id,rows,plan:plans[drug.id]||{},meals:intakes,renalState:renal,threshold,target,cap,now,fixedCount,mode,peakFloor,cycleFloor,peakRequirement,totalCap,targetWindow},requestId));
   }catch(error){
-    if(requestId===pointRequestId)out.textContent=`后台计算未完成：${error.message}。请刷新页面后重试。`;
+    if(requestId===pointRequestId)out.textContent=`浏览器本地计算未完成：${error.message}。请刷新页面后重试。`;
     return;
   }
   if(requestId!==pointRequestId||current!==drug.id||!document.body.classList.contains("stage-calc"))return;
@@ -2495,10 +2504,10 @@ function adoptPointScenario(variant){
     includedScheduledDoses:structuredClone(selected.includedScheduledDoses||[]),manualMatches:{},mealSignature:mealScenarioSignature(current,now,selected.target)};
   inverseMemory[current]={...(inverseMemory[current]||{}),adoptedPointPlan:plan};persist();appliedPointScenario=null;renderPointInverse();drawChart();
 }
-let inverseWorker=null,inverseRequestId=0,inverseInputTimer=null;
+let inverseWorker=null,inverseRequestId=0,inverseInputTimer=null,inverseWorkerBusy=false;
 function cancelDurationInverse(){
   inverseRequestId++;
-  if(inverseWorker){inverseWorker.terminate();inverseWorker=null}
+  if(inverseWorkerBusy&&inverseWorker){inverseWorker.terminate();inverseWorker=null;inverseWorkerBusy=false}
 }
 function scheduleDurationInverse(){
   cancelDurationInverse();clearTimeout(inverseInputTimer);
@@ -2508,10 +2517,17 @@ function scheduleDurationInverse(){
 }
 function solveDurationInWorker(input,id){
   return new Promise((resolve,reject)=>{
-    const worker=new Worker("./inverse-worker.js?v=server-math-20261117b");
-    inverseWorker=worker;
-    worker.onmessage=event=>{if(event.data.id!==id)return;if(inverseWorker===worker)inverseWorker=null;worker.terminate();if(event.data.error)reject(new Error(event.data.error));else resolve(event.data)};
-    worker.onerror=event=>{if(inverseWorker===worker)inverseWorker=null;worker.terminate();reject(new Error(event.message||"后台计算未能完成"))};
+    const worker=inverseWorker||new Worker("./inverse-worker.js?v=web-ui-20261120b");
+    inverseWorker=worker;inverseWorkerBusy=true;
+    worker.onmessage=event=>{
+      if(event.data.id!==id||inverseWorker!==worker)return;
+      inverseWorkerBusy=false;
+      if(event.data.error)reject(new Error(event.data.error));else resolve(event.data);
+    };
+    worker.onerror=event=>{
+      if(inverseWorker===worker){inverseWorker=null;inverseWorkerBusy=false}
+      worker.terminate();reject(new Error(event.message||"浏览器本地计算未能完成"));
+    };
     worker.postMessage({id,kind:"duration",...input,modelCatalog:typeof PKVerifiedWebCatalog!=="undefined"&&PKVerifiedWebCatalog?
       {catalog:PKVerifiedWebCatalog.catalog,engineVersion:PKVerifiedWebCatalog.engineVersion,
        version:PKVerifiedWebCatalog.version}:null});
@@ -2532,12 +2548,12 @@ async function renderInverse(){
   if(!Number.isFinite(hours)||hours<0.25||hours>24){out.textContent="连续维持时长请输入 0.25—24 小时。";return}
   const d=chosen(),activePlans=futurePreviewNodes(d.id).filter(r=>r.time<=start+hours*3600000),
     rows=[...inverseRecordRows(allRows().filter(r=>r.time<=now),start),...activePlans.map(r=>({...r,planningOnly:true}))];
-  out.textContent=`正在后台计算持续时长情景；已纳入 ${activePlans.length} 条既有计划，且未当作真实已服用。`;
+  out.textContent=`正在浏览器本地计算持续时长情景；已纳入 ${activePlans.length} 条既有计划，且未当作真实已服用。`;
   let result,display;
   try{
     ({result,display}=await solveDurationInWorker({drugId:d.id,rows,plan:plans[d.id]||{},meals:intakes,renalState:renal,threshold,start,hours,now,mode,countText:$("inverseCount").value.trim()},requestId));
   }catch(error){
-    if(requestId===inverseRequestId)out.textContent=`后台计算未完成：${error.message}。请刷新页面后重试。`;
+    if(requestId===inverseRequestId)out.textContent=`浏览器本地计算未完成：${error.message}。请刷新页面后重试。`;
     return;
   }
   if(requestId!==inverseRequestId||current!==d.id||!document.body.classList.contains("stage-calc"))return;
@@ -2559,45 +2575,78 @@ const CHART_COLORS=Object.freeze({
   reference:"#ff5da8",referenceEquivalent:"#d7fc72",
   previewBlood:"#55aaff",previewEquivalent:"#cb9cff",target:"#ff9257"
 });
-// Prefer the canonical 181 mathematical curve online. Local deterministic
-// model remains available without server connectivity.
-let pkServerCurveCache=null,pkServerCurvePending=null,pkServerCurveFailure=null;
+// Local-first curve calculation. Both the recorded and hypothetical samples
+// are evaluated in this browser; 181 only distributes versioned code/catalogs
+// and synchronizes user-approved data, never computes a chart on request.
+let pkLocalCurveCache=null,pkLocalCurvePending=null,pkLocalCurveWorker=null;
+let pkLocalCurveFailedKey=null,pkLocalCurveJob=0;
 function pkServerCurveClear(){
-  pkServerCurveCache=null;pkServerCurvePending=null;pkServerCurveFailure=null;
+  pkLocalCurveCache=null;pkLocalCurvePending=null;pkLocalCurveFailedKey=null;
+  if(pkLocalCurveWorker){pkLocalCurveWorker.terminate();pkLocalCurveWorker=null}
 }
+// A logout must also clear math inputs retained in idle browser Workers.
+// This listener is browser-only: the mathematical bundle also runs inside
+// the workers, where there is no DOM/window and no account/session access.
+if(typeof window!=="undefined")window.addEventListener("pk-atlas-logout",()=>{
+  pkServerCurveClear();
+  if(pointWorker){pointWorker.terminate();pointWorker=null;pointWorkerBusy=false}
+  if(inverseWorker){inverseWorker.terminate();inverseWorker=null;inverseWorkerBusy=false}
+});
 function pkServerCurveKey(payload){return JSON.stringify(payload)}
-function pkServerCurveRequest(key,payload){
-  if(pkServerCurveCache?.key===key||pkServerCurvePending===key||!navigator.onLine)return;
-  if(pkServerCurveFailure?.key===key&&Date.now()-pkServerCurveFailure.at<30000)return;
-  pkServerCurvePending=key;
-  const requestVersion=typeof PKVerifiedWebCatalog!=="undefined"?PKVerifiedWebCatalog?.version:null;
-  void fetch("/api/native/math/samples",{
-    method:"POST",credentials:"omit",cache:"no-store",
-    headers:{"Content-Type":"application/json","Accept":"application/json"},
-    body:JSON.stringify(payload)
-  }).then(async response=>{
-    if(!response.ok)throw Error("181 数学模型 HTTP "+response.status);
-    const result=await response.json();
-    if(result.source!=="181-server-math"||
-       result.engineVersion!==PK_MODEL_ENGINE_VERSION||
-       (requestVersion&&result.catalogVersion!==requestVersion)||
-       !Array.isArray(result.points)||result.points.length!==payload.times.length||
-       result.points.some((p,i)=>Math.abs(p.time-payload.times[i])>1||
-         ![p.bloodMgL,p.equivalentMg,p.unfedMgL].every(v=>Number.isFinite(v)&&v>=0)||
-         (payload.planned.length>0&&
-          ![p.plannedBloodMgL,p.plannedEquivalentMg].every(v=>Number.isFinite(v)&&v>=0))))
-       throw Error("服务器和本地引擎、目录或采样数据不一致");
-    if(pkServerCurvePending!==key)return;
-    pkServerCurveCache={key,points:result.points,serverKernel:result.serverKernelSha256};
-    pkServerCurveFailure=null;
-    if(document.body.classList.contains("stage-calc"))drawChart();
-  }).catch(error=>{
-    if(pkServerCurvePending===key){
-      pkServerCurveFailure={key,at:Date.now(),message:String(error.message||error)};
-      const node=document.getElementById("chartCaption");
-      if(node)node.textContent+=" · 本地模型（服务器求值暂不可用）";
+function pkLocalCurveRequest(key,payload){
+  if(pkLocalCurveCache?.key===key||pkLocalCurvePending?.key===key)return true;
+  if(pkLocalCurveFailedKey===key)return false;
+  try{
+    if(pkLocalCurvePending&&pkLocalCurveWorker){
+      pkLocalCurveWorker.terminate();pkLocalCurveWorker=null;
     }
-  }).finally(()=>{if(pkServerCurvePending===key)pkServerCurvePending=null});
+    if(!pkLocalCurveWorker){
+      const worker=new Worker("./chart-worker.js?v=web-ui-20261120b");
+      pkLocalCurveWorker=worker;
+      worker.onmessage=event=>{
+        if(worker!==pkLocalCurveWorker||event.data.id!==pkLocalCurvePending?.id)return;
+        const job=pkLocalCurvePending;
+        pkLocalCurvePending=null;
+        const data=event.data;
+        if(data.error||data.engineVersion!==PK_MODEL_ENGINE_VERSION||
+           !Array.isArray(data.points)||data.points.length!==job.times.length||
+           data.points.some((p,i)=>p.t!==job.times[i]||
+             ![p.c,p.unfed,p.eq].every(v=>Number.isFinite(v)&&v>=0)||
+             (job.planned&&![p.bloodPreview,p.eqPreview,p.unfedBloodPreview].every(v=>Number.isFinite(v)&&v>=0)))){
+          pkLocalCurveFailedKey=job.key;
+          console.warn("Local curve worker failed; using same local kernel on UI thread:",data.error||"invalid sampled output");
+        }else{
+          pkLocalCurveCache={key:job.key,points:data.points};
+          pkLocalCurveFailedKey=null;
+        }
+        if(document.body.classList.contains("stage-calc")&&current===job.drugId)drawChart();
+      };
+      worker.onerror=event=>{
+        if(worker!==pkLocalCurveWorker)return;
+        const job=pkLocalCurvePending;
+        pkLocalCurvePending=null;pkLocalCurveWorker=null;
+        worker.terminate();
+        if(job){
+          pkLocalCurveFailedKey=job.key;
+          console.warn("Local math Worker unavailable; running same math in-browser",event.message);
+          if(document.body.classList.contains("stage-calc")&&current===job.drugId)drawChart();
+        }
+      };
+    }
+    const id=++pkLocalCurveJob;
+    pkLocalCurvePending={id,key,drugId:payload.drugId,times:payload.times,planned:payload.planned.length>0};
+    pkLocalCurveWorker.postMessage({id,...payload,
+      renalState:Number.isFinite(renal?.crcl)?{crcl:renal.crcl}:null,
+      modelCatalog:typeof PKVerifiedWebCatalog!=="undefined"&&PKVerifiedWebCatalog?
+        {catalog:PKVerifiedWebCatalog.catalog,engineVersion:PKVerifiedWebCatalog.engineVersion,
+         version:PKVerifiedWebCatalog.version}:null});
+    return true;
+  }catch(error){
+    if(pkLocalCurveWorker){pkLocalCurveWorker.terminate();pkLocalCurveWorker=null}
+    pkLocalCurvePending=null;pkLocalCurveFailedKey=key;
+    console.warn("Browser Worker unavailable; local synchronous calculation remains usable",error);
+    return false;
+  }
 }
 function drawChart(){
   const d=chosen(),rows=allRows(),svg=$("chart"),wrap=$("chartWrap");
@@ -2623,8 +2672,7 @@ function drawChart(){
   const count=Math.min(600,Math.max(288,Math.ceil(W/5))),points=[],modelRows=rows.filter(r=>r.time>=start-residualWindowHours(d)*3600000&&r.time<=end);
   const times=Array.from({length:count+1},(_,i)=>Math.round(start+(end-start)*i/count));
   const allMeals=intakes.filter(m=>m.kind==="meal"&&m.time>=start-3*86400000&&m.time<=end+86400000);
-  const validRemoteInputs=modelRows.length<=300&&previewRows.length<=30&&allMeals.length<=160&&
-    modelRows.every(r=>r.time>=start-180*86400000);
+
   const mathRequest={
     drugId:d.id,times,
     records:modelRows.map(r=>({drug:d.id,time:Math.round(r.time),mg:r.mg})),
@@ -2632,18 +2680,27 @@ function drawChart(){
     meals:allMeals.map(m=>({kind:"meal",time:Math.round(m.time),mealType:m.mealType==="highFat"?"highFat":"regular"})),
     renalCrCl:Number.isFinite(renal?.crcl)?renal.crcl:null
   };
-  const mathKey=pkServerCurveKey({model:typeof PKVerifiedWebCatalog!=="undefined"?PKVerifiedWebCatalog?.version:null,...mathRequest});
-  const authoritative=validRemoteInputs&&pkServerCurveCache?.key===mathKey?pkServerCurveCache.points:null;
-  if(validRemoteInputs&&!authoritative)pkServerCurveRequest(mathKey,mathRequest);
+  const mathKey=pkServerCurveKey({engine:PK_MODEL_ENGINE_VERSION,
+    model:typeof PKVerifiedWebCatalog!=="undefined"?PKVerifiedWebCatalog?.version:null,...mathRequest});
+  const authoritative=pkLocalCurveCache?.key===mathKey?pkLocalCurveCache.points:null;
+  if(!authoritative&&pkLocalCurveRequest(mathKey,mathRequest)){
+    // Never synchronously block the UI calculating hundreds of samples.
+    // The exact same local kernel runs in the Worker and triggers one paint.
+    chartView=null;
+    $("timeScrubber").disabled=true;
+    $("chartCaption").textContent=`正在浏览器本地计算 ${count+1} 个曲线采样点…`;
+    return;
+  }
   const previewFoodEffect=!!FOOD_INFO[d.id]?.fed&&previewRows.some(row=>mealForDose(row.time,d.id));
   for(let i=0;i<=count;i++){
     const t=times[i],remote=authoritative?.[i];
-    const eq=remote?.equivalentMg??totalEquivalent(d,t,modelRows);
+    const eq=remote?.eq??totalEquivalent(d,t,modelRows);
     points.push({t,
-      c:remote?.bloodMgL??concentration(d,t,modelRows),
-      unfed:remote?.unfedMgL??concentration(d,t,modelRows,false),
-      eq,eqPreview:previewRows.length?(remote?.plannedEquivalentMg??eq+totalEquivalent(d,t,previewRows)):null,
-      bloodPreview:previewRows.length?(remote?.plannedBloodMgL??null):null});
+      c:remote?.c??concentration(d,t,modelRows),
+      unfed:remote?.unfed??concentration(d,t,modelRows,false),
+      eq,eqPreview:previewRows.length?(remote?.eqPreview??eq+totalEquivalent(d,t,previewRows)):null,
+      bloodPreview:previewRows.length?(remote?.bloodPreview??null):null,
+      unfedBloodPreview:previewRows.length?(remote?.unfedBloodPreview??null):null});
   }
   const peak=points.reduce((a,b)=>b.c>a.c?b:a,{t:start,c:0});
   const unfedPeak=points.reduce((a,b)=>b.unfed>a.unfed?b:a,{t:start,unfed:0});
@@ -2653,7 +2710,7 @@ function drawChart(){
   const foodEffectPoint=recordedMealRows.length&&dayEffectPoints.length?dayEffectPoints.reduce((a,b)=>Math.abs(b.c-b.unfed)>Math.abs(a.c-a.unfed)?b:a):null;
   let scenarioPeak=0;
   const scenarioContribution=(t,includeFood=true)=>previewRows.reduce((sum,row)=>sum+singleConcentration(d,row.mg,(t-row.time)/3600000,row.time,includeFood),0);
-  if(previewRows.length)for(const p of points)scenarioPeak=Math.max(scenarioPeak,p.c+scenarioContribution(p.t));
+  if(previewRows.length)for(const p of points)scenarioPeak=Math.max(scenarioPeak,p.bloodPreview??p.c+scenarioContribution(p.t));
   const maxY=Math.max(.001,peak.c*1.23,hasFoodEffect?unfedPeak.unfed*1.23:0,scenarioPeak*1.2,!referenceEquivalent&&threshold!==null&&Number.isFinite(threshold)&&threshold>0?threshold*1.13:0);
   const maxEq=Math.max(1,...points.map(p=>Math.max(p.eq,p.eqPreview||0)),referenceEquivalent&&threshold!==null&&Number.isFinite(threshold)&&threshold>0?threshold:0)*1.18;
   const x=t=>L+(t-start)/(end-start)*(W-L-R),y=c=>H-B-c/maxY*(H-T-B),yEq=amount=>H-B-amount/maxEq*(H-T-B);
@@ -2711,7 +2768,7 @@ function drawChart(){
     if(previewRows.length){
       const preview=points.map((p,i)=>`${i?"L":"M"}${x(p.t).toFixed(2)} ${y(p.bloodPreview??p.c+scenarioContribution(p.t)).toFixed(2)}`).join(" ");
       svg.append(svgEl("path",{d:preview,fill:"none",stroke:CHART_COLORS.previewBlood,"stroke-width":2.2,"stroke-dasharray":"5 5","stroke-linejoin":"round"}));
-      if(previewFoodEffect){const withoutPreviewFood=points.map((p,i)=>`${i?"L":"M"}${x(p.t).toFixed(2)} ${y(p.c+scenarioContribution(p.t,false)).toFixed(2)}`).join(" ");svg.append(svgEl("path",{d:withoutPreviewFood,fill:"none",stroke:CHART_COLORS.unfed,"stroke-width":1.6,"stroke-dasharray":"2 5","stroke-linejoin":"round"}))}
+      if(previewFoodEffect){const withoutPreviewFood=points.map((p,i)=>`${i?"L":"M"}${x(p.t).toFixed(2)} ${y(p.unfedBloodPreview??p.c+scenarioContribution(p.t,false)).toFixed(2)}`).join(" ");svg.append(svgEl("path",{d:withoutPreviewFood,fill:"none",stroke:CHART_COLORS.unfed,"stroke-width":1.6,"stroke-dasharray":"2 5","stroke-linejoin":"round"}))}
       const eqPreviewPath=points.map((p,i)=>`${i?"L":"M"}${x(p.t).toFixed(2)} ${yEq(p.eqPreview).toFixed(2)}`).join(" ");
       svg.append(svgEl("path",{d:eqPreviewPath,fill:"none",stroke:CHART_COLORS.previewEquivalent,"stroke-width":2,"stroke-dasharray":"5 5","stroke-linejoin":"round"}));
       if(activeScenario&&activeScenario.target>=start&&activeScenario.target<=end){
@@ -2750,8 +2807,8 @@ function drawChart(){
   const mealTypes=FOOD_INFO[d.id]?.fed?[...new Set(modelRows.map(r=>mealForDose(r.time,d.id)?.mealType).filter(Boolean))].map(type=>type==="highFat"&&FOOD_INFO[d.id].fed.highFat?"高脂餐":"普通餐").join("、"):"";
   $("chartCaption").textContent=rows.length?`仅统计${d.name} · 历史共 ${rows.length} 次记录，同药物跨日残留已计入${activeScenario?.adoptedVariant?` · 已采用方案 ${activeScenario.adoptedVariant} 的剩余节点显示为虚线`:""}${mealTypes?` · 餐型：${mealTypes}`:""}${hasFoodEffect?` · 已计饮食峰值约 ${fmt(peak.c,3)} mg/L；未计饮食参考峰值约 ${fmt(unfedPeak.unfed,3)} mg/L`:""} · 当前窗口 ${dateText(start)}—${dateText(end)}`:scenario&&!scenario.invalid?`${d.name}暂无已记服用；蓝色虚线为假设血药浓度，紫色虚线为假设剂量等效量 · 当前窗口 ${dateText(start)}—${dateText(end)}`:`${d.name}暂无单次记录`;
   $("chartCaption").textContent+=authoritative?
-    " · 当前曲线由181服务器计算（同版本模型校验）":
-    " · 当前曲线为本地数学模型（等待181或离线）";
+    " · 当前曲线由本机浏览器 Web Worker 直接计算（无需服务器求值）":
+    " · 当前曲线由本机浏览器计算（Worker 兼容降级）";
   if(visibleMeals.length)$("chartCaption").textContent+=` · 绿色竖虚线＝已记录或计划用餐${foodEffectPoint?"；金色竖线＝当日餐后与空腹对照差异最大的位置":""}`;
   const mealStatus=$("chartMealStatus");mealStatus.replaceChildren();mealStatus.hidden=!recordedMealRows.length&&!previewRows.length&&!unmatchedVisibleMeals.length;
   for(const meal of unmatchedVisibleMeals){const note=document.createElement("p");note.textContent=unmatchedMealMessage(meal,d.id,rows);mealStatus.append(note)}
@@ -3042,7 +3099,14 @@ function appRecordCard(row){
   edit.textContent=modeled?"编辑":"删除";
   edit.setAttribute("aria-label",(modeled?"编辑 ":"删除 ")+recordDrugName(row)+" "+dateText(row.time));
   edit.addEventListener("click",()=>modeled?editRecord(row.id):requestDoseDeletion(row.id));
-  left.append(label,meta);item.append(left,edit);
+  const actions=document.createElement("div");actions.className="record-actions";
+  const remove=document.createElement("button");remove.type="button";
+  remove.className="app-record-edit";remove.textContent="删除";
+  remove.setAttribute("aria-label","删除 "+recordDrugName(row)+" "+dateText(row.time));
+  remove.addEventListener("click",()=>requestDoseDeletion(row.id));
+  if(modeled)actions.append(edit,remove);
+  else actions.append(edit); // archive-only entry already uses the delete action
+  left.append(label,meta);item.append(left,actions);
   return item;
 }
 function renderAppHome(){
@@ -3075,7 +3139,7 @@ function renderAppHome(){
     const empty=document.createElement("div");empty.className="app-empty";
     empty.textContent="今天还没有服药记录。编辑草稿不会计入实际服用。";
     list.append(empty);
-  }else for(const row of todayRows.slice(0,4))list.append(appRecordCard(row));
+  }else for(const row of todayRows)list.append(appRecordCard(row));
 }
 function renderAppHistoryQuicklist(){
   if(!appShellReady||!authUser)return;
@@ -3353,7 +3417,7 @@ let appOfflineRestored=false;
 function initOfflineShell(){
   if(location.protocol!=="https:"||!("serviceWorker" in navigator))return;
   const install=()=>navigator.serviceWorker.register(
-    "/sw.js?v=inverse-chart-navigation-20261119g",{scope:"/"}
+    "/sw.js?v=web-ui-20261120b",{scope:"/"}
   ).catch(()=>{/* A failed shell install must not block login or autosave. */});
   if(document.readyState==="complete")void install();
   else window.addEventListener("load",install,{once:true});
@@ -3724,11 +3788,20 @@ function init(){
     // record date is historical. Ensure the 48-hour chart window contains
     // the target before looking for its horizontal pixel position.
     const wantedTarget=Number(scenario.target);
-    if(Number.isFinite(wantedTarget) &&
-       (wantedTarget<dayStart(selectedDate) || wantedTarget>=dayStart(selectedDate)+48*3600000)){
-      selectedDate=dateKey(wantedTarget-12*3600000);
-      selectedDateFollowsToday=selectedDate===dateKey(Date.now());
-      $("viewDate").value=selectedDate;
+    if(Number.isFinite(wantedTarget)){
+      const currentDay=dateKey(Date.now());
+      const todayStart=dayStart(currentDay);
+      // The 48h window beginning TODAY contains tomorrow's target: keep
+      // the today chart, then pan horizontally to tomorrow's target time.
+      const desiredDate=wantedTarget>=todayStart&&wantedTarget<todayStart+48*3600000
+        ? currentDay
+        : (wantedTarget>=dayStart(selectedDate)&&wantedTarget<dayStart(selectedDate)+48*3600000
+            ? selectedDate:dateKey(wantedTarget-12*3600000));
+      if(desiredDate!==selectedDate){
+        selectedDate=desiredDate;
+        selectedDateFollowsToday=desiredDate===currentDay;
+        $("viewDate").value=desiredDate;
+      }
     }
     appliedPointScenario={...scenario};
     $("scenarioTime").value="";$("scenarioDose").value="";

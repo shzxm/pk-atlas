@@ -122,7 +122,14 @@ function appRecordCard(row){
   edit.textContent=modeled?"编辑":"删除";
   edit.setAttribute("aria-label",(modeled?"编辑 ":"删除 ")+recordDrugName(row)+" "+dateText(row.time));
   edit.addEventListener("click",()=>modeled?editRecord(row.id):requestDoseDeletion(row.id));
-  left.append(label,meta);item.append(left,edit);
+  const actions=document.createElement("div");actions.className="record-actions";
+  const remove=document.createElement("button");remove.type="button";
+  remove.className="app-record-edit";remove.textContent="删除";
+  remove.setAttribute("aria-label","删除 "+recordDrugName(row)+" "+dateText(row.time));
+  remove.addEventListener("click",()=>requestDoseDeletion(row.id));
+  if(modeled)actions.append(edit,remove);
+  else actions.append(edit); // archive-only entry already uses the delete action
+  left.append(label,meta);item.append(left,actions);
   return item;
 }
 function renderAppHome(){
@@ -155,7 +162,7 @@ function renderAppHome(){
     const empty=document.createElement("div");empty.className="app-empty";
     empty.textContent="今天还没有服药记录。编辑草稿不会计入实际服用。";
     list.append(empty);
-  }else for(const row of todayRows.slice(0,4))list.append(appRecordCard(row));
+  }else for(const row of todayRows)list.append(appRecordCard(row));
 }
 function renderAppHistoryQuicklist(){
   if(!appShellReady||!authUser)return;

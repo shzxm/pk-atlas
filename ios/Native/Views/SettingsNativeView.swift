@@ -16,6 +16,7 @@ struct SettingsNativeView: View {
     @State private var healthImportResult = ""
     @State private var diagnosticsCopied = false
 
+
     var body: some View {
         Form {
             Section {
@@ -90,6 +91,27 @@ struct SettingsNativeView: View {
                     .accessibilityIdentifier("native.settings.devices")
                     Button("退出登录", role: .destructive) { showingLogout = true }
                 }
+            }
+
+            Section("主曲线页面 · 可选") {
+                Button {
+                    store.mainChartEnabled.toggle()
+                } label: {
+                    HStack(spacing: 12) {
+                        Label("显示独立曲线页面", systemImage: "waveform.path.ecg")
+                        Spacer()
+                        Text(store.mainChartEnabled ? "已开启" : "已隐藏")
+                            .foregroundStyle(.secondary)
+                        Image(systemName: store.mainChartEnabled ? "checkmark.circle.fill" : "circle")
+                            .foregroundStyle(store.mainChartEnabled ? .mint : .secondary)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityValue(store.mainChartEnabled ? "已开启" : "已隐藏")
+                .accessibilityIdentifier("native.settings.main-chart.toggle")
+                Text("默认隐藏整个独立曲线标签页；关闭时不创建该页面，也不会启动它的 Swift 曲线采样与云端窗口读取。反算页面仍有自己需要的曲线，不受此开关影响。")
+                    .font(.footnote).foregroundStyle(.secondary)
             }
 
             Section("通知与 Siri") {

@@ -21,6 +21,7 @@ struct NativeRootView: View {
     @State private var showGlobalMeal = false
     @State private var showGlobalChoice = false
 
+
     @ToolbarContentBuilder
     private var globalAdd: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
@@ -38,8 +39,13 @@ struct NativeRootView: View {
             Tab("今天", systemImage: "house.fill", value: .today) {
                 NavigationStack { TodayNativeView().toolbar { globalAdd } }
             }
-            Tab("曲线", systemImage: "waveform.path.ecg", value: .chart) {
-                NavigationStack { ChartNativeView().toolbar { globalAdd } }
+            // Keep the entire expensive stand-alone chart out of the view
+            // hierarchy when disabled. Its Swift plot/remote history tasks
+            // therefore do not run until explicitly enabled under 我的.
+            if store.mainChartEnabled {
+                Tab("曲线", systemImage: "waveform.path.ecg", value: .chart) {
+                    NavigationStack { ChartNativeView().toolbar { globalAdd } }
+                }
             }
             Tab("反算", systemImage: "function", value: .inverse) {
                 NavigationStack { InverseNativeView().toolbar { globalAdd } }
@@ -52,6 +58,15 @@ struct NativeRootView: View {
             }
         }
         .tint(AtlasStyle.accent)
+        .onChange(of: store.mainChartEnabled) { _, enabled in
+            if !enabled && store.activeTab == .chart { store.activeTab = .inverse }
+        }
+        .onChange(of: store.activeTab) { _, selected in
+            if selected == .chart && !store.mainChartEnabled { store.activeTab = .inverse }
+        }
+        .onAppear {
+            if !store.mainChartEnabled && store.activeTab == .chart { store.activeTab = .inverse }
+        }
         .safeAreaInset(edge: .top, spacing: 0) {
             if !store.healthAutoNotice.isEmpty {
                 HStack(spacing: 8) {
@@ -208,9 +223,11 @@ struct TodayNativeView: View {
     @State private var addDose = false
     @State private var addMeal = false
     @State private var quickTemplate: PKDose?
+    @State private var editingTodayDose: PKDose?
 
     private var recent: [PKDose] {
         store.doses.filter { Calendar.current.isDateInToday($0.time) }
+            .sorted { $0.time > $1.time }
     }
 
     var body: some View {
@@ -362,7 +379,7 @@ struct TodayNativeView: View {
                                                description: Text("只记录已经实际服用的药物"))
                             .frame(maxWidth: .infinity)
                     } else {
-                        ForEach(recent.prefix(8)) { dose in
+                        ForEach(recent) { dose in
                             HStack(spacing: 10) {
                                 Image(systemName: "checkmark.circle.fill")
                                     .foregroundStyle(AtlasStyle.mint)
@@ -374,8 +391,15 @@ struct TodayNativeView: View {
                                 }
                                 Spacer()
                                 Text("\(dose.mg.formatted()) mg").monospacedDigit()
+                                Button {
+                                    editingTodayDose = dose
+                                } label: {
+                                    Label("编辑", systemImage: "pencil")
+                                }
+                                .buttonStyle(.borderless)
+                                .accessibilityIdentifier("native.today.edit.\(dose.id)")
                             }
-                            if dose.id != recent.prefix(8).last?.id { Divider().opacity(0.35) }
+                            if dose.id != recent.last?.id { Divider().opacity(0.35) }
                         }
                     }
                 }
@@ -444,6 +468,7 @@ struct TodayNativeView: View {
         .background(AtlasStyle.background)
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $addDose) { DoseEditorNativeView() }
+        .sheet(item: $editingTodayDose) { dose in DoseEditorNativeView(existing: dose) }
         .sheet(item: $quickTemplate) { item in DoseEditorNativeView(template: item) }
         .sheet(isPresented: $addMeal) { MealEditorNativeView() }
     }

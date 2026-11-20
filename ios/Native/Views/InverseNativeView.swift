@@ -61,6 +61,13 @@ struct InverseNativeView: View {
     @State private var strengthUnit = "粒"
     @State private var strengthLabel = ""
     @FocusState private var focused: Bool
+    private var isJumpUITestFixture: Bool {
+        #if DEBUG
+        ProcessInfo.processInfo.arguments.contains("-PKAtlasUITestInverseChartJump")
+        #else
+        false
+        #endif
+    }
 
     private var drug: PKDrug? { store.selectedDrug }
     private var threshold: Double? {
@@ -260,7 +267,14 @@ struct InverseNativeView: View {
                 calculatedIncludedScheduledDoses = page == "point" ? alreadyPlanned : []
                 previewVariant = "A"
                 refreshPreview(output)
-                solutionMessage = "数学搜索已完成；已把 \(alreadyPlanned.count) 条现有计划作为固定数学条件，A/B 仅搜索新增假设节点。计划未算作已服用。"
+                if let reason = output.result?.reason {
+                    solutionMessage = "数学搜索结束，但未找到符合现有输入的候选：" + failureText(reason) +
+                        " 今日没有服用记录本身不会阻止反算；请核对已保存药盒规格、当前时刻最低值要求及其他启用的约束。"
+                } else if output.result == nil {
+                    solutionMessage = "当前有限搜索未返回候选，请核对药盒规格和所启用的约束；没有今日已服用记录不是必备条件。"
+                } else {
+                    solutionMessage = "数学搜索已完成；已把 \(alreadyPlanned.count) 条现有计划作为固定数学条件，A/B 仅搜索新增假设节点。计划未算作已服用。"
+                }
             } catch {
                 result = nil
                 solutionMessage = "计算未完成：" + error.localizedDescription
@@ -289,6 +303,8 @@ struct InverseNativeView: View {
             : unitMode
         let plottedThreshold = viewingAdopted ? adopted?["threshold"]?.number : threshold
         let variant = viewingAdopted ? adopted?["variant"]?.string : previewVariant
+        let activeReference = PKInverseChartFocus.activeReferences(
+            mode: plottedMode, threshold: plottedThreshold)
         let target = plottedThreshold.flatMap { value -> PKWebsiteChartTarget? in
             guard value.isFinite && value > 0 else { return nil }
             return PKWebsiteChartTarget(time: plottedTime.timeIntervalSince1970 * 1000,
@@ -312,22 +328,21 @@ struct InverseNativeView: View {
                 allScenarios.append(dose)
             }
         }
-        // A deliberate navigation centers the 48h math window on the
-        // selected candidate/adopted target even at 00:00, rather than
-        // leaving the target pinned to the far left of a calendar-day plot.
+        // An explicit focus changes horizontal scroll position, never
+        // the calendar-day origin. Tomorrow's target must remain in the
+        // 48-hour chart starting at *today's* midnight.
         let focus = inverseFocusTime
-        let center = focus ?? (evaluated != nil ? plottedTime :
-            PKInverseChartFocus.browsingCenter(day: inverseDay))
+        let center = focus ?? PKInverseChartFocus.browsingCenter(day: inverseDay)
         inversePlot.load(model: store.model, drug: drug, day: inverseDay,
             scale: inversePrecision, viewport: inverseWidth, planned: allScenarios,
             matchedRecordIDs: Set(store.adoptedReview?.completed.map(\.record.id) ?? []),
-            referenceBlood: plottedMode == "blood" ? plottedThreshold :
-                store.referenceValue(drugID: drug.id, mode: "blood"),
-            referenceEquivalent: plottedMode == "equivalent" ? plottedThreshold :
-                store.referenceValue(drugID: drug.id, mode: "equivalent"),
+            // Even when BOTH reference inputs were saved, an inverse
+            // calculation displays only its selected target's reference.
+            referenceBlood: activeReference.blood,
+            referenceEquivalent: activeReference.equivalent,
             target: target, variant: variant, catalogVersion: store.modelVersion,
             engineVersion: store.engineVersion, scrollTo: center,
-            windowStart: focus.map(PKInverseChartFocus.chartStart),
+            windowStart: nil, // use the selected day's midnight, not target -24h
             navigationToken: inverseNavigationToken)
     }
 
@@ -377,7 +392,7 @@ struct InverseNativeView: View {
             focus = page == "point" ? targetTime : durationStart
         }
         inverseFocusTime = focus
-        inverseDay = focus
+        inverseDay = PKInverseChartFocus.visibleDay(for: focus)
         inverseNavigationToken += 1
         chartNavigationInFlight = true
         refreshPreview()
@@ -762,9 +777,11 @@ struct InverseNativeView: View {
             handleChartNavigation(scrollProxy)
         }
         .onChange(of: inverseDay) { _, day in
-            if let focus = inverseFocusTime,
-               !Calendar.current.isDate(focus, inSameDayAs: day) {
-                inverseFocusTime = nil
+            if let focus = inverseFocusTime {
+                let start = Calendar.current.startOfDay(for: day)
+                let end = Calendar.current.date(byAdding: .day, value: 2,
+                    to: start) ?? start.addingTimeInterval(48 * 3600)
+                if focus < start || focus >= end { inverseFocusTime = nil }
             }
             refreshPreview()
         }
@@ -776,17 +793,21 @@ struct InverseNativeView: View {
         .onChange(of: inversePrecision) { _, _ in refreshPreview() }
         .onChange(of: inverseWidth) { _, _ in refreshPreview() }
         .onChange(of: store.selectedDrugID) { _, _ in
-            result = nil; restoreInverseDraft(); loadReference(); refreshPreview()
+            if !isJumpUITestFixture { result = nil }
+            restoreInverseDraft(); loadReference(); refreshPreview()
         }
         .onChange(of: draftSignature) { _, _ in
             scheduleInverseDraft()
         }
         .onChange(of: unitMode) { _, _ in
-            result = nil
+            if !isJumpUITestFixture { result = nil }
             refreshPreview()
             loadReference()
         }
-        .onChange(of: page) { _, _ in result = nil; refreshPreview() }
+        .onChange(of: page) { _, _ in
+            if !isJumpUITestFixture { result = nil }
+            refreshPreview()
+        }
         .onChange(of: store.adoptedReview?.matchedNodeCount) { _, _ in
             if result == nil { refreshPreview() }
         }
@@ -794,8 +815,10 @@ struct InverseNativeView: View {
             if result == nil { refreshPreview() }
         }
         .onChange(of: store.modelRevision) { _, _ in
-            result = nil
-            solutionMessage = "云端模型参数已更新，请重新计算反算方案。"
+            if !isJumpUITestFixture {
+                result = nil
+                solutionMessage = "云端模型参数已更新，请重新计算反算方案。"
+            }
             refreshPreview()
         }
         .onChange(of: store.snapshot) { _, _ in

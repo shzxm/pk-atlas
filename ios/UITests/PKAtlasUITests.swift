@@ -10,9 +10,9 @@ final class PKAtlasUITests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.buttons["native.add.dose"].waitForExistence(timeout: 30))
         // A cold launch with no login never displays PKAccountGateView.
-        // Today, curve, inverse and history are immediately available.
+        // Main chart is opt-in; today, inverse and history remain available.
         XCTAssertFalse(app.otherElements["native.account.locked"].exists)
-        XCTAssertTrue(app.buttons["曲线"].exists)
+        // Tab state is a local opt-in and may persist from an earlier test.
         XCTAssertTrue(app.buttons["反算"].exists)
         XCTAssertTrue(app.buttons["历史"].exists)
         XCTAssertTrue(app.buttons["native.global.add.dose"].exists)
@@ -121,8 +121,28 @@ final class PKAtlasUITests: XCTestCase {
     func testMainCurveRendersAndNeverSilentlyStaysEmpty() throws {
         let app = XCUIApplication()
         app.launch()
+        let mine = app.buttons["我的"]
+        XCTAssertTrue(mine.waitForExistence(timeout: 30))
+        mine.tap()
+        let toggle = app.buttons["native.settings.main-chart.toggle"]
+        for _ in 0..<8 where !toggle.isHittable { app.swipeUp() }
+        XCTAssertTrue(toggle.waitForExistence(timeout: 12))
+        // The test simulator can retain a previous opt-in across runs.
+        // Set the switch deterministically OFF and then ON, rather than
+        // blindly toggling an already-ON control back to OFF.
+        if (toggle.value as? String) != "已隐藏" { toggle.tap() }
+        XCTAssertEqual(toggle.value as? String, "已隐藏")
+        toggle.tap()
+        let switchedOn = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "value == %@", "已开启"), object: toggle)
+        XCTAssertEqual(XCTWaiter.wait(for: [switchedOn], timeout: 8), .completed,
+                       "Settings switch must persist ON after re-render")
         let tab = app.buttons["曲线"]
-        XCTAssertTrue(tab.waitForExistence(timeout: 30))
+        let foundTab = tab.waitForExistence(timeout: 20)
+        if !foundTab {
+            print("PKATLAS_CHART_TABS_SNAPSHOT", app.debugDescription.prefix(6000))
+        }
+        XCTAssertTrue(foundTab, "Settings should insert main-chart tab")
         tab.tap()
         XCTAssertTrue(app.segmentedControls["native.chart.mode"].waitForExistence(timeout: 15))
         let plot = app.descendants(matching: .any).matching(identifier: "native.chart.curve").firstMatch

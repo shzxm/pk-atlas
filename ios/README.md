@@ -91,3 +91,7 @@
 - [ ] APNs 原生远程推送。
 
 **模型计算仅为估算参考，不是个体血药浓度实测、药效或医学用药指导。**
+
+## 2026-11-20 · v2.27 Build 33
+
+The Today screen opens the same dose editor as History. The optional standalone Swift chart tab is hidden by default; enable it in Settings (我的) to instantiate/render that tab, while inverse chart remains available. A next-day inverse target is horizontally located on today’s 48-hour timeline and only the selected inverse reference unit is drawn. Zero-taken-dose cases use the saved whole-unit strengths without requiring a prior recorded dose; infeasible constraints remain explicit. The production IPA stays in a separate private Release.

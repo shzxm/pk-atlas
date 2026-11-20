@@ -39,6 +39,14 @@ final class NativeAppStore: ObservableObject {
     @Published private(set) var selectedDrugID = "pregabalin"
     @Published private(set) var adoptedReview: PKAdoptedReview?
     @Published private(set) var adoptedReviewStatus = ""
+    // Local-only opt-in: do not instantiate the expensive stand-alone
+    // Swift chart until this preference is enabled. Shared @Published state
+    // updates TabView immediately when Settings changes the switch.
+    @Published var mainChartEnabled = UserDefaults.standard.bool(forKey: "PKAtlasShowMainChart") {
+        didSet {
+            UserDefaults.standard.set(mainChartEnabled, forKey: "PKAtlasShowMainChart")
+        }
+    }
     @Published var activeTab: NativeTab = .today
     @Published private(set) var inverseChartRequest = 0
     @Published private(set) var inverseChartRequestVariant: String?

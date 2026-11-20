@@ -3,7 +3,7 @@
 // The inverse search is CPU intensive. Run the same model code off the UI thread.
 self.localStorage={getItem:()=>null,setItem:()=>{}};
 self.PKApi={};
-importScripts("./app.js?v=server-math-20261117b");
+importScripts("./app.js?v=web-ui-20261120b");
 
 self.onmessage=event=>{
   const {id,kind="point",drugId,rows,plan,meals,renalState,threshold,target,cap,now,fixedCount,mode,peakFloor,start,hours,countText,cycleFloor,peakRequirement,totalCap:rawTotalCap,targetWindow}=event.data;

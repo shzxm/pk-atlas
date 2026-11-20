@@ -141,3 +141,7 @@ The inverse result A/B and accepted-plan show-in-chart actions now change to the
 ### Complete SwiftUI source mirror (2026-11-19.4)
 
 The `ios/` tree now contains the entire source set required for the v2.26 Build 32 public simulator build, including the inverse chart focus helper, its tests, and updated local chart renderer. The dedicated [PKAtlas](https://github.com/shzxm/PKAtlas/releases/tag/v2.26.0-build32) source release uses the same sanitized code. The production IPA is **not** attached here.
+
+### 2026-11-20 · Today editing and local-first chart/inverse
+
+Live website bundle `website/web/app.js` v`web-ui-20261120b` and the two browser workers are included. Taken doses shown on the Today dashboard have the same edit/delete flow as History. A next-day target stays on the 48-hour axis starting today. Existing inverse references retain the current selected target mode only. Browser mathematical sampling is local Web Worker work, not an HTTP request to the server. The matching SwiftUI native source is v2.27 Build33 under `ios/`; production unsigned IPA remains private.

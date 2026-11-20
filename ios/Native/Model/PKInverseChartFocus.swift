@@ -21,6 +21,26 @@ enum PKInverseChartFocus {
         return fallback
     }
 
+    /// A target on tomorrow's calendar date still belongs to TODAY's 48h
+    /// curve, not to a separate next-day chart. Keep the chosen day's fixed
+    /// midnight anchor; only pan horizontally to the exact target instant.
+    static func visibleDay(for target: Date, now: Date = .now,
+                           calendar: Calendar = .current) -> Date {
+        let today = calendar.startOfDay(for: now)
+        let end = calendar.date(byAdding: .day, value: 2, to: today)
+            ?? today.addingTimeInterval(48 * 3600)
+        if target >= today && target < end { return today }
+        return calendar.startOfDay(for: target)
+    }
+
+    static func activeReferences(mode: String, threshold: Double?) ->
+        (blood: Double?, equivalent: Double?) {
+        guard let threshold, threshold.isFinite, threshold > 0 else {
+            return (nil, nil)
+        }
+        return mode == "equivalent" ? (nil, threshold) : (threshold, nil)
+    }
+
     static func chartStart(center: Date) -> Date {
         center.addingTimeInterval(-halfWindow)
     }
