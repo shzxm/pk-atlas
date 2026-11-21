@@ -2411,7 +2411,7 @@ function schedulePointInverse(){
 }
 function solvePointInWorker(input,id){
   return new Promise((resolve,reject)=>{
-    const worker=pointWorker||new Worker("./inverse-worker.js?v=web-inverse-audit-20261121b");
+    const worker=pointWorker||new Worker("./inverse-worker.js?v=web-curve-union-20261121c");
     pointWorker=worker;pointWorkerBusy=true;
     worker.onmessage=event=>{
       if(event.data.id!==id||pointWorker!==worker)return;
@@ -2569,7 +2569,7 @@ function scheduleDurationInverse(){
 }
 function solveDurationInWorker(input,id){
   return new Promise((resolve,reject)=>{
-    const worker=inverseWorker||new Worker("./inverse-worker.js?v=web-inverse-audit-20261121b");
+    const worker=inverseWorker||new Worker("./inverse-worker.js?v=web-curve-union-20261121c");
     inverseWorker=worker;inverseWorkerBusy=true;
     worker.onmessage=event=>{
       if(event.data.id!==id||inverseWorker!==worker)return;
@@ -2653,7 +2653,7 @@ function pkLocalCurveRequest(key,payload){
       pkLocalCurveWorker.terminate();pkLocalCurveWorker=null;
     }
     if(!pkLocalCurveWorker){
-      const worker=new Worker("./chart-worker.js?v=web-inverse-audit-20261121b");
+      const worker=new Worker("./chart-worker.js?v=web-curve-union-20261121c");
       pkLocalCurveWorker=worker;
       worker.onmessage=event=>{
         if(worker!==pkLocalCurveWorker||event.data.id!==pkLocalCurvePending?.id)return;
@@ -2700,6 +2700,28 @@ function pkLocalCurveRequest(key,payload){
     return false;
   }
 }
+// Chart-only overlay. Explicitly saved plans are counted alongside an
+// accepted A/B hypothesis, but neither ever enters the solid actual series.
+// Use the same residual horizon as the modeled samples; an overdue and still
+// unconfirmed saved plan stays hypothetical instead of silently disappearing.
+function chartScenarioRows(drugId,actualRows,scenarioRows,from,to){
+  const same=(left,right)=>left&&right&&(
+    left.id&&right.id&&left.id===right.id||
+    Math.abs(left.time-right.time)<=60000&&Math.abs(left.mg-right.mg)<.0001);
+  const valid=row=>row&&(!row.drug||row.drug===drugId)&&
+    Number.isFinite(row.time)&&row.time>=from&&row.time<=to&&
+    Number.isFinite(row.mg)&&row.mg>0&&row.mg<100000;
+  const result=[];
+  // Saved plans take precedence over coincident A/B preview nodes. One
+  // proposed intake must not be added twice under two different IDs.
+  for(const row of [...scheduledDoses.filter(row=>row.drug===drugId),...scenarioRows]){
+    if(!valid(row)||actualRows.some(item=>same(item,row))||
+       result.some(item=>same(item,row)))continue;
+    result.push({...row,drug:drugId,planningOnly:true,
+      curveOrigin:scheduledDoses.some(plan=>plan.id===row.id)?"saved-plan":"model-preview"});
+  }
+  return result.sort((left,right)=>left.time-right.time);
+}
 function drawChart(){
   const d=chosen(),rows=allRows(),svg=$("chart"),wrap=$("chartWrap");
   wrap.hidden=!!d.recordOnly;document.querySelector(".chart-panel .probe").hidden=!!d.recordOnly;document.querySelector(".chart-panel .legend").hidden=!!d.recordOnly;$("quickReference").hidden=!!d.recordOnly;
@@ -2707,22 +2729,22 @@ function drawChart(){
   const previous=chartView,previousScroll=wrap.scrollLeft,previousViewport=wrap.clientWidth;svg.replaceChildren();
   const mobile=window.innerWidth<560,H=mobile?300:390,L=mobile?42:59,R=mobile?54:65,T=25,B=mobile?83:94;
   const adopted=adoptedPlan();
+  const now=Date.now(),start=dayStart(selectedDate),end=start+48*3600000;
+  const previewFrom=start-residualWindowHours(d)*3600000;
   const activeScenario=appliedPointScenario?.drug===current?appliedPointScenario:adopted?(()=>{const state=currentAdoptedEvaluation(adopted);return{drug:current,target:adopted.target,threshold:adopted.threshold,mode:adopted.mode,doses:state.pending,initialHypothesis:adopted.initialModel,adoptedVariant:adopted.variant||"A"}})():null;
   const manual=activeScenario?null:getScenario(),multi=activeScenario?.doses||null;
   const scenario=multi?{time:multi[0]?.time??activeScenario.target,mg:0,doses:multi}:manual,scenarioTime=scenario&&!scenario.invalid?scenario.time:null;
   const separatePreview=scenario&&!scenario.invalid?(scenario.doses||[{time:scenario.time,mg:scenario.mg}]):[];
-  let previewRows=adopted
-    ? [...separatePreview,...adoptedIncludedScheduledDoses(adopted,rows,separatePreview)]
-       .filter((item,index,array)=>!array.slice(0,index).some(other=>
-         Math.abs(other.time-item.time)<=60000&&Math.abs(other.mg-item.mg)<.0001))
-    : futurePreviewNodes(current,separatePreview);
+  let previewRows=chartScenarioRows(current,rows,
+    [...separatePreview,...(adopted?adoptedIncludedScheduledDoses(adopted,rows,separatePreview):[])],
+    previewFrom,end);
   const assumption=activeScenario?.initialHypothesis;
   const assumedAt=Number(adopted?.initialModel?.at)||0;
   const realAfterAssumption=!!adopted&&rows.some(r=>r.drug===current&&r.time>=assumedAt&&r.time<=Date.now());
   if(assumption&&Number.isFinite(assumption.time)&&Number.isFinite(assumption.mg)&&
-     assumption.mg>0&&!realAfterAssumption)previewRows=[...previewRows,
-       {id:"pk-model-initial-assumption",drug:current,time:assumption.time,mg:assumption.mg,initialModel:true,planningOnly:true}];
-  const now=Date.now(),start=dayStart(selectedDate),end=start+48*3600000;
+     assumption.mg>0&&!realAfterAssumption)previewRows=chartScenarioRows(current,rows,
+       [...previewRows,{id:"pk-model-initial-assumption",drug:current,time:assumption.time,
+         mg:assumption.mg,initialModel:true,planningOnly:true}],previewFrom,end);
   const scale=Number($("chartScale").value)||55;
   const W=Math.min(16000,Math.max(mobile?360:760,wrap.clientWidth||0,Math.ceil((end-start)/3600000*scale)+L+R));
   svg.setAttribute("viewBox",`0 0 ${W} ${H}`);svg.style.width=`${W}px`;svg.style.height=`${H}px`;
@@ -2865,6 +2887,8 @@ function drawChart(){
   $("targetMarkerLegend").lastChild.textContent=` 虚线竖标＝${activeScenario?.adoptedVariant?`已采用方案 ${activeScenario.adoptedVariant} 的`:""}目标时刻（${activeScenario?.mode==="equivalent"?"橙色＝剂量等效量":"橙色＝血药浓度"}）`;
   const mealTypes=FOOD_INFO[d.id]?.fed?[...new Set(modelRows.map(r=>mealForDose(r.time,d.id)?.mealType).filter(Boolean))].map(type=>type==="highFat"&&FOOD_INFO[d.id].fed.highFat?"高脂餐":"普通餐").join("、"):"";
   $("chartCaption").textContent=rows.length?`仅统计${d.name} · 历史共 ${rows.length} 次记录，同药物跨日残留已计入${activeScenario?.adoptedVariant?` · 已采用方案 ${activeScenario.adoptedVariant} 的剩余节点显示为虚线`:""}${mealTypes?` · 餐型：${mealTypes}`:""}${hasFoodEffect?` · 已计饮食峰值约 ${fmt(peak.c,3)} mg/L；未计饮食参考峰值约 ${fmt(unfedPeak.unfed,3)} mg/L`:""} · 当前窗口 ${dateText(start)}—${dateText(end)}`:scenario&&!scenario.invalid?`${d.name}暂无已记服用；蓝色虚线为假设血药浓度，紫色虚线为假设剂量等效量 · 当前窗口 ${dateText(start)}—${dateText(end)}`:`${d.name}暂无单次记录`;
+  const savedPlansInCurve=previewRows.filter(row=>row.curveOrigin==="saved-plan").length;
+  if(savedPlansInCurve)$("chartCaption").textContent+=` · 已保存但未确认的计划服用 ${savedPlansInCurve} 条参与虚线预测${adopted?"，已和采用方案合并去重":""}，不属于实测或已服用`;
   $("chartCaption").textContent+=authoritative?
     " · 当前曲线由本机浏览器 Web Worker 直接计算（无需服务器求值）":
     " · 当前曲线由本机浏览器计算（Worker 兼容降级）";
@@ -3476,7 +3500,7 @@ let appOfflineRestored=false;
 function initOfflineShell(){
   if(location.protocol!=="https:"||!("serviceWorker" in navigator))return;
   const install=()=>navigator.serviceWorker.register(
-    "/sw.js?v=web-inverse-audit-20261121b",{scope:"/"}
+    "/sw.js?v=web-curve-union-20261121c",{scope:"/"}
   ).catch(()=>{/* A failed shell install must not block login or autosave. */});
   if(document.readyState==="complete")void install();
   else window.addEventListener("load",install,{once:true});

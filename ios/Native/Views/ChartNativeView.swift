@@ -108,15 +108,24 @@ struct ChartNativeView: View {
     @FocusState private var focused: String?
 
     private var scenarios: [PKDose] {
+        let drugID = store.selectedDrugID
+        let window = range
+        let lower = store.selectedDrug.map {
+            PKResidualWindow.start(drug: $0, model: store.model,
+                                   earliestSample: window.lowerBound)
+        } ?? window.lowerBound
+        let mathematical: [PKDose]
         if store.curvePreviewVariant != nil {
-            return store.futureScenarioDoses(store.curvePreviewDoses, drugID: store.selectedDrugID)
+            mathematical = store.curvePreviewDoses
+        } else if store.adoptedPlanObject() != nil {
+            mathematical = store.adoptedForecastDoses(drugID: drugID)
+        } else {
+            mathematical = []
         }
-        if store.adoptedPlanObject() != nil {
-            return store.adoptedForecastDoses()
-        }
-        // Standalone future plans remain available as their own general
-        // what-if curve when no accepted A/B scheme is currently selected.
-        return store.futureScenarioDoses([], drugID: store.selectedDrugID)
+        // Always include independently saved future plans, even with an
+        // adopted model or after an unconfirmed plan's timestamp has passed.
+        return store.futureScenarioDoses(mathematical, drugID: drugID,
+            from: lower, through: window.upperBound)
     }
     private var range: ClosedRange<Date> {
         anchor.addingTimeInterval(-PKShortChart.before)...anchor.addingTimeInterval(PKShortChart.after)
@@ -201,7 +210,7 @@ struct ChartNativeView: View {
                         }
                         let currentPlans = store.plannedDoses(for: drug.id)
                         if !currentPlans.isEmpty {
-                            Label("已包含 \(currentPlans.count) 条计划服用：仅参与虚线预测；不会计为已发生的服用，也不自动提醒。", systemImage: "calendar.badge.clock")
+                            Label("已保存 \(currentPlans.count) 条未来服用计划：计算窗口内会与已采用 A/B 方案合并去重，显示为虚线；不会自动记为已服用。", systemImage: "calendar.badge.clock")
                                 .font(.caption).foregroundStyle(.orange)
                         }
                         if !plot.actual.isEmpty {
@@ -274,7 +283,7 @@ struct ChartNativeView: View {
                                     Label("未计饮食", systemImage: "line.diagonal").foregroundStyle(.cyan)
                                 }
                                 if !plot.scenario.isEmpty {
-                                    Label("未匹配方案（虚线）", systemImage: "line.diagonal")
+                                    Label("未来计划 + 模型假设（虚线）", systemImage: "line.diagonal")
                                         .foregroundStyle(.purple)
                                 }
                             }.font(.caption2)

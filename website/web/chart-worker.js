@@ -3,7 +3,7 @@
 // pharmacokinetic calculation request is sent to the 181 API.
 self.localStorage={getItem:()=>null,setItem:()=>{}};
 self.PKApi={};
-importScripts("./app.js?v=web-inverse-audit-20261121b");
+importScripts("./app.js?v=web-curve-union-20261121c");
 self.onmessage=event=>{
   const {id,drugId,times,records,planned,meals,renalState,modelCatalog}=event.data;
   try {

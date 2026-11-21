@@ -355,18 +355,27 @@ struct InverseNativeView: View {
             return PKWebsiteChartTarget(time: plottedTime.timeIntervalSince1970 * 1000,
                 mode: plottedMode, value: value, variant: variant)
         }
-        // The inverse curve must not silently add unrelated scheduled doses.
-        // Accepted A/B uses the stored adoption snapshot; a newly calculated
-        // candidate uses only its own solver inputs. Confirmed actual entries
-        // enter the solid baseline through store.model, not this dashed list.
+        // Explicit saved future plans always participate in dashed curve
+        // predictions, including beside adopted A/B mathematical nodes.
+        // Neither kind is treated as confirmed actual intake; the accepted
+        // solver snapshot and its constraints remain unchanged.
         let baseScenarios = (evaluated == nil && adopted != nil
             ? store.adoptedForecastDoses(drugID: drug.id)
             : doses + (evaluated == nil ? [] : calculatedIncludedScheduledDoses) +
                 (evaluated == nil ? [] : calculatedInitialModelDose.map { [$0] } ?? [])) +
                 (manualFuturePreview.map { [$0] } ?? [])
         let actual = store.doses.filter { $0.drug == drug.id }
+        let chartStart = Calendar.current.startOfDay(for: inverseDay)
+        let chartEnd = chartStart.addingTimeInterval(48 * 3600)
+        let from = PKResidualWindow.start(drug: drug, model: store.model,
+            earliestSample: chartStart)
+        // Combine independently saved plans with the currently adopted or
+        // calculated model; without adoption, saved plans still render.
+        // Deduping by ID and time/amount keeps one event in the dashed curve.
+        let combinedScenarios = store.futureScenarioDoses(baseScenarios,
+            drugID: drug.id, from: from, through: chartEnd)
         var allScenarios: [PKDose] = []
-        for dose in baseScenarios where dose.drug == drug.id {
+        for dose in combinedScenarios where dose.drug == drug.id {
             let same: (PKDose) -> Bool = { other in
                 other.id == dose.id || (abs(other.time.timeIntervalSince(dose.time)) <= 60 &&
                     abs(other.mg - dose.mg) < 0.0001)
@@ -472,11 +481,13 @@ struct InverseNativeView: View {
                     Label("虚线包含当前起始模型值的数学假设，不表示实际服用或血药实测，不生成服药通知；真实服用出现后应以实际记录重新核算。", systemImage: "waveform.path")
                         .font(.caption).foregroundStyle(.orange)
                 }
-                if includedCount > 0 {
-                    Label("本次反算或已采用方案明确计入 \(includedCount) 条未来计划；未计入的独立计划不会加入已采用曲线，确认实际服用后才加入实线。", systemImage: "calendar.badge.clock")
+                let independentlySaved = store.plannedDoses(for: drug.id).count
+                if independentlySaved > 0 {
+                    Label("已保存 \(independentlySaved) 条未来服用计划；位于曲线计算窗口内的计划会与当前 A/B 方案合并去重，显示在虚线预测中。未确认的计划不是已服用。", systemImage: "calendar.badge.clock")
                         .font(.caption).foregroundStyle(.orange)
-                } else if store.adoptedPlanObject() != nil {
-                    Text("当前已采用方案未保存额外计划参与计算的证明；独立未来计划需要确认实际服用后才进入已采用曲线。")
+                }
+                if includedCount > 0 {
+                    Text("其中 \(includedCount) 条计划已记录在本次反算或已采用数学方案的固定条件中。新保存的独立计划只合并到预测曲线，不会悄悄修改已采用方案的原约束。")
                         .font(.caption2).foregroundStyle(.secondary)
                 }
                 if page == "point" && result != nil {

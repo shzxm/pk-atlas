@@ -285,25 +285,16 @@ final class NativeAppStore: ObservableObject {
     func plannedDoses(for drugID: String) -> [PKDose] {
         scheduledDoses.filter { $0.drug == drugID }
     }
-    func futureScenarioDoses(_ hypothetical: [PKDose], drugID: String) -> [PKDose] {
-        // Explicit future entries form an independent baseline of what-if
-        // nodes; avoid duplicating one node from an adopted A/B preview.
-        let actual = snapshot.doses.filter { $0.drug == drugID }
-        var rows = plannedDoses(for: drugID).filter { planned in
-            planned.time >= Date.now.addingTimeInterval(-120) &&
-            !actual.contains(where: { taken in
-                taken.id == planned.id ||
-                (abs(taken.time.timeIntervalSince(planned.time)) <= 60 &&
-                 abs(taken.mg - planned.mg) < 0.0001)
-            })
-        }
-        for item in hypothetical where item.drug == drugID {
-            guard !rows.contains(where: { $0.id == item.id ||
-                (abs($0.time.timeIntervalSince(item.time)) <= 60 &&
-                 abs($0.mg - item.mg) <= 0.0001) }) else { continue }
-            rows.append(item)
-        }
-        return rows.sorted { $0.time < $1.time }
+    func futureScenarioDoses(_ hypothetical: [PKDose], drugID: String,
+                             from lower: Date = .now.addingTimeInterval(-120),
+                             through upper: Date = .distantFuture) -> [PKDose] {
+        // Combine saved future (possibly overdue/unconfirmed) plans with any
+        // currently adopted A/B scenario. An identical node is modeled once.
+        // Keep this distinct from adopted-plan constraint evaluation: adding
+        // a plan does not mutate the accepted solver snapshot.
+        PKScenarioOverlay.merged(saved: snapshot.scheduledDoses,
+            hypothesis: hypothetical, actual: snapshot.doses,
+            drugID: drugID, from: lower, through: upper)
     }
     func savePlannedDose(_ dose: PKDose, replacingActual id: String? = nil) {
         guard catalog.drugs.contains(where: { $0.id == dose.drug }),
