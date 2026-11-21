@@ -125,6 +125,73 @@ final class PKNativeInverseTests: XCTestCase {
         XCTAssertEqual(rejected.result?.reason, "initialBaselineInvalid")
     }
 
+    func testFixedCountMayFormCoverageAfterInitialAbsorption() async throws {
+        // Regression: the previous fixed-count search rejected any plan that
+        // dipped below the reference after the initial model timestamp,
+        // even when its later continuous modeled coverage met the floor.
+        let now = 1_800_000_000_000.0
+        let input = PKInverseInput(
+            kind: "point", drugId: "pregabalin", rows: [],
+            plan: .object(["strengths": .array([
+                .object(["id": .string("fixture"),"mg": .number(50),"unit": .string("粒")])])]),
+            meals: [], renalState: .null, threshold: 650,
+            target: now + 3 * 3_600_000, cap: 200, now: now,
+            fixedCount: 1, mode: "equivalent", peakFloor: 0,
+            start: now + 900_000, hours: 1, countText: "",
+            cycleFloor: PKInverseLimit(value: 650, mode: "equivalent"),
+            peakRequirement: PKInverseLimit(value: 0, mode: "equivalent"),
+            totalCap: nil, initialBaseline: PKInverseInitialBaseline(mode: "equivalent", value: 650))
+        let output = try await PKNativeInverseSolver.solve(input)
+        XCTAssertNil(output.error)
+        XCTAssertNil(output.result?.reason)
+        XCTAssertEqual(output.result?.doses?.count, 1)
+        XCTAssertGreaterThan(output.result?.continuousFrom ?? now, now)
+        XCTAssertLessThan(output.result?.continuousFrom ?? input.target, input.target)
+        XCTAssertGreaterThanOrEqual(output.result?.cycleObserved ?? 0, 649.999)
+    }
+
+    func testExistingFuturePlanCountsTowardCurrentToTargetCap() async throws {
+        let now = 1_800_000_000_000.0
+        let fixedPlan: [[String: PKJSON]] = [[
+            "id": .string("fixed"), "drug": .string("pregabalin"),
+            "mg": .number(100), "time": .number(now + 3_600_000),
+            "planningOnly": .bool(true)
+        ]]
+        let input = PKInverseInput(
+            kind: "point", drugId: "pregabalin", rows: fixedPlan,
+            plan: .object(["strengths": .array([
+                .object(["mg": .number(50), "unit": .string("粒")])])]),
+            meals: [], renalState: .null, threshold: 650,
+            target: now + 3 * 3_600_000, cap: 200, now: now,
+            fixedCount: 1, mode: "equivalent", peakFloor: 0,
+            start: now + 900_000, hours: 1, countText: "",
+            cycleFloor: PKInverseLimit(value: 650, mode: "equivalent"),
+            peakRequirement: PKInverseLimit(value: 0, mode: "equivalent"),
+            totalCap: 75, initialBaseline: PKInverseInitialBaseline(mode: "equivalent", value: 650))
+        let output = try await PKNativeInverseSolver.solve(input)
+        XCTAssertNil(output.error)
+        XCTAssertEqual(output.result?.reason, "totalNoSolution",
+                       "Existing fixed plans must consume the cumulative cap")
+    }
+
+    func testNoContinuousCoverageIsNeverPresentedAsSuccess() async throws {
+        let now = 1_800_000_000_000.0
+        let input = PKInverseInput(
+            kind: "point", drugId: "pregabalin", rows: [],
+            plan: .object(["strengths": .array([
+                .object(["id": .string("small"), "mg": .number(50), "unit": .string("粒")])])]),
+            meals: [], renalState: .null, threshold: 1000,
+            target: now + 3_600_000, cap: 50, now: now,
+            fixedCount: nil, mode: "equivalent", peakFloor: 0,
+            start: now + 900_000, hours: 1, countText: "",
+            cycleFloor: PKInverseLimit(value: 0, mode: "equivalent"),
+            peakRequirement: PKInverseLimit(value: 0, mode: "equivalent"),
+            totalCap: nil, initialBaseline: PKInverseInitialBaseline(mode: "equivalent", value: 100))
+        let output = try await PKNativeInverseSolver.solve(input)
+        XCTAssertNil(output.error)
+        XCTAssertEqual(output.result?.reason, "coverageSearchIncomplete")
+    }
+
     func testWebsiteInverseEngineLoadsAndIdentifiesMissingDrugStrengths() async throws {
         let now = 1_700_000_000_000.0
         let input = PKInverseInput(

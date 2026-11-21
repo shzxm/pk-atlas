@@ -745,7 +745,7 @@ struct InverseNativeView: View {
                                 PKCompactField(title: "单节点剂量上限", hint: "不限",
                                     value: $maximumDoseText, unit: "mg", tint: .orange,
                                     identifier: "native.inverse.max-node", emphasis: true, compact: true)
-                                PKCompactField(title: "累计新增剂量上限", hint: "不限",
+                                PKCompactField(title: "固定计划＋新增预计总量剂量上限", hint: "不限",
                                     value: $totalMaximumText, unit: "mg", tint: .orange,
                                     identifier: "native.inverse.total-cap", emphasis: true, compact: true)
                             }
@@ -809,7 +809,7 @@ struct InverseNativeView: View {
                                     .pickerStyle(.segmented)
                                 }
                             }
-                            Text("周期最低值从模型规划的连续覆盖段起点至目标时刻检查，不再要求当前未建立覆盖的一瞬间已经达标。累计上限只计新增假设服药节点，起始模型假设不是实际剂量。")
+                            Text("周期最低值从模型规划的连续覆盖段起点至目标时刻检查，不再要求当前未建立覆盖的一瞬间已经达标。累计上限统计当前至目标时刻已保存的未来计划及新增假设节点；起始模型假设不是实际服用，不计入新增计划总量。")
                                 .font(.footnote).foregroundStyle(.secondary)
                         } else {
                             DatePicker("维持窗口开始", selection: $durationStart,
@@ -1112,11 +1112,12 @@ struct InverseNativeView: View {
         case "initialBaselineRequired": return "请先填写起始模型值，或明确采用当前参考值作为起始数学假设。"
         case "initialBaselineInvalid": return "起始模型值须为有效正数且使用与参考线一致的单位。"
         case "cap": return "单次上限小于可组合的最小药盒规格。"
-        case "fixedNoSolution": return "在固定次数和时间窗口内未找到数学候选。"
+        case "coverageSearchIncomplete": return "本轮有界搜索没有找到目标前建立连续覆盖的候选，不能认定所有组合数学无解。"
+        case "fixedNoSolution": return "在固定次数和时间窗口内未找到数学候选；有限搜索未遍历所有可能组合。"
         case "peakNoSolution": return "覆盖段模型峰值条件无法满足。"
         case "cycleAlreadyBelow": return "旧版本曾把最低值错算成当前瞬间的要求；请重新计算以使用连续覆盖段。"
         case "cycleNoSolution": return "周期最低值约束在此搜索范围内无解。"
-        case "totalNoSolution": return "累计新增剂量上限与其他约束无法同时满足。"
+        case "totalNoSolution": return "固定计划＋新增预计总量剂量上限与其他约束无法同时满足。"
         case "targetWindowUnreached": return "在已有规格及有限搜索中未找到目标时刻落入设定 ± 偏差范围的候选；不代表数学上绝对无解。"
         case "targetWindowInvalid": return "目标时刻偏差需要填写正数。"
         case "constraintNoSolution": return "无法同时满足全部模型约束。"

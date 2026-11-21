@@ -141,6 +141,12 @@ enum PKNativeInverseSolver {
         const totalCap=rawTotalCap===undefined||rawTotalCap===null?Infinity:Number(rawTotalCap);
         if(totalCap!==Infinity&&(!Number.isFinite(totalCap)||totalCap<=0||totalCap>1000000))
           throw new Error("周期累计新增剂量上限无效");
+        const fixedPlannedTotal=rows.filter(d=>d.planningOnly===true&&
+          d.source!=="model-only-initial"&&Number.isFinite(d.time)&&
+          d.time>=now-1000&&d.time<=target+1000&&Number.isFinite(d.mg)&&d.mg>0)
+          .reduce((sum,d)=>sum+d.mg,0);
+        if(Number.isFinite(totalCap)&&fixedPlannedTotal>totalCap+1e-6)
+          return JSON.stringify({result:{reason:"totalNoSolution",fixedPlannedTotal,totalCap},minimum:null});
         const equivPeak=peak.mode==="equivalent"?peak.value:0;
         // Existing bounded search remains the first stage. The second stage
         // enforces BOTH independently sampled metrics before publishing results.
@@ -152,7 +158,7 @@ enum PKNativeInverseSolver {
         result=enforcePointConstraints(drug,rows,result,threshold,target,cap,now,mode,cycle,peak,fixedCount);
         // If the first bounded greedy candidate exceeds the cumulative cap, try
         // reducing whole-dose nodes before declaring the cap infeasible.
-        if(!result?.reason&&result.mg>totalCap+1e-6){
+        if(!result?.reason&&result.mg+fixedPlannedTotal>totalCap+1e-6){
           const smallest=solveMinimumPoint(drug,rows,threshold,target,cap,now,result,fixedCount,mode,equivPeak);
           result=enforcePointConstraints(drug,rows,smallest,threshold,target,cap,now,mode,cycle,peak,fixedCount,totalCap)
             ||{reason:"totalNoSolution"};

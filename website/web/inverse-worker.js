@@ -3,7 +3,7 @@
 // The inverse search is CPU intensive. Run the same model code off the UI thread.
 self.localStorage={getItem:()=>null,setItem:()=>{}};
 self.PKApi={};
-importScripts("./app.js?v=web-plans-only-20261120g");
+importScripts("./app.js?v=web-inverse-audit-20261121b");
 
 self.onmessage=event=>{
   const {id,kind="point",drugId,rows:givenRows,plan,meals,renalState,threshold,target,cap,now,fixedCount,mode,peakFloor,start,hours,countText,cycleFloor,peakRequirement,totalCap:rawTotalCap,targetWindow,initialBaseline}=event.data;
@@ -62,6 +62,16 @@ self.onmessage=event=>{
     const totalCap=rawTotalCap===undefined||rawTotalCap===null?Infinity:Number(rawTotalCap);
     if(totalCap!==Infinity&&(!Number.isFinite(totalCap)||totalCap<=0||totalCap>1000000))
       throw new Error("周期累计新增剂量上限无效");
+    // Total planned allowance includes existing explicit future plans, not
+    // only the newly synthesized A/B nodes. Exclude the virtual baseline.
+    const fixedPlannedTotal=rows.filter(d=>d.planningOnly===true&&
+      d.source!=="model-only-initial"&&Number.isFinite(d.time)&&
+      d.time>=now-1000&&d.time<=target+1000&&Number.isFinite(d.mg)&&d.mg>0)
+      .reduce((sum,d)=>sum+d.mg,0);
+    if(Number.isFinite(totalCap)&&fixedPlannedTotal>totalCap+1e-6){
+      self.postMessage({id,result:{reason:"totalNoSolution",fixedPlannedTotal,totalCap},
+        minimum:null,initialHypothesis});return;
+    }
     const equivPeak=peak.mode==="equivalent"?peak.value:0;
     // Existing bounded search remains the first stage. The second stage
     // enforces BOTH independently sampled metrics before publishing results.
@@ -88,7 +98,7 @@ self.onmessage=event=>{
     }
     // If the first bounded greedy candidate exceeds the cumulative cap, try
     // reducing whole-dose nodes before declaring the cap infeasible.
-    if(!result?.reason&&result.mg>totalCap+1e-6){
+    if(!result?.reason&&result.mg+fixedPlannedTotal>totalCap+1e-6){
       const smallest=solveMinimumPoint(drug,rows,threshold,target,cap,now,result,fixedCount,mode,equivPeak);
       result=enforcePointConstraints(drug,rows,smallest,threshold,target,cap,now,mode,cycle,peak,fixedCount,totalCap)
         ||{reason:"totalNoSolution"};

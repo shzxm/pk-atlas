@@ -1,5 +1,5 @@
 "use strict";
-const PK_MODEL_ENGINE_VERSION = "14d2a78c5b722ad37f6812679b925a704fb5a6a6ac75275ae3485947f60485dd";
+const PK_MODEL_ENGINE_VERSION = "b5062dee9112c50c9fc6ae166418034196624daf8f2b72e33feed0593ba63dde";
 
 // Published Cmax values describe a specific studied formulation/population.
 // The Bateman curve and dose proportionality below are teaching assumptions.
@@ -1577,8 +1577,11 @@ function solveFixedContinuousPoint(drug,rows,threshold,target,cap,now,count,mode
   const response=(mg,doseTime,time)=>doseModelValue(drug,mg,doseTime,time,mode);
   const earliest=earliestHypotheticalTime(rows,now),lastAllowed=target-sample,firstTimes=[];
   if(earliest>lastAllowed)return{reason:"fixedNoSolution",baselineNow,effectiveCap};
-  if(baselineNow<threshold)firstTimes.push(earliest);
-  else{for(let time=earliest;time<=lastAllowed;time+=step)firstTimes.push(time);if(firstTimes.at(-1)!==lastAllowed)firstTimes.push(lastAllowed)}
+  // Start times remain searchable even if the current model is below the
+  // reference. Requiring the first dose NOW incorrectly eliminates later
+  // plans whose continuous coverage starts after oral absorption.
+  for(let time=earliest;time<=lastAllowed;time+=step)firstTimes.push(time);
+  if(firstTimes.at(-1)!==lastAllowed)firstTimes.push(lastAllowed);
   let best=null;
   for(const first of firstTimes){
     const lastTimes=[];
@@ -1587,14 +1590,15 @@ function solveFixedContinuousPoint(drug,rows,threshold,target,cap,now,count,mode
     for(const last of lastTimes){
       const times=Array.from({length:count},(_,i)=>i===0?first:Math.round((first+(last-first)*i/(count-1))/60000)*60000);
       if(times.some((time,i)=>i&&time-times[i-1]<Math.max(step,minimumGap)-1000))continue;
-      const doses=[];let coverageStart=now,possible=true;
-      if(baselineNow<threshold){
-        const check=Math.min(target,first+dosePeakMs(drug,first)),perMg=response(1,first,check),needed=perMg>0?(threshold-modelValue(drug,check,rows,mode))/perMg:0;
-        const option=nearestWholeDose(Math.max(options[0].mg,needed*1.002),options,effectiveCap)||options.at(-1);
-        doses.push({time:first,mg:option.mg,parts:option.parts});
-        coverageStart=samples.find(p=>p.base+response(option.mg,first,p.time)>=threshold-1e-6)?.time??null;
-        if(coverageStart===null||coverageStart>=target)continue;
-      }
+      const doses=[],possibleStart=first;
+      // A mathematical coverage segment begins when a modeled future dose
+      // can contribute, not necessarily at the input timestamp. The last
+      // below-reference sample is recomputed after ALL chosen nodes exist.
+      const baselineAllCovered=samples.every(p=>p.base>=threshold-1e-6);
+      let coverageStart=baselineAllCovered?now:
+        Math.min(target-sample,first+Math.min(dosePeakMs(drug,first),45*60000));
+      if(coverageStart>=target)continue;
+      let possible=true;
       for(let i=doses.length;i<count;i++){
         const segmentStart=i===0?coverageStart:Math.max(coverageStart,times[i]+dosePeakMs(drug,times[i]));
         const segmentEnd=i===count-1?target:Math.min(target,times[i+1]+dosePeakMs(drug,times[i+1]));
@@ -1615,11 +1619,20 @@ function solveFixedContinuousPoint(drug,rows,threshold,target,cap,now,count,mode
       if(!possible||doses.length!==count)continue;
       if(peakFloor>0){const adjusted=strengthenPointPeak(drug,rows,doses,coverageStart,target,effectiveCap,peakFloor);if(!adjusted)continue;doses.splice(0,doses.length,...adjusted)}
       const levels=samples.map(p=>({time:p.time,value:p.base+doses.reduce((sum,dose)=>sum+response(dose.mg,dose.time,p.time),0)}));
-      if(levels.some(p=>p.time>=coverageStart&&p.value<threshold-1e-6))continue;
-      const modeled=levels.at(-1).value,peak=Math.max(...levels.map(p=>p.value)),mg=doses.reduce((sum,dose)=>sum+dose.mg,0);
+      let lastBelow=null;
+      for(const level of levels)if(level.value<threshold-1e-6)lastBelow=level.time;
+      const actualCoverageStart=lastBelow===null?now:
+        lastBelow>=target?null:Math.min(target,lastBelow+sample);
+      if(actualCoverageStart===null||actualCoverageStart>=target)continue;
+      const covered=levels.filter(p=>p.time>=actualCoverageStart);
+      if(covered.some(p=>p.value<threshold-1e-6))continue;
+      const modeled=levels.at(-1).value,peak=Math.max(...covered.map(p=>p.value)),mg=doses.reduce((sum,dose)=>sum+dose.mg,0);
       const after=modelValue(drug,target+sample,rows,mode)+doses.reduce((sum,dose)=>sum+response(dose.mg,dose.time,target+sample),0);
       const fallingAfter=after<=modeled+1e-6;
-      const candidate={doses,mg,baselineNow,baselineTarget,modeled,fallingAfter,firstReach:coverageStart,continuousFrom:coverageStart,allCovered:coverageStart===now,limited:false,minLevel:Math.min(...levels.filter(p=>p.time>=coverageStart).map(p=>p.value)),peak,effectiveCap,fixedCount:count};
+      const candidate={doses,mg,baselineNow,baselineTarget,modeled,fallingAfter,
+        firstReach:actualCoverageStart,continuousFrom:actualCoverageStart,
+        allCovered:actualCoverageStart===now,limited:false,
+        minLevel:Math.min(...covered.map(p=>p.value)),peak,effectiveCap,fixedCount:count};
       if(!best||(candidate.allCovered&&!best.allCovered)||(candidate.allCovered===best.allCovered&&((candidate.continuousFrom<best.continuousFrom)||(candidate.continuousFrom===best.continuousFrom&&(candidate.mg<best.mg-1e-6||(Math.abs(candidate.mg-best.mg)<1e-6&&candidate.peak<best.peak))))))best=candidate;
     }
   }
@@ -1943,14 +1956,28 @@ function strengthenPointCycleFloor(drug,rows,doses,coverageStart,target,cap,floo
   return null;
 }
 function enforcePointConstraints(drug,rows,result,threshold,target,cap,now,mode,cycle,peak,fixedCount=null,totalCap=Infinity){
-  if(!result||result.reason||result.continuousFrom===null)return result;
+  if(!result||result.reason)return result;
+  // Missing coverage is NEVER a successful inverse candidate. In particular,
+  // the native JSCore caller previously received reason:null with a null
+  // coverage start, and could present the result as valid.
+  if(!Number.isFinite(result.continuousFrom)||result.continuousFrom>=target)
+    return{reason:"coverageSearchIncomplete",checkedDoseNodes:result.doses?.length||0};
   const base=Number(cycle.value)||0,minimumPeak=Number(peak.value)||0;
-  const totalDose=doses=>doses.filter(d=>d.time>=now-1000&&d.time<=target+1000).reduce((sum,d)=>sum+d.mg,0);
+  // "now -> target" is the sum of explicitly saved fixed future plans
+  // AND newly proposed nodes. The pre-existing virtual initial state is
+  // earlier than `now` and never counts as a newly planned dose.
+  const fixedPlannedTotal=rows.filter(d=>d.planningOnly===true&&
+    d.source!=="model-only-initial"&&Number.isFinite(d.time)&&
+    d.time>=now-1000&&d.time<=target+1000&&Number.isFinite(d.mg)&&d.mg>0)
+    .reduce((sum,d)=>sum+d.mg,0);
+  const proposedTotal=doses=>doses.filter(d=>d.time>=now-1000&&d.time<=target+1000)
+    .reduce((sum,d)=>sum+d.mg,0);
+  const totalDose=doses=>fixedPlannedTotal+proposedTotal(doses);
   const checkedTotal=doses=>!Number.isFinite(totalCap)||totalDose(doses)<=totalCap+1e-6;
   if(!(base>0||minimumPeak>0)){
     const stats=pointConstraintMetrics(drug,rows,result.doses,now,result.continuousFrom,target,cycle,peak);
     if(!checkedTotal(result.doses))return{reason:"totalNoSolution"};
-    return{...result,...stats,totalPlanned:totalDose(result.doses),totalCap};
+    return{...result,...stats,totalPlanned:totalDose(result.doses),fixedPlannedTotal,totalCap};
   }
   let doses=result.doses.map(d=>({...d}));
   const options=wholeDoseOptions(getStrengths(drug.id)).filter(x=>x.mg<=cap+1e-9);
@@ -1988,7 +2015,7 @@ function enforcePointConstraints(drug,rows,result,threshold,target,cap,now,mode,
       coverage.push(modelValue(drug,target,all,mode));
       if(coverage.some(value=>value<threshold-1e-6))return{reason:"constraintNoSolution"};
       const modeled=modelValue(drug,target,all,mode);
-      return{...result,...stats,totalPlanned:totalDose(doses),totalCap,doses,mg:doses.reduce((total,d)=>total+d.mg,0),
+      return{...result,...stats,totalPlanned:totalDose(doses),fixedPlannedTotal,totalCap,doses,mg:doses.reduce((total,d)=>total+d.mg,0),
         minLevel:Math.min(...coverage),peak:Math.max(...coverage),modeled,
         fallingAfter:modelValue(drug,target+step,all,mode)<=modeled+1e-6};
     }
@@ -2010,7 +2037,7 @@ function scenarioCard({title,badge,result,threshold,target,description,preview,a
   if(Number.isFinite(result.cycleMinBlood))values.push(["覆盖段最低 · 血药浓度",`${fmt(result.cycleMinBlood,3)} mg/L`]);
   if(Number.isFinite(result.cycleMinEquivalent))values.push(["覆盖段最低 · 剂量等效",`${fmt(result.cycleMinEquivalent,3)} mg（等效）`]);
   if(Number.isFinite(result.peakBlood))values.push(["覆盖段峰值 · 血药浓度",`${fmt(result.peakBlood,3)} mg/L`]);
-  if(Number.isFinite(result.totalCap))values.push(["本段预计新增合计 / 上限",`${fmt(result.totalPlanned??result.mg,3)} / ${fmt(result.totalCap,3)} mg`]);
+  if(Number.isFinite(result.totalCap))values.push(["当前→目标固定计划与新增合计 / 上限",`${fmt(result.totalPlanned??result.mg,3)} / ${fmt(result.totalCap,3)} mg`]);
   for(const [label,value] of values){const item=document.createElement("div"),small=document.createElement("small"),strong=document.createElement("strong");small.textContent=label;strong.textContent=value;item.append(small,strong);metrics.append(item)}card.append(metrics);
   const line=document.createElement("ol");line.className="scenario-timeline";
   for(const dose of result.doses){const li=document.createElement("li"),time=document.createElement("time"),amount=document.createElement("strong"),parts=document.createElement("small");time.textContent=fullDate(dose.time);amount.textContent=`${fmt(dose.mg,3)} mg`;parts.textContent=formatDoseContext(dose);li.append(time,amount,parts);line.append(li)}
@@ -2384,7 +2411,7 @@ function schedulePointInverse(){
 }
 function solvePointInWorker(input,id){
   return new Promise((resolve,reject)=>{
-    const worker=pointWorker||new Worker("./inverse-worker.js?v=web-plans-only-20261120g");
+    const worker=pointWorker||new Worker("./inverse-worker.js?v=web-inverse-audit-20261121b");
     pointWorker=worker;pointWorkerBusy=true;
     worker.onmessage=event=>{
       if(event.data.id!==id||pointWorker!==worker)return;
@@ -2432,7 +2459,7 @@ async function renderPointInverse(){
   if(!Number.isFinite(target)||target<=now){out.textContent="请选择未来的目标时刻。";return}
   if(target-now>24*3600000){out.textContent="本模型最多检查未来 24 小时；请选择更近的目标时刻。";return}
   if(capText&&(!Number.isFinite(cap)||cap<=0)){out.textContent="单次假设剂量上限须为大于 0 的 mg 数值。";return}
-  if(totalText&&(!Number.isFinite(totalCap)||totalCap<=0||totalCap>1000000)){out.textContent="累计新增预计剂量上限须为大于 0、至多 1,000,000 的 mg 数值。";return}
+  if(totalText&&(!Number.isFinite(totalCap)||totalCap<=0||totalCap>1000000)){out.textContent="固定计划＋新增候选的累计总量上限须为大于 0、至多 1,000,000 的 mg 数值。";return}
   if(countText&&(!Number.isInteger(fixedCount)||fixedCount<1||fixedCount>8)){out.textContent="假设服用次数请留空，或填写 1—8 的整数。";return}
   if(peakText&&(!Number.isFinite(peakFloor)||peakFloor<=0||peakFloor>1000000)){out.textContent=`覆盖段峰值最低值须为大于 0、至多 100 万的 ${modeUnit(peakMode)} 数值。`;return}
   if(cycleText&&(!Number.isFinite(cycleMin)||cycleMin<=0||cycleMin>1000000)){out.textContent=`周期最低值须为大于 0、至多 100 万的 ${modeUnit(cycleMode)} 数值。`;return}
@@ -2467,7 +2494,11 @@ async function renderPointInverse(){
   }
   if(result.reason==="specs"){out.textContent=`请先为${drug.name}保存实际持有的药盒规格；本板块不会再输出无法由完整单位组成的零散剂量。`;return}
   if(result.reason==="cap"){out.textContent="当前单次上限低于最小完整药盒单位，模型找不到可用的剂量组合。";return}
-  if(result.reason==="fixedNoSolution"){out.textContent=`在指定 ${fixedCount} 次、已有完整规格与时间候选范围内，无法同时满足参考线与所有已启用的最低值限制。`;return}
+  if(result.reason==="coverageSearchIncomplete"){
+    out.textContent=`本轮有界搜索已检查 ${result.checkedDoseNodes||0} 个新增数学节点，但未形成覆盖至目标时刻的连续参考区间。这不能证明所有时间和剂量组合都无解。`;
+    return;
+  }
+  if(result.reason==="fixedNoSolution"){out.textContent=`固定 ${fixedCount} 次的有界搜索未找到同时满足参考线及已启用最低值限制的候选；这不代表数学上绝对无解。`;return}
   if(result.reason==="boundedSearchIncomplete"){
     const unit=modeUnit(result.checkedMode||peakMode);
     const observed=Number.isFinite(result.checkedPeak)?`；已检查候选的覆盖峰值为 ${fmt(result.checkedPeak,3)} ${unit}`:"";
@@ -2478,9 +2509,9 @@ async function renderPointInverse(){
   if(["initialBaselineRequired","initialBaselineInvalid"].includes(result.reason)){
     out.textContent="请选择起始模型假设，或输入大于零且单位与当前参考值一致的初始模型值。";return;
   }
-  if(result.reason==="totalNoSolution"){out.textContent=`在当前药盒规格、节点次数及其余条件下，搜索不到累计新增剂量不超过 ${fmt(totalCap,3)} mg 的模型方案。不会输出超出限制的方案。`;return}
-  if(["cycleNoSolution","peakNoSolution","constraintNoSolution"].includes(result.reason)){out.textContent="在已有完整规格、单次上限与搜索范围内，无法同时满足参考线、整个周期最低值和覆盖段峰值要求。请核对约束与单位；不会采用不满足条件的方案。";return}
-  if(result.continuousFrom===null||result.continuousFrom>=target){out.textContent="仅计计算起点前后各 48 小时的记录，当前搜索范围内无法形成持续覆盖到目标时刻的区间。口服吸收无法立刻补足已有缺口；请勿据此自行调整用药。";return}
+  if(result.reason==="totalNoSolution"){out.textContent=`在当前完整规格、固定未来计划及节点搜索范围内，尚未找到「已保存未来计划＋新生成候选」合计不超过 ${fmt(totalCap,3)} mg 的模型方案。固定计划本身也占用总量上限，不能视为零；不代表数学上绝对无解。`;return}
+  if(["cycleNoSolution","peakNoSolution","constraintNoSolution"].includes(result.reason)){out.textContent="在已有完整规格、单次上限与本轮有界搜索范围内，尚未找到同时满足参考线、覆盖段最低值和峰值要求的候选。这不是全部组合无解的证明；请核对单位、节点数及全部约束。";return}
+  if(result.continuousFrom===null||result.continuousFrom>=target){out.textContent="当前有限搜索没有找到目标时刻之前能建立连续覆盖的数学候选；这不是全部可能组合无解的证明。";return}
   // Keep the exact fixed future nodes used in the solved scenario. Do not
   // re-select from mutable cloud settings when a user clicks Adopt later.
   const calculatedPlans=activePlans.map(item=>({id:item.id,drug:item.drug,
@@ -2494,7 +2525,7 @@ async function renderPointInverse(){
   previewA.textContent="在曲线中查看方案 A";previewB.textContent="在曲线中查看方案 B";
   out.replaceChildren();out.classList.add("scenario-results");
   const label=capText?`单次假设上限 ${fmt(cap,3)} mg`:`未填写单次上限；候选仍受已存完整规格及每节点最多 8—20 单位的搜索边界限制`;
-  const totalLabel=totalText?` · 当前至目标累计新增上限 ${fmt(totalCap,3)} mg`:"";
+  const totalLabel=totalText?` · 当前至目标固定计划＋新增候选总量上限 ${fmt(totalCap,3)} mg`:"";
   const intro=document.createElement("p");intro.className="scenario-intro";intro.textContent=`已含 ${activePlans.length} 条固定计划（仅数学预测，非实际服用） · ${drug.name} · 当前${reference.name}模型 ${fmt(result.baselineNow,3)} ${unit} · ${label}${totalLabel}${cycleMin>0?` · 全周期最低 ${fmt(cycleMin,3)} ${modeUnit(cycleMode)}`:""}${peakFloor>0?` · 覆盖段峰值最低 ${fmt(peakFloor,3)} ${modeUnit(peakMode)}`:""}。反算按本药残留窗口截取历史记录；更早的数值残留不计。各方案在同一覆盖区间比较，每 5 分钟采样验证。${futureMealNotice(drug,now,target)}`;out.append(intro);
   out.append(scenarioCard({title:"方案 A · 自动补充节点",badge:fixedCount?`指定 ${fixedCount} 次`:"系统计算",result,threshold,target,description:fixedCount===2?"两次情景按 5 分钟步长比较第二个节点，并核对完整药盒单位。":"按照有限候选节点搜索得到的模型情景。",preview:previewA,adopt:()=>adoptPointScenario("A"),reference}));
   if(minimum){
@@ -2538,7 +2569,7 @@ function scheduleDurationInverse(){
 }
 function solveDurationInWorker(input,id){
   return new Promise((resolve,reject)=>{
-    const worker=inverseWorker||new Worker("./inverse-worker.js?v=web-plans-only-20261120g");
+    const worker=inverseWorker||new Worker("./inverse-worker.js?v=web-inverse-audit-20261121b");
     inverseWorker=worker;inverseWorkerBusy=true;
     worker.onmessage=event=>{
       if(event.data.id!==id||inverseWorker!==worker)return;
@@ -2622,7 +2653,7 @@ function pkLocalCurveRequest(key,payload){
       pkLocalCurveWorker.terminate();pkLocalCurveWorker=null;
     }
     if(!pkLocalCurveWorker){
-      const worker=new Worker("./chart-worker.js?v=web-plans-only-20261120g");
+      const worker=new Worker("./chart-worker.js?v=web-inverse-audit-20261121b");
       pkLocalCurveWorker=worker;
       worker.onmessage=event=>{
         if(worker!==pkLocalCurveWorker||event.data.id!==pkLocalCurvePending?.id)return;
@@ -3445,7 +3476,7 @@ let appOfflineRestored=false;
 function initOfflineShell(){
   if(location.protocol!=="https:"||!("serviceWorker" in navigator))return;
   const install=()=>navigator.serviceWorker.register(
-    "/sw.js?v=web-plans-only-20261120g",{scope:"/"}
+    "/sw.js?v=web-inverse-audit-20261121b",{scope:"/"}
   ).catch(()=>{/* A failed shell install must not block login or autosave. */});
   if(document.readyState==="complete")void install();
   else window.addEventListener("load",install,{once:true});

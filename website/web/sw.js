@@ -3,18 +3,18 @@
  * All /api/ traffic bypasses this worker: never cache credentials, session
  * responses, private state, medication records, or notification subscriptions.
  */
-const SHELL_CACHE="pk-atlas-public-shell-v20261120-planned-confirmation-2";
+const SHELL_CACHE="pk-atlas-public-shell-v20261121-inverse-audit-2";
 const CACHE_PREFIX="pk-atlas-public-shell-";
 const SHELL_ASSETS=[
   "/","/index.html",
   "/styles.css?v=adopted-pending-20261119c",
   "/api-client.js?v=autosync-20261115",
-  "/app.js?v=web-plans-only-20261120g",
+  "/app.js?v=web-inverse-audit-20261121b",
   "/model-sync.js?v=server-catalog-20261117c",
   // Versioned inverse worker is now deployed with matching model code.
-  "/inverse-worker.js?v=web-plans-only-20261120g",
-  "/chart-worker.js?v=web-plans-only-20261120g",
-  "/push.js?v=web-plans-only-20261120g",
+  "/inverse-worker.js?v=web-inverse-audit-20261121b",
+  "/chart-worker.js?v=web-inverse-audit-20261121b",
+  "/push.js?v=web-inverse-audit-20261121b",
   "/manifest.webmanifest","/icon-192.png","/icon-512.png",
   "/quick.html","/quick.js?v=mwg-20261115","/quick.css",
   "/notifications.html","/push-diagnostics.js?v=20261117a",
