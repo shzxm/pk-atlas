@@ -1,0 +1,118 @@
+/* 2026-11-22: responsive, color-coherent day mode and compact adopted-plan UI.
+   Semantic state remains in DOM: styling never hides actual/plan distinctions. */
+.adopted-point-panel {
+  --adopt-surface: var(--surface,#17283a);
+  --adopt-raised: var(--surface-2,#1d344a);
+  --adopt-border: var(--line,#36536e);
+  --adopt-ink: var(--text,#ecf5ff);
+  --adopt-secondary: var(--muted,#bbccdd);
+  background: var(--adopt-surface)!important;
+  border: 1px solid var(--adopt-border)!important;
+  border-left: 4px solid #238b83!important;
+  color: var(--adopt-ink)!important;
+  box-shadow: 0 12px 30px #08192816!important;
+  overflow: visible;
+}
+.adopted-point-panel .scenario-results {
+  background: transparent!important;
+  box-shadow: none!important;
+  border: 0!important;
+  padding: 0!important;
+  color: var(--adopt-ink)!important;
+}
+.adopted-point-head {align-items:center;margin-bottom:12px;}
+.adopted-point-head strong {font-size:clamp(16px,1.5vw,20px);color:var(--adopt-ink)!important}
+.adopted-point-head span {font-size:12px;color:var(--adopt-secondary)!important}
+.adopted-overview {display:grid;gap:5px;padding:16px 18px;margin-block:8px 12px;border:1px solid var(--adopt-border);border-radius:13px;background:var(--adopt-raised)}
+.adopted-overview-kicker {font-size:11px;font-weight:750;letter-spacing:.1em;color:#48aa9b}
+.adopted-overview>strong {color:var(--adopt-ink)!important;font-size:clamp(16px,2.3vw,22px);line-height:1.35;font-variant-numeric:tabular-nums}
+.adopted-overview>small {color:var(--adopt-secondary)!important;font-size:12px}
+.adopted-point-panel .scenario-intro {color:var(--adopt-secondary)!important;font-size:12px;line-height:1.65;max-width:95ch}
+.adopted-point-panel .scenario-metrics {grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0}
+.adopted-point-panel .scenario-metrics>div {background:var(--adopt-raised)!important;border:1px solid var(--adopt-border)!important;border-radius:11px;padding:12px;min-width:0}
+.adopted-point-panel .scenario-metrics small {color:var(--adopt-secondary)!important;font-size:11px;line-height:1.5}
+.adopted-point-panel .scenario-metrics strong {color:var(--adopt-ink)!important;font-size:clamp(13px,1.4vw,16px);overflow-wrap:anywhere;line-height:1.45}
+.adopted-point-panel .adopted-plan-nodes {border:0!important;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0}
+.adopted-point-panel .adopted-node-card {display:block;margin:0!important;padding:0!important;border:1px solid var(--adopt-border);background:var(--adopt-raised)!important;border-radius:12px;min-width:0;overflow:hidden;}
+.adopted-point-panel .adopted-node-card:before {display:none!important}
+.adopted-node-detail {display:block;min-width:0;color:var(--adopt-ink)}
+.adopted-node-summary {list-style:none;display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:72px;padding:14px;cursor:pointer;color:var(--adopt-ink)!important}
+.adopted-node-summary::-webkit-details-marker {display:none}
+.adopted-node-summary:focus-visible {outline:3px solid #357dc0;outline-offset:-3px}
+.adopted-node-heading {display:flex;min-width:0;gap:10px;align-items:center}
+.adopted-node-number {flex:0 0 auto;display:grid;place-items:center;width:31px;height:31px;border:1px solid var(--adopt-border);border-radius:10px;font-size:12px;font-weight:750;color:var(--adopt-ink);background:var(--adopt-surface)}
+.adopted-node-copy {display:flex;flex-direction:column;gap:3px;min-width:0}
+.adopted-node-copy strong {color:var(--adopt-ink)!important;font-size:13px;white-space:normal}
+.adopted-node-copy small {color:var(--adopt-secondary)!important;font-size:12px}
+.adopted-node-state {max-width:42%;color:var(--adopt-secondary)!important;font-size:11px;line-height:1.5;word-break:break-word}
+.adopted-node-summary:after {content:'+';font-size:18px;font-weight:650;color:var(--adopt-secondary)}
+.adopted-node-detail[open]>.adopted-node-summary:after {content:'−'}
+.adopted-node-body {padding:12px 14px 15px;border-top:1px solid var(--adopt-border);min-width:0}
+.adopted-node-body .adopted-taken-actions {padding:0;border:0;background:transparent}
+.adopted-node-body .adopted-taken-actions button {flex:1;min-width:120px}
+.adopted-point-panel :is(.actual-match,.scenario-status) {background:var(--adopt-raised)!important;border:1px solid var(--adopt-border)!important;border-radius:9px;padding:9px 11px;color:var(--adopt-ink)!important}
+.adopted-point-panel .scenario-caution {font-size:12px;line-height:1.5;padding:11px 13px}
+.adopted-point-panel :is(button,select) {max-width:100%}
+.adopted-point-panel .point-plan-actions {display:flex;gap:10px}
+.adopted-point-panel .point-plan-actions>button {flex:1 1 160px;min-height:44px}
+@media(max-width:800px){
+ .adopted-point-panel .adopted-plan-nodes {grid-template-columns:1fr}
+ .adopted-node-summary {min-height:65px}
+}
+@media(max-width:460px){
+ .adopted-point-panel .scenario-metrics {grid-template-columns:1fr}
+ .adopted-node-summary {flex-wrap:wrap;gap:6px}
+ .adopted-node-state {max-width:100%;margin-left:41px}
+}
+/* Desktop is not a separate forgotten mode: same content/contrast, wider layout. */
+@media(min-width:820px){
+ .stage-calc.app-mode[data-app-view=home] .app-home,
+ .stage-calc.app-mode[data-app-view=today] .app-home {width:min(100%,1160px);max-width:1160px}
+ .stage-calc.app-mode[data-app-view=home] .app-home>.app-screen-heading,
+ .stage-calc.app-mode[data-app-view=today] .app-home>.app-screen-heading {max-width:none}
+ .app-home .app-mini-chart svg {height:clamp(145px,17vw,225px)}
+ .app-home .app-hero-heading h2 {font-size:clamp(21px,2vw,28px)}
+ .app-home .app-stat {min-height:110px}
+ .app-home .app-today-stats {gap:16px}
+}
+/* High-contrast, scoped light mode. Old dark-only hardcoded component colors
+   must never bleed into white cards in Safari or desktop Chrome. */
+@media(prefers-color-scheme:light){
+ .app-screen-heading :is(h1,h2),.app-view-heading :is(h1,h2),
+ .app-hero-heading h2,.app-section-heading h2,
+ #appHomeTitle,.app-home-concentration strong,.app-home-concentration span,
+ .app-drug-chooser,.app-card :is(h1,h2,h3,strong,summary,label),
+ .app-record-card :is(strong,span),.app-empty,.app-muted,.app-mini-axis,
+ .app-home-records :is(strong,span),.app-today-stats :is(strong,small,span) {
+  color:#172d45!important;
+ }
+ .app-eyebrow {color:#165b93!important}
+ .app-muted,.app-card .app-hero-disclaimer,.app-card .app-drug-chooser,
+ .app-stat span,.app-stat small,.app-mini-axis {color:#435f7c!important}
+ .app-card,.app-hero,.app-home-hero {background:#fff!important;color:#172d45!important;border-color:#a9bfd7!important}
+ .app-stat,.app-record-card,.app-empty,.app-quick-actions button {
+  background:#edf4fc!important;color:#172d45!important;border:1px solid #abc2da!important;
+  box-shadow:none!important;
+ }
+ .app-card .app-subtle-button,.app-section-heading button,.app-record-edit {
+  background:#e4effc!important;color:#154d80!important;border-color:#9fbbd5!important;
+ }
+ .app-mini-chart {background:linear-gradient(180deg,#122d42,#193d54)!important;border-color:#53748f!important}
+ .app-mini-chart svg {color:#c2deee}
+ .app-mini-chart :is(text,span) {fill:#d0e3f2!important;color:#d0e3f2!important}
+ .app-home-warning {background:#fff4e8!important;border-color:#b37a49!important;color:#693812!important}
+ :is(.metric,.probe-value,.reference-glance-values>div) {background:#edf4fb!important;border:1px solid #a7bfd8!important;color:#152d47!important}
+ :is(.metric,.probe-value) :is(span,strong,small,b),.probe-value :is(dt,dd) {color:#152d47!important}
+ .scenario-card,.adopted-point-panel {background:#fff!important;color:#172d45!important}
+ .adopted-point-panel {--adopt-surface:#fff;--adopt-raised:#eff5fc;--adopt-border:#a9bfd7;--adopt-ink:#172d45;--adopt-secondary:#455e78}
+ .adopted-overview-kicker {color:#176e66!important}
+ .adopted-point-panel .scenario-caution {background:#fff5e9!important;border-color:#c49e70!important;color:#6a3d19!important}
+ .adopted-node-summary,.adopted-node-summary :is(strong,small,span) {color:#172d45!important}
+ .adopted-node-state {color:#425d79!important}
+ .chart-panel .legend>span {background:#edf4fb!important;color:#1b3854!important;border-color:#a9bfd7!important}
+ .chart-panel .legend>span * {color:#1b3854!important}
+ .app-record-sheet[open],.app-sheet-body {background:#fff!important;color:#172d45!important}
+ .app-sheet-heading h2,.app-sheet-hint,.app-sheet-body :is(label,h3,span,strong,p) {color:#172d45!important}
+ .app-sheet-heading {border-color:#a7bdd2!important}
+ .app-sheet-grabber {background:#9cbbd5!important}
+}

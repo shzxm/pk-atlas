@@ -5,6 +5,8 @@ struct PKServerResponse: Decodable {
     var version: Int
     var state: PKCloudState
 }
+/// Small session-authorized revision response without any health record.
+struct PKCloudRevision: Decodable { let version: Int }
 struct PKRemoteCalculationWindow: Decodable {
     let version: Int
     let drug: String
@@ -223,6 +225,11 @@ final class PKCloudAPI {
     }
 
     func state() async throws -> PKServerResponse { try await request("/api/state") }
+    func stateRevision() async throws -> Int {
+        let reply: PKCloudRevision = try await request("/api/state/version")
+        return reply.version
+    }
+
 
     func putSections(version: Int, sections: [String: PKJSON]) async throws {
         struct Result: Decodable { let version: Int }

@@ -251,6 +251,56 @@ function syncDownloadDraft(){
   document.body.append(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),1500);
 }
+let remoteRevisionChecking=false,remoteRevisionAlerted=-1;
+function syncRevisionBanner(){
+  let box=$("cloudRevisionBanner");
+  if(box)return box;
+  box=document.createElement("aside");box.id="cloudRevisionBanner";
+  box.className="cloud-revision-banner";box.hidden=true;
+  box.setAttribute("role","status");box.setAttribute("aria-live","polite");
+  const text=document.createElement("span");text.id="cloudRevisionMessage";
+  text.textContent="另一设备已更新云端数据，本页面内容可能过期。";
+  const refresh=document.createElement("button");refresh.type="button";
+  refresh.id="cloudRevisionReload";refresh.textContent="刷新页面";
+  refresh.onclick=()=>{
+    if(syncPending||syncRunning||syncConflict||syncRevision!==syncRevisionAtPrompt){
+      $("cloudRevisionMessage").textContent="本机仍有未上传修改。请先完成同步，避免刷新后丢失草稿。";
+      return;
+    }
+    location.reload();
+  };
+  const close=document.createElement("button");close.type="button";
+  close.className="cloud-revision-dismiss";close.textContent="稍后";
+  close.onclick=()=>{box.hidden=true};
+  box.append(text,refresh,close);document.body.append(box);
+  return box;
+}
+let syncRevisionAtPrompt=-1;
+async function syncCheckRemoteVersion(){
+  if(remoteRevisionChecking||!authUser||appOfflineRestored||document.hidden||!navigator.onLine)return;
+  remoteRevisionChecking=true;
+  try{
+    const latest=await PKApi.request("/api/state/version","GET",undefined,{timeoutMs:4000});
+    if(!Number.isSafeInteger(latest.version))return;
+    if(latest.version!==stateVersion){
+      // A local edit changes independently; never imply that a reload is safe
+      // while an unsaved change or sync request is pending.
+      const pending=syncPending||syncRunning||syncConflict;
+      if(latest.version!==remoteRevisionAlerted||pending){
+        remoteRevisionAlerted=latest.version;syncRevisionAtPrompt=syncRevision;
+        const box=syncRevisionBanner();box.hidden=false;
+        $("cloudRevisionMessage").textContent=pending?
+          "云端版本已变化，本机还有未完成的修改。请先处理同步，暂勿刷新。":
+          "另一设备已修改云端数据，当前页面可能不是最新。请刷新页面读取云端版本。";
+        $("cloudRevisionReload").disabled=pending;
+      }
+    }else{
+      remoteRevisionAlerted=-1;
+      if($("cloudRevisionBanner"))$("cloudRevisionBanner").hidden=true;
+    }
+  }catch{/* Offline or session errors must never replace a local draft. */}
+  finally{remoteRevisionChecking=false}
+}
 function initSyncLifecycle(){
   $("syncNow").addEventListener("click",()=>void syncManualRetry());
   $("syncExport").addEventListener("click",syncDownloadDraft);
@@ -267,7 +317,9 @@ function initSyncLifecycle(){
   });
   document.addEventListener("input",syncCaptureEditor);
   document.addEventListener("change",syncCaptureEditor);
-  setInterval(()=>{if(syncPending)syncSchedule(0);else void syncPullRemote()},30000);
+  // Eight-second lightweight account version checks are more responsive
+  // than downloading the entire health-history state on every timer tick.
+  setInterval(()=>{if(syncPending)syncSchedule(0);else void syncCheckRemoteVersion()},8000);
 }
 
 

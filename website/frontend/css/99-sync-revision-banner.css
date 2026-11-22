@@ -1,0 +1,25 @@
+/* Cross-device revision notice: a non-modal, real DOM status with manual
+   refresh. This never displays sensitive medicine/health identifiers. */
+.cloud-revision-banner[hidden] {display:none!important}
+.cloud-revision-banner {
+  position:fixed;z-index:10050;top:calc(12px + env(safe-area-inset-top,0px));
+  left:50%;transform:translateX(-50%);width:min(94vw,780px);
+  display:flex;flex-wrap:wrap;align-items:center;gap:10px;
+  padding:12px 14px;border-radius:14px;border:1px solid var(--line);
+  background:var(--surface);color:var(--text);box-shadow:0 14px 45px #0004;
+  font-size:13px;line-height:1.55
+}
+.cloud-revision-banner>span {flex:1 1 270px}
+.cloud-revision-banner>button {flex:0 0 auto;min-height:38px;
+  border:1px solid #4b7ba8;border-radius:9px;padding:7px 12px;
+  font-size:12px;font-weight:680;background:#20639c;color:#fff}
+.cloud-revision-banner>button:disabled {opacity:.5;cursor:not-allowed}
+.cloud-revision-banner .cloud-revision-dismiss {background:transparent!important;
+  color:var(--text)!important;border-color:var(--line)!important}
+@media(prefers-color-scheme:light) {
+  .cloud-revision-banner {background:#fff!important;color:#17334d!important;border-color:#a4bdd6!important}
+  .cloud-revision-banner>span {color:#17334d!important}
+  .cloud-revision-banner>#cloudRevisionReload {color:#fff!important;background:#155d99!important}
+}
+
+.adopted-node-detail:not([open])>.adopted-node-body{display:none!important}

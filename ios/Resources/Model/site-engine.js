@@ -489,6 +489,8 @@ async function flushSync(){
     syncSetStatus("synced","已回读最后成功上传设备的完整快照");
     $("syncRetry").hidden=true;
     if(adoptedBefore!==syncAdoptedSignature(remote.state))syncAdoptedChanged(remote.version);
+    if($("cloudRevisionBanner"))$("cloudRevisionBanner").hidden=true;
+    remoteRevisionAlerted=-1;
     window.dispatchEvent(new Event("pk-atlas-records-changed"));
   }catch(error){
     if(error.status===409){
@@ -543,6 +545,58 @@ function syncDownloadDraft(){
   document.body.append(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),1500);
 }
+// Foreground-only 8s revision watchdog: no private state is transmitted in
+// the response. Do not overwrite local drafts or focused editor inputs.
+let remoteRevisionChecking=false,remoteRevisionAlerted=-1;
+function syncRevisionBanner(){
+  let box=$("cloudRevisionBanner");
+  if(box)return box;
+  box=document.createElement("aside");box.id="cloudRevisionBanner";
+  box.className="cloud-revision-banner";box.hidden=true;
+  box.setAttribute("role","status");box.setAttribute("aria-live","polite");
+  const text=document.createElement("span");text.id="cloudRevisionMessage";
+  text.textContent="另一设备已更新云端数据，本页面内容可能过期。";
+  const refresh=document.createElement("button");refresh.type="button";
+  refresh.id="cloudRevisionReload";refresh.textContent="刷新页面";
+  refresh.onclick=()=>{
+    if(syncPending||syncRunning||syncConflict||syncRevision!==syncRevisionAtPrompt){
+      $("cloudRevisionMessage").textContent="本机仍有未上传修改。请先完成同步，避免刷新后丢失草稿。";
+      return;
+    }
+    location.reload();
+  };
+  const close=document.createElement("button");close.type="button";
+  close.className="cloud-revision-dismiss";close.textContent="稍后";
+  close.onclick=()=>{box.hidden=true};
+  box.append(text,refresh,close);document.body.append(box);
+  return box;
+}
+let syncRevisionAtPrompt=-1;
+async function syncCheckRemoteVersion(){
+  if(remoteRevisionChecking||!authUser||appOfflineRestored||document.hidden||!navigator.onLine)return;
+  remoteRevisionChecking=true;
+  try{
+    const latest=await PKApi.request("/api/state/version","GET",undefined,{timeoutMs:4000});
+    if(!Number.isSafeInteger(latest.version))return;
+    if(latest.version!==stateVersion){
+      // A local edit changes independently; never imply that a reload is safe
+      // while an unsaved change or sync request is pending.
+      const pending=syncPending||syncRunning||syncConflict;
+      if(latest.version!==remoteRevisionAlerted||pending){
+        remoteRevisionAlerted=latest.version;syncRevisionAtPrompt=syncRevision;
+        const box=syncRevisionBanner();box.hidden=false;
+        $("cloudRevisionMessage").textContent=pending?
+          "云端版本已变化，本机还有未完成的修改。请先处理同步，暂勿刷新。":
+          "另一设备已修改云端数据，当前页面可能不是最新。请刷新页面读取云端版本。";
+        $("cloudRevisionReload").disabled=pending;
+      }
+    }else{
+      remoteRevisionAlerted=-1;
+      if($("cloudRevisionBanner"))$("cloudRevisionBanner").hidden=true;
+    }
+  }catch{/* Offline or session errors must never replace a local draft. */}
+  finally{remoteRevisionChecking=false}
+}
 function initSyncLifecycle(){
   $("syncNow").addEventListener("click",()=>void syncManualRetry());
   $("syncExport").addEventListener("click",syncDownloadDraft);
@@ -559,7 +613,9 @@ function initSyncLifecycle(){
   });
   document.addEventListener("input",syncCaptureEditor);
   document.addEventListener("change",syncCaptureEditor);
-  setInterval(()=>{if(syncPending)syncSchedule(0);else void syncPullRemote()},15000);
+  // Eight-second lightweight account version checks are more responsive
+  // than downloading the entire health-history state on every timer tick.
+  setInterval(()=>{if(syncPending)syncSchedule(0);else void syncCheckRemoteVersion()},8000);
 }
 
 
@@ -2286,6 +2342,29 @@ function renderAdoptedPendingConfirm(plan,now=Date.now()){
     controls.append(yes,edit,remove);row.append(controls);box.append(row);
   }
 }
+// Progressive disclosure for adopted model nodes: keep existing editors
+// accessible without four huge always-expanded timeline blocks.
+function compactAdoptedNode(li,index){
+  const when=li.querySelector(":scope > time"),dose=li.querySelector(":scope > strong"),status=li.querySelector(":scope > small");
+  if(!when||!dose||!status)return;
+  const detail=document.createElement("details");detail.className="adopted-node-detail";
+  detail.open=expandedMatchNode===index;
+  const summary=document.createElement("summary");summary.className="adopted-node-summary";
+  const heading=document.createElement("span");heading.className="adopted-node-heading";
+  const number=document.createElement("span");number.className="adopted-node-number";number.textContent=String(index+1).padStart(2,"0");
+  const copy=document.createElement("span");copy.className="adopted-node-copy";
+  const title=document.createElement("strong");title.textContent=when.textContent.replace(/^原计划\s*/,"");
+  const subtitle=document.createElement("small");subtitle.textContent=dose.textContent;
+  copy.append(title,subtitle);heading.append(number,copy);
+  const right=document.createElement("span");right.className="adopted-node-state";right.textContent=status.textContent;
+  summary.append(heading,right);
+  const body=document.createElement("div");body.className="adopted-node-body";
+  for(const child of [...li.childNodes]){
+    if(child===when||child===dose||child===status)continue;
+    body.append(child);
+  }
+  detail.append(summary,body);li.replaceChildren(detail);li.classList.add("adopted-node-card");
+}
 function renderAdoptedPoint(plan){
   const panel=$("adoptedPointPanel"),out=$("adoptedPointResult"),state=currentAdoptedEvaluation(plan),reference={name:plan.mode==="equivalent"?"剂量等效量":"血药浓度",unit:plan.mode==="equivalent"?"mg（等效）":"mg/L"};
   panel.hidden=false;
@@ -2296,6 +2375,11 @@ function renderAdoptedPoint(plan){
   const adoptedLimitEnabled=plan.targetLimitEnabled===true||plan.targetLimitEnabled==="1";
   const adoptedTolerance=Number(plan.mode==="equivalent"?plan.targetLimitEquivalent:plan.targetLimitBlood);
   const intro=document.createElement("p");intro.className="scenario-intro";intro.textContent=`${adoptedLimitEnabled&&Number.isFinite(adoptedTolerance)&&adoptedTolerance>0?`目标时刻限定 ${fmt(plan.threshold,3)} ±${fmt(adoptedTolerance,3)} ${reference.unit} · `:"目标时刻至少高于参考线 · "}已采用方案 ${plan.variant||"A"}${plan.variant==="C"?"（历史方案）":""} · ${fullDate(plan.adoptedAt)} · 原方案 ${plan.doses.length} 个节点 · 目标 ${fullDate(plan.target)} · ${reference.name}参考线 ${fmt(plan.threshold,3)} ${reference.unit}${plan.cycleMin?` · 周期最低 ${fmt(plan.cycleMin,3)} ${cycleFloorUnit(plan.cycleMode)}`:""}${plan.peakMin?` · 覆盖段峰值最低 ${fmt(plan.peakMin,3)} ${cycleFloorUnit(plan.peakMode)}`:""}。采用模型只会更新数学方案和原有模型通知，不会自动生成“服用确认”；上方确认板块只读取明确保存的未来服用计划。当前复核按本药数值残留窗口截取历史记录（不是生理清除或用药建议）。实际服用记录的时间与剂量保持原样；自动重算只生成调整意见，点击采用后才替换后续预计节点。`;out.append(intro);
+  const overview=document.createElement("div");overview.className="adopted-overview";
+  const kicker=document.createElement("span");kicker.className="adopted-overview-kicker";kicker.textContent="当前已采用 · 方案 "+(plan.variant||"A");
+  const date=document.createElement("strong");date.textContent="目标 "+fullDate(plan.target);
+  const note=document.createElement("small");note.textContent="原方案 "+plan.doses.length+" 个数学节点 · 已匹配 "+state.matchedNodeCount+" 个";
+  overview.append(kicker,date,note);out.append(overview);
   const metrics=document.createElement("div");metrics.className="scenario-metrics";
   for(const [label,value] of [["原方案总量",`${fmt(state.plannedMg,3)} mg`],["已记录匹配",`${state.matchedNodeCount} 个计划节点 · ${state.completed.length} 条实际记录 · ${fmt(state.completedMg,3)} mg`],["已采用后续节点",`${state.pending.length} 次 · ${fmt(state.pendingMg,3)} mg`],["已采用方案目标值",`${fmt(plan.mode==="equivalent"?state.equivalentAtTarget:state.bloodAtTarget,3)} ${reference.unit}`]]){const item=document.createElement("div"),small=document.createElement("small"),strong=document.createElement("strong");small.textContent=label;strong.textContent=value;item.append(small,strong);metrics.append(item)}out.append(metrics);
   const preview=document.createElement("button");preview.type="button";preview.className="secondary";
@@ -2303,7 +2387,7 @@ function renderAdoptedPoint(plan){
   preview.addEventListener("click",()=>previewAdoptedMatches(plan));
   out.append(preview);
   if(!Array.isArray(plan.adjustment?.doses)){
-  const list=document.createElement("ol");list.className="scenario-timeline";
+  const list=document.createElement("ol");list.className="scenario-timeline adopted-plan-nodes";
   for(const [index,dose] of plan.doses.entries()){
     const matches=state.completed.filter(x=>x.nodeIndex===index);
     const li=document.createElement("li"),time=document.createElement("time"),amount=document.createElement("strong"),small=document.createElement("small");
@@ -2374,6 +2458,7 @@ function renderAdoptedPoint(plan){
       details.append(options,hint);advanced.append(details);
     }
     li.append(advanced);
+    compactAdoptedNode(li,index);
     list.append(li);
   }
   out.append(list);
@@ -2383,7 +2468,9 @@ function renderAdoptedPoint(plan){
     out.append(retired);
   }
   if(state.unmatched.length){const heading=document.createElement("strong");heading.className="scenario-replan-heading";heading.textContent="未关联的实际服用记录 · 原时间保留";out.append(heading);const unmatchedList=document.createElement("ol");unmatchedList.className="scenario-timeline";for(const row of [...state.unmatched].sort((a,b)=>a.time-b.time)){const li=document.createElement("li"),time=document.createElement("time"),amount=document.createElement("strong"),note=document.createElement("small");time.textContent=fullDate(row.time);amount.textContent=`${fmt(row.mg,3)} mg`;note.textContent="记录时间和剂量未改；反算按本药残留窗口读取，且这条记录未替换任何原计划节点。若属于某节点，可在上方手动关联。";li.append(time,amount,note);unmatchedList.append(li)}out.append(unmatchedList)}
-  if(state.pending.length){const heading=document.createElement("strong");heading.className="scenario-replan-heading";heading.textContent=plan.adjustment?"当前已采用的调整节点 · 曲线显示":"当前已采用的原计划后续节点 · 曲线显示";out.append(heading);const pendingList=document.createElement("ol");pendingList.className="scenario-timeline";for(const dose of state.pending){const li=document.createElement("li"),time=document.createElement("time"),amount=document.createElement("strong");time.textContent=fullDate(dose.time);amount.textContent=`预计 ${fmt(dose.mg,3)} mg`;li.append(time,amount);pendingList.append(li)}out.append(pendingList)}
+  // Original unconfirmed nodes are already listed above. Avoid an identical
+  // second timeline unless the accepted adjustment supersedes those nodes.
+  if(state.pending.length&&plan.adjustment){const heading=document.createElement("strong");heading.className="scenario-replan-heading";heading.textContent=plan.adjustment?"当前已采用的调整节点 · 曲线显示":"当前已采用的原计划后续节点 · 曲线显示";out.append(heading);const pendingList=document.createElement("ol");pendingList.className="scenario-timeline";for(const dose of state.pending){const li=document.createElement("li"),time=document.createElement("time"),amount=document.createElement("strong");time.textContent=fullDate(dose.time);amount.textContent=`预计 ${fmt(dose.mg,3)} mg`;li.append(time,amount);pendingList.append(li)}out.append(pendingList)}
   if(state.replanned){const accepted=samePlanNodes(state.suggested,state.pending)&&!state.replanReason,heading=document.createElement("strong");heading.className="scenario-replan-heading";heading.textContent=accepted?"当前调整意见已采用 · 曲线已更新":"调整意见 · 尚未采用";out.append(heading);if(!accepted){const basis=document.createElement("p");basis.className="scenario-intro";basis.textContent=`依据已记录的实际时间与剂量，从 ${fullDate(state.replanFrom)} 起搜索剩余 ${state.remaining} 个节点。当前曲线仍显示已采用的后续节点。`;out.append(basis);const revised=document.createElement("ol");revised.className="scenario-timeline";for(const dose of state.suggested||[]){const li=document.createElement("li"),time=document.createElement("time"),amount=document.createElement("strong"),parts=document.createElement("small");time.textContent=fullDate(dose.time);amount.textContent=`建议模型节点 ${fmt(dose.mg,3)} mg`;parts.textContent=formatDoseContext(dose);li.append(time,amount,parts);revised.append(li)}if(state.suggested?.length)out.append(revised);else{const empty=document.createElement("p");empty.className="scenario-empty";empty.textContent=state.replanReason==="count"?"原方案节点已由记录用完，但目标时刻仍低于参考值。":state.replanReason==="time"?"按实际时间和间隔，目标时刻前已没有可用的后续节点。":state.replanReason?"当前约束与有限候选搜索下未找到调整节点。":"根据当前记录，无需保留后续假设节点。";out.append(empty)}if(!state.replanReason&&state.suggested){const proposal=document.createElement("p");proposal.className="scenario-status";proposal.textContent=`调整意见：预计剩余 ${state.suggested.length} 次 · 合计 ${fmt(state.suggestedMg,3)} mg · 目标时刻模型值约 ${fmt(state.suggestedAtTarget,3)} ${reference.unit}。实际服用记录不会因采用而改变。`;out.append(proposal);const accept=document.createElement("button");accept.type="button";accept.className="secondary adopt-adjustment";accept.textContent="采用调整意见";accept.onclick=()=>adoptPlanAdjustment(plan);out.append(accept)}}}
   const status=document.createElement("p");status.className="scenario-status";status.textContent=`按当前记录核算于 ${fullDate(state.at)} · 目标时刻血药 ${fmt(state.bloodAtTarget,3)} mg/L · 剂量等效 ${fmt(state.equivalentAtTarget,1)} mg · ${state.continuousFrom===null?"目标前存在未覆盖缺口":state.allCovered?"采样均高于参考线":`从 ${fullDate(state.continuousFrom)} 起的采样高于参考线`}${plan.cycleMin?` · 周期最低 ${fmt(state.cycleObserved,3)} ${cycleFloorUnit(plan.cycleMode)}（${state.cycleValid?"满足":"未满足"}）`:""}${plan.peakMin?` · 覆盖段峰值 ${Number.isFinite(state.peakObserved)?fmt(state.peakObserved,3):"无覆盖段"} ${cycleFloorUnit(plan.peakMode)}（${state.peakValid?"满足":"未满足"}）`:""}`;out.append(status);
   const caution=document.createElement("p");caution.className="scenario-caution";caution.textContent=`自动匹配选时间最近的原节点，偏差范围不超过相邻计划间隔的一半且最多 2 小时；实际记录的时间和剂量不会改写。超出匹配范围的记录保留原时间，反算按 48 小时窗口规则读取，可在原节点手动关联。${state.unmatched.length?`当前有 ${state.unmatched.length} 条未关联实际记录，若同时保留原计划预计节点，曲线会计入两者；请核对是否需要手动关联或采用调整意见。`:""}${state.invalidManual.length?`${state.invalidManual.length} 个手动选择已失效，请重新选择。`:""}${state.replanReason?"当前剩余搜索无解，不代表可以忽略目标缺口。":""}这是有限候选数学情景，不是服药建议。`;out.append(caution);
@@ -2411,7 +2498,7 @@ function schedulePointInverse(){
 }
 function solvePointInWorker(input,id){
   return new Promise((resolve,reject)=>{
-    const worker=pointWorker||new Worker("./inverse-worker.js?v=web-curve-union-20261121c");
+    const worker=pointWorker||new Worker("./inverse-worker.js?v=web-day-desktop-sync-20261122a");
     pointWorker=worker;pointWorkerBusy=true;
     worker.onmessage=event=>{
       if(event.data.id!==id||pointWorker!==worker)return;
@@ -2569,7 +2656,7 @@ function scheduleDurationInverse(){
 }
 function solveDurationInWorker(input,id){
   return new Promise((resolve,reject)=>{
-    const worker=inverseWorker||new Worker("./inverse-worker.js?v=web-curve-union-20261121c");
+    const worker=inverseWorker||new Worker("./inverse-worker.js?v=web-day-desktop-sync-20261122a");
     inverseWorker=worker;inverseWorkerBusy=true;
     worker.onmessage=event=>{
       if(event.data.id!==id||inverseWorker!==worker)return;
@@ -2653,7 +2740,7 @@ function pkLocalCurveRequest(key,payload){
       pkLocalCurveWorker.terminate();pkLocalCurveWorker=null;
     }
     if(!pkLocalCurveWorker){
-      const worker=new Worker("./chart-worker.js?v=web-curve-union-20261121c");
+      const worker=new Worker("./chart-worker.js?v=web-day-desktop-sync-20261122a");
       pkLocalCurveWorker=worker;
       worker.onmessage=event=>{
         if(worker!==pkLocalCurveWorker||event.data.id!==pkLocalCurvePending?.id)return;
@@ -3500,7 +3587,7 @@ let appOfflineRestored=false;
 function initOfflineShell(){
   if(location.protocol!=="https:"||!("serviceWorker" in navigator))return;
   const install=()=>navigator.serviceWorker.register(
-    "/sw.js?v=web-curve-union-20261121c",{scope:"/"}
+    "/sw.js?v=web-day-desktop-sync-20261122a",{scope:"/"}
   ).catch(()=>{/* A failed shell install must not block login or autosave. */});
   if(document.readyState==="complete")void install();
   else window.addEventListener("load",install,{once:true});

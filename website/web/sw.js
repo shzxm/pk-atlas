@@ -3,18 +3,18 @@
  * All /api/ traffic bypasses this worker: never cache credentials, session
  * responses, private state, medication records, or notification subscriptions.
  */
-const SHELL_CACHE="pk-atlas-public-shell-v20261121-curve-union-1";
+const SHELL_CACHE="pk-atlas-public-shell-v20261122-desktop-sync-2";
 const CACHE_PREFIX="pk-atlas-public-shell-";
 const SHELL_ASSETS=[
   "/","/index.html",
-  "/styles.css?v=adopted-pending-20261119c",
+  "/styles.css?v=web-day-desktop-sync-20261122b",
   "/api-client.js?v=autosync-20261115",
-  "/app.js?v=web-curve-union-20261121c",
+  "/app.js?v=web-day-desktop-sync-20261122b",
   "/model-sync.js?v=server-catalog-20261117c",
   // Versioned inverse worker is now deployed with matching model code.
-  "/inverse-worker.js?v=web-curve-union-20261121c",
-  "/chart-worker.js?v=web-curve-union-20261121c",
-  "/push.js?v=web-curve-union-20261121c",
+  "/inverse-worker.js?v=web-day-desktop-sync-20261122b",
+  "/chart-worker.js?v=web-day-desktop-sync-20261122b",
+  "/push.js?v=web-day-desktop-sync-20261122b",
   "/manifest.webmanifest","/icon-192.png","/icon-512.png",
   "/quick.html","/quick.js?v=mwg-20261115","/quick.css",
   "/notifications.html","/push-diagnostics.js?v=20261117a",

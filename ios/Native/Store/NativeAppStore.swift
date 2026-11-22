@@ -1163,6 +1163,20 @@ final class NativeAppStore: ObservableObject {
         }
     }
 
+    /// While this App is foreground-visible, compare a tiny cloud revision
+    /// about every four seconds. Pull only when it changed; never discard an
+    /// unsent encrypted local draft or fake a successful background push.
+    func refreshIfCloudRevisionChanged() async {
+        guard accessState == .verified, username != nil,
+              !syncRunning, !hasPendingChanges, !conflict else { return }
+        do {
+            let remoteVersion = try await PKCloudAPI.shared.stateRevision()
+            if remoteVersion != version { await refresh() }
+        } catch {
+            // Existing local state remains usable when offline.
+        }
+    }
+
     func refresh() async {
         guard accessState == .verified, username != nil, !syncRunning, !hasPendingChanges else {
             if hasPendingChanges { await sync() }

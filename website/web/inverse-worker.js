@@ -3,7 +3,7 @@
 // The inverse search is CPU intensive. Run the same model code off the UI thread.
 self.localStorage={getItem:()=>null,setItem:()=>{}};
 self.PKApi={};
-importScripts("./app.js?v=web-curve-union-20261121c");
+importScripts("./app.js?v=web-day-desktop-sync-20261122b");
 
 self.onmessage=event=>{
   const {id,kind="point",drugId,rows:givenRows,plan,meals,renalState,threshold,target,cap,now,fixedCount,mode,peakFloor,start,hours,countText,cycleFloor,peakRequirement,totalCap:rawTotalCap,targetWindow,initialBaseline}=event.data;

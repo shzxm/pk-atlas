@@ -584,6 +584,11 @@ class Handler(BaseHTTPRequestHandler):
                 "start":start,"end":end,"records":sanitized,
                 "nextOffset":offset+len(records) if more else None,
                 "complete":not more})
+        elif self.endpoint() == "/api/state/version":
+            # Per-session revision-only check; no personal record or dosing data.
+            with db() as con:
+                row = con.execute("SELECT version FROM user_state WHERE user_id=?", (user_id,)).fetchone()
+            self.respond(200, {"version": int(row["version"]), "syncPolicy": last_upload.POLICY})
         elif self.endpoint() == "/api/state":
             with db() as con:
                 row = con.execute("SELECT version, body FROM user_state WHERE user_id=?", (user_id,)).fetchone()

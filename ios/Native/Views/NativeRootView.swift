@@ -108,6 +108,17 @@ struct NativeRootView: View {
         // UI always renders the saved snapshot synchronously. Network checks,
         // including HealthKit, never gate the tab bar or its charts.
         .task { await store.start() }
+        // Foreground only. iOS suspends apps in the background and without
+        // configured APNs there is no honest way to guarantee 5s background
+        // delivery. Fast-path polls transfer only a version integer.
+        .task(id: scenePhase) {
+            guard scenePhase == .active else { return }
+            while !Task.isCancelled {
+                await store.refreshIfCloudRevisionChanged()
+                do { try await Task.sleep(for: .seconds(4)) }
+                catch { break }
+            }
+        }
         .task { await PKHealthMedications.shared.refreshAutomatically() }
         .task { await store.refreshModel(force: true) }
         .task { await store.checkNativeRelease(force: false) }
